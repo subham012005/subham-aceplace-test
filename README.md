@@ -20,6 +20,26 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Environment Setup
+
+Create a `.env.local` file in the root directory with the following environment variables:
+
+- `NEXT_PUBLIC_FIREBASE_API_KEY`: Firebase API key for client-side authentication and database access.
+- `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`: Firebase authentication domain.
+- `NEXT_PUBLIC_FIREBASE_PROJECT_ID`: Firebase project ID.
+- `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`: Firebase storage bucket URL.
+- `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`: Firebase messaging sender ID.
+- `NEXT_PUBLIC_FIREBASE_APP_ID`: Firebase app ID.
+- `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID`: Firebase measurement ID for analytics (optional).
+- `N8N_SERVER_URL`: URL for the N8N server.
+- `N8N_ACCESS_TOKEN`: Access token for N8N API authentication.
+- `NEXT_PUBLIC_N8N_WEBHOOK_URL`: Base URL for N8N webhooks.
+- `NEXT_PUBLIC_N8N_WEBHOOK_BASE_URL`: Base URL for N8N webhook endpoints.
+- `FIREBASE_CLIENT_EMAIL`: Firebase service account client email for server-side operations.
+- `FIREBASE_PRIVATE_KEY`: Firebase service account private key for server-side authentication.
+
+**Note:** Do not commit `.env.local` to version control as it contains sensitive information. Use `.env.example` for templates if needed.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
