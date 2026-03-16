@@ -1,0 +1,17 @@
+{
+  "status": "commited",
+  "type": "frontend",
+  "scope": "codebase",
+  "localEndpoint": "http://localhost:3000",
+  "executionArgs": {
+    "projectName": "nxq-workstation",
+    "projectPath": "d:\\NOVA\\nxq-workstation",
+    "testIds": [],
+    "additionalInstruction": "Test the core job lifecycle: creation (COO, Research, Worker), monitoring in the dashboard, and governance actions (Approve, Reject, Resurrect) in the Detail view.",
+    "envs": {
+      "API_KEY": "sk-user-gBTBtrDggvXM7LkeZe6moTsjzUHiQCrhuYJ7uR6q9OvF_fcSVtmt7DATfGJWTQx1x7I4mQdk0yksK-LLc6VBQCNfuMemvylnxmEu_xEtDbzneYBEsUxLAclxtgB0AuOeqg8"
+    }
+  },
+  "serverPort": 49650,
+  "proxy": "http://380c3027-a532-461c-998b-3606f277108a:V1Yb2FSpiPYKHiSRcsZOSoh2XT6poKGs@tun.testsprite.com:8080"
+}

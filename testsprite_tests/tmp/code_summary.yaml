@@ -1,0 +1,67 @@
+version: "2"
+type: frontend
+tech_stack:
+  - TypeScript
+  - Next.js
+  - Tailwind CSS
+  - Firebase
+  - n8n
+routes:
+  - path: /
+    file: src/app/page.tsx
+    auth_required: false
+    description: Landing page
+  - path: /dashboard
+    file: src/app/dashboard/page.tsx
+    auth_required: true
+    description: Main mission control dashboard
+features:
+  - name: Task Dispatch
+    description: Create and launch AI agent tasks with specific protocols
+    files:
+      - src/components/TaskComposer.tsx
+      - src/lib/api-client.ts
+      - src/app/api/jobs/intake/route.ts
+    entry_route: /dashboard
+    user_interactions:
+      - Click Launch Mission Control button
+      - Select operation protocol (COO, Research, Worker)
+      - Enter task objective in terminal textarea
+      - Click Launch Agent Task
+    api_calls:
+      - method: POST
+        endpoint: /api/jobs/intake
+    auth_required: true
+  - name: Job Monitoring
+    description: Real-time update of task status and telemetry
+    files:
+      - src/app/dashboard/page.tsx
+      - src/hooks/useJobs.ts
+    entry_route: /dashboard
+    user_interactions:
+      - View stats in HUD frames
+      - Observe real-time job status changes in activity log
+    api_calls:
+      - method: GET
+        endpoint: /api/dashboard/stats
+    auth_required: true
+  - name: Governance Actions
+    description: Approve, reject or resurrect agent results
+    files:
+      - src/components/TaskDetail.tsx
+      - src/hooks/useJobActions.ts
+    entry_route: /dashboard
+    user_interactions:
+      - Open job trace detail
+      - Click Approve Result
+      - Click Reject Result and provide reason
+      - Click Execute Resurrection Protocol on failed jobs
+    api_calls:
+      - method: POST
+        endpoint: /api/jobs/[job_id]/approve
+      - method: POST
+        endpoint: /api/jobs/[job_id]/reject
+      - method: POST
+        endpoint: /api/jobs/[job_id]/resurrect
+    auth_required: true
+known_limitations: []
