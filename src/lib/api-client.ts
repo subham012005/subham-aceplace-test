@@ -1,8 +1,7 @@
 /**
- * Unified client for NXQ Workstation n8n Webhook API.
+ * Unified client for NXQ Workstation API.
  * 
- * All client-side calls should go through local /api proxy routes
- * to avoid exposing N8N_ACCESS_TOKEN in the browser.
+ * All client-side calls go through local /api proxy routes.
  */
 
 export interface CreateJobData {
@@ -76,6 +75,63 @@ class NXQApiClient {
 
     async simulateFork(data: ForkSimulateData) {
         const response = await fetch(`/api/jobs/${data.job_id}/fork-simulate`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+        });
+        return this.handleResponse(response);
+    }
+
+    // ─── Phase 2 Runtime API ────────────────────────────────
+
+    async dispatchTask(data: any) {
+        const response = await fetch("/api/runtime/dispatch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+        });
+        return this.handleResponse(response);
+    }
+
+    async getEnvelope(id: string) {
+        const response = await fetch(`/api/runtime/envelope/${id}`);
+        return this.handleResponse(response);
+    }
+
+    async getEnvelopeSteps(id: string) {
+        const response = await fetch(`/api/runtime/envelope/${id}/steps`);
+        return this.handleResponse(response);
+    }
+
+    async acquireLease(data: { execution_id: string; agent_id: string }) {
+        const response = await fetch("/api/runtime/lease/acquire", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+        });
+        return this.handleResponse(response);
+    }
+
+    async releaseLease(leaseId: string) {
+        const response = await fetch("/api/runtime/lease/release", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ lease_id: leaseId }),
+        });
+        return this.handleResponse(response);
+    }
+
+    async updateCheckpoint(id: string, data: any) {
+        const response = await fetch(`/api/runtime/checkpoint/${id}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+        });
+        return this.handleResponse(response);
+    }
+
+    async verifyIdentity(data: { agent_id: string; fingerprint: string }) {
+        const response = await fetch("/api/runtime/identity/verify", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(data),

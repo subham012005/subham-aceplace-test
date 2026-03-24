@@ -34,8 +34,13 @@ import { useJobs, Job } from "@/hooks/useJobs";
 import { TaskDetail } from "@/components/TaskDetail";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
+import { useSettings } from "@/context/SettingsContext";
 import { nxqApi } from "@/lib/api-client";
 import { NovaWaveform } from "@/components/NovaWaveform";
+import { RuntimeStats } from "@/components/RuntimeStats";
+import { LeaseManager } from "@/components/LeaseManager";
+import { IdentityPanel } from "@/components/IdentityPanel";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 interface ActivityLog {
     id: string;
@@ -88,6 +93,8 @@ export default function DashboardPage() {
             }
         }
     }, [user, authLoading, router]);
+
+    const { settings } = useSettings();
 
     const {
         jobs,
@@ -145,9 +152,8 @@ export default function DashboardPage() {
         const failedCount = jobs.filter(j => ["rejected", "failed"].includes(j.status)).length;
         
         const tokens = jobs.reduce((acc, j) => {
-            const topLevelUsage = j.token_usage || 0;
-            const nestedUsage = j.runtime_context?.token_usage?.total_tokens || 0;
-            return acc + (Number(topLevelUsage) || 0) + (Number(nestedUsage) || 0);
+            const jTokens = j.token_usage ?? j.runtime_context?.token_usage?.total_tokens ?? 0;
+            return acc + (Number(jTokens) || 0);
         }, 0);
 
         const cost = jobs.reduce((acc, j) => {
@@ -198,14 +204,14 @@ export default function DashboardPage() {
     }, [userUid, addLog]);
 
     const handleGlobalRefresh = React.useCallback(async () => {
-        addLog("[INFO] Initializing Global Synchronizaton...");
+        addLog("[INFO] Initializing User-Space Synchronizaton...");
         setViewedJobIds(new Set());
         try {
             await Promise.all([
                 refreshJobs(),
                 fetchStats()
             ]);
-            addLog("[SUCCESS] Dimensions synchronized.");
+            addLog("[SUCCESS] Local dimensions synchronized.");
             setRetryCount(0); // Reset on success
             setLastSyncFailed(false);
             setErrorStatus(null);
@@ -249,7 +255,7 @@ export default function DashboardPage() {
     React.useEffect(() => {
         if (!userUid) return;
         const unsubscribe = subscribeToUserStats(userUid, (stats) => {
-            setTotalRequestCount(stats?.total_n8n_requests || 0);
+            setTotalRequestCount(stats?.total_requests || 0);
         });
         return () => unsubscribe();
     }, [userUid]);
@@ -279,13 +285,17 @@ export default function DashboardPage() {
         } else if (retryCount >= maxRetries && lastSyncFailed) {
             addLog("[CRITICAL] Maximum synchronization attempts reached. Dimensional link unstable.");
         } else if (isPersistentError) {
-            addLog("[SYSTEM] Persistent 404 detected. Verification link broken or n8n node inactive.");
+            addLog("[SYSTEM] Persistent 404 detected. Verification link broken or workflow engine inactive.");
         }
     }, [hasAttemptedInitialFetch, lastSyncFailed, errorStatus, isJobsSyncing, userUid, handleGlobalRefresh, retryCount, maxRetries, addLog]);
 
     // Filter active jobs for the Mission Queue
-    const activeJobs = jobs.filter(j => ["queued", "assigned", "in_progress"].includes(j.status));
-    const completedJobs = jobs.filter(j => ["completed", "graded", "approved"].includes(j.status));
+    const activeJobs = jobs.filter(j => 
+        ["queued", "assigned", "in_progress", "awaiting_approval", "resurrected", "created"].includes(j.status)
+    );
+    const completedJobs = jobs.filter(j => 
+        ["completed", "graded", "approved", "rejected", "failed"].includes(j.status)
+    );
 
 
     // Auto-fetch details for top 5 jobs
@@ -467,6 +477,20 @@ export default function DashboardPage() {
                     </HUDFrame>
                 ))}
             </div>
+
+            {/* Runtime Engine Section */}
+            <ErrorBoundary title="Runtime Engine">
+                <HUDFrame
+                    title="Runtime Engine"
+                    subtitle="Deterministic Execution Monitor"
+                    className="shrink-0 bg-purple-950/10 border-purple-500/10"
+                    showRefLines={false}
+                >
+                    <div className="pt-2">
+                        <RuntimeStats />
+                    </div>
+                </HUDFrame>
+            </ErrorBoundary>
 
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4 pb-4 lg:pb-0">
 
@@ -829,6 +853,16 @@ export default function DashboardPage() {
 
                 {/* Right Sidebar: COMMAND + MONITOR */}
                 <div className="col-span-1 md:col-span-12 lg:col-span-3 space-y-4 flex flex-col h-auto lg:h-[800px] lg:h-full lg:overflow-hidden order-3">
+
+                    {/* Agent Identity Panel */}
+                    <ErrorBoundary title="Identity Panel">
+                        <IdentityPanel agentId="agent_coo" />
+                    </ErrorBoundary>
+
+                    {/* Lease Manager */}
+                    <ErrorBoundary title="Lease Manager">
+                        <LeaseManager />
+                    </ErrorBoundary>
 
                     {/* NOVA 1000 COMMAND */}
                     <HUDFrame title="NOVA 1000 COMMAND" className="h-[320px] lg:h-[400px] shrink-0 flex flex-col">

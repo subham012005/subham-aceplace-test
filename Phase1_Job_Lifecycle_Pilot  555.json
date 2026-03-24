@@ -3,66 +3,6 @@
   "nodes": [
     {
       "parameters": {
-        "path": "job",
-        "responseMode": "lastNode",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2.1,
-      "position": [
-        -4256,
-        0
-      ],
-      "id": "cf123dac-0129-4ea4-9464-954d31d8eb5c",
-      "name": "Get Job By ID",
-      "webhookId": "fb04e332-9635-4e9c-8d38-37c6ce14b68c"
-    },
-    {
-      "parameters": {
-        "authentication": "serviceAccount",
-        "projectId": "=peak-catbird-487804-j1",
-        "collection": "jobs",
-        "documentId": "={{$json.query.job_id}}"
-      },
-      "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
-      "typeVersion": 1.1,
-      "position": [
-        -4032,
-        0
-      ],
-      "id": "d14afe59-0f4f-4abc-b0a4-e7487b564f60",
-      "name": "Firestore: Get Job",
-      "credentials": {
-        "googleApi": {
-          "id": "d4SwdYuApCUnneot",
-          "name": "Google Firebase Cloud Firestore account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "authentication": "serviceAccount",
-        "projectId": "=peak-catbird-487804-j1",
-        "collection": "users",
-        "documentId": "={{$json.query.user_id}}"
-      },
-      "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
-      "typeVersion": 1.1,
-      "position": [
-        -4032,
-        224
-      ],
-      "id": "71babc03-f6e0-4b5e-8766-e1c0164631f5",
-      "name": "Firestore: List Jobs",
-      "credentials": {
-        "googleApi": {
-          "id": "d4SwdYuApCUnneot",
-          "name": "Google Firebase Cloud Firestore account"
-        }
-      }
-    },
-    {
-      "parameters": {
         "httpMethod": "POST",
         "path": "job-approve",
         "responseMode": "lastNode",
@@ -71,29 +11,12 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        -4256,
+        -4288,
         448
       ],
       "id": "68b6ffde-3f4e-44ce-a254-885486c644e3",
       "name": "Job Approve",
       "webhookId": "9faf11c2-1aad-4ac9-b70c-46fe29b0ab46"
-    },
-    {
-      "parameters": {
-        "path": "jobs",
-        "responseMode": "lastNode",
-        "responseData": "allEntries",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2.1,
-      "position": [
-        -4256,
-        224
-      ],
-      "id": "162bd8c3-d969-4fdb-8aea-d509c1beda42",
-      "name": "Get All Jobs",
-      "webhookId": "13f8521b-712e-4b71-abc9-d3a365efc122"
     },
     {
       "parameters": {
@@ -105,7 +28,7 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        -4256,
+        -4288,
         672
       ],
       "id": "04f2c1a5-1e14-45ff-b4a6-37bcb29d5ed9",
@@ -119,7 +42,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -3808,
+        -3840,
         672
       ],
       "id": "411f3f58-c139-4798-815d-26d3293f03a3",
@@ -137,7 +60,7 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        -3376,
+        -3392,
         448
       ],
       "id": "6e1d80dd-fc54-41c7-8c57-a4fcd0b82a4f",
@@ -161,7 +84,7 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        -3584,
+        -3616,
         672
       ],
       "id": "7ea0a891-4712-4808-aca8-b0b8e7cac749",
@@ -180,7 +103,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -3808,
+        -3840,
         448
       ],
       "id": "79851429-c539-42fe-9e3b-a99a8c566ef3",
@@ -196,7 +119,7 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        -4032,
+        -4064,
         448
       ],
       "id": "c102fd07-a5f7-4b0e-9d01-3eb05fc2f149",
@@ -218,7 +141,7 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        -4032,
+        -4064,
         672
       ],
       "id": "391f91fb-01be-47cf-99fa-b5038622d370",
@@ -240,8 +163,8 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        -4256,
-        992
+        -4288,
+        896
       ],
       "id": "83750344-dc86-4c32-824e-9383aafba76e",
       "name": "Fork Simulate",
@@ -257,8 +180,8 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        -4032,
-        992
+        -4064,
+        896
       ],
       "id": "a47fe8fa-4a88-4990-9ab5-f98bf0dc01c2",
       "name": "Firestore: Get Job4",
@@ -276,8 +199,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -3808,
-        992
+        -3840,
+        896
       ],
       "id": "4a0fabc0-587f-4986-9165-352e5990abf7",
       "name": "Fork Detector"
@@ -294,8 +217,8 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        -3104,
-        992
+        -3168,
+        896
       ],
       "id": "f26a4921-7b0a-4af9-b582-3e405cc76790",
       "name": "Firestore: Update Rejected1",
@@ -318,8 +241,8 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        -3808,
-        2336
+        -3856,
+        1120
       ],
       "id": "1cb09507-9aa9-420c-85ae-3105d495787c",
       "name": "Firestore: Update Completed2",
@@ -339,8 +262,8 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        -4256,
-        2336
+        -4304,
+        1120
       ],
       "id": "19fb4c71-8c18-48f6-aaec-6d8b38c7d1ec",
       "name": "Webhook1",
@@ -353,8 +276,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -4032,
-        2336
+        -4080,
+        1120
       ],
       "id": "d96334ee-690e-4a7b-ae65-48e99a196b0a",
       "name": "Code in JavaScript5"
@@ -371,8 +294,8 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        -2640,
-        1360
+        -2496,
+        1392
       ],
       "id": "a3e3c632-c1c1-4a86-ac35-ad78d548e0ab",
       "name": "Firestore: Update Completed3",
@@ -393,8 +316,8 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        -3648,
-        1520
+        -3616,
+        1488
       ],
       "id": "9bfac780-841f-4018-9452-ec0fb03286b2",
       "name": "Get Agent",
@@ -434,8 +357,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -3040,
-        1520
+        -2944,
+        1488
       ],
       "id": "0063af6b-0d92-43f1-8d8b-18bca76e104b",
       "name": "If3"
@@ -452,8 +375,8 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        128,
-        1184
+        -480,
+        1296
       ],
       "id": "7a50f5a5-60cb-4dc5-8a1c-5e7e4dafaea4",
       "name": "Acquire Lease",
@@ -473,8 +396,8 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        -208,
-        1728
+        -32,
+        1488
       ],
       "id": "2bec7164-789f-432a-a077-df463ada3599",
       "name": "Respond to Webhook2"
@@ -486,8 +409,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -592,
-        1728
+        -256,
+        1488
       ],
       "id": "860d9a8a-2386-411c-a138-10cd06aa34fb",
       "name": "Code in JavaScript7"
@@ -499,8 +422,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2816,
-        1424
+        -2720,
+        1392
       ],
       "id": "6b9115d7-c082-49ac-a55e-359cdf60f7b2",
       "name": "Build Instance Payload"
@@ -517,8 +440,8 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        -1856,
-        1440
+        -1824,
+        1776
       ],
       "id": "1af6963d-2232-4568-b4e2-8ad66180d7bf",
       "name": "Firestore: Update Completed4",
@@ -542,7 +465,7 @@
       "typeVersion": 2.1,
       "position": [
         -4288,
-        1456
+        1408
       ],
       "id": "8f3a72f1-c4f8-465e-9086-de78e2327a3a",
       "name": "P1_JOB_INTAKE",
@@ -556,7 +479,7 @@
       "typeVersion": 2,
       "position": [
         -4064,
-        1456
+        1408
       ],
       "id": "895a323c-e60d-478a-9c28-04458bcbceab",
       "name": "Code — Validate Input"
@@ -569,7 +492,7 @@
       "typeVersion": 2,
       "position": [
         -3840,
-        1456
+        1408
       ],
       "id": "ee0744ed-89cf-45f0-86d5-f59f87def90c",
       "name": "Code — Resolve Agent"
@@ -581,8 +504,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1216,
-        1360
+        -1376,
+        1312
       ],
       "id": "b59cfc28-f07b-4dee-a06f-0cdf72b7fa93",
       "name": "P1_NORMALIZE_RUNTIME_CONTEXT"
@@ -596,8 +519,8 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        -1408,
-        1360
+        -1600,
+        1312
       ],
       "id": "544013af-8c07-487b-8572-2c512515c55c",
       "name": "P1_MERGE_JOB_AND_RUNTIME_SOURCE"
@@ -609,8 +532,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1024,
-        1440
+        -1152,
+        1392
       ],
       "id": "74ec7b64-ef78-4b6f-8b7a-a482113d69ec",
       "name": "P1_LEASE_CHECK"
@@ -643,8 +566,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -768,
-        1440
+        -928,
+        1392
       ],
       "id": "cc30e52a-bfd1-4bba-a791-c467f3bd3f93",
       "name": "P1_LEASE_ALLOWED"
@@ -656,8 +579,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -96,
-        1184
+        -704,
+        1296
       ],
       "id": "f62524db-753c-4dc5-aa85-289fc9fc140e",
       "name": "P1_BUILD_LEASE_UPDATE_PAYLOAD"
@@ -669,8 +592,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        576,
-        1360
+        -32,
+        1216
       ],
       "id": "22af0a3e-b47a-449b-8000-3900d2e6bcd5",
       "name": "P1_CREATE_JOB_PAYLOAD"
@@ -684,8 +607,8 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        352,
-        1360
+        -256,
+        1216
       ],
       "id": "3529698a-e7b8-46ea-bdc9-982bb34ce768",
       "name": "P1_MERGE_CONTEXT_AFTER_LEASE"
@@ -702,8 +625,8 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        800,
-        1360
+        192,
+        1216
       ],
       "id": "498e0ac6-388b-4d14-9647-3c1206785032",
       "name": "P1_CREATE_JOB_RECORD",
@@ -721,8 +644,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1024,
-        1264
+        416,
+        1120
       ],
       "id": "8262fa68-1395-451d-b233-5efab803c20e",
       "name": "P1_BUILD_JOB_CREATED_TRACE"
@@ -739,8 +662,8 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        1248,
-        1264
+        640,
+        1120
       ],
       "id": "5db01b98-bf09-4c24-ace1-d33d0e8f6dba",
       "name": "P1_CREATE_JOB_TRACE_RECORD",
@@ -753,35 +676,6 @@
     },
     {
       "parameters": {
-        "httpMethod": "POST",
-        "path": "job-execution-router",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2.1,
-      "position": [
-        -4256,
-        2048
-      ],
-      "id": "aaf5aa35-dbb1-409c-908c-ccc4b30043f2",
-      "name": "P1_ROUTER_WEBHOOK_IN",
-      "webhookId": "ebdef2e2-1813-43fa-89df-1e200846c233"
-    },
-    {
-      "parameters": {
-        "jsCode": "const input = $json;\nconst body = input.body ?? {};\n\n// validate webhook body shape\nif (typeof body !== 'object' || body === null || Array.isArray(body)) {\n  throw new Error('INVALID_ROUTER_INPUT: request body must be a JSON object');\n}\n\n// allow only job_id inside body\nconst allowedBodyKeys = ['job_id'];\nconst receivedBodyKeys = Object.keys(body);\n\nconst unexpectedKeys = receivedBodyKeys.filter(\n  (key) => !allowedBodyKeys.includes(key)\n);\n\nif (unexpectedKeys.length > 0) {\n  throw new Error(\n    `INVALID_ROUTER_INPUT: unexpected field(s) in body: ${unexpectedKeys.join(', ')}`\n  );\n}\n\n// required field\nif (typeof body.job_id !== 'string') {\n  throw new Error('INVALID_ROUTER_INPUT: job_id is required and must be a string');\n}\n\nconst jobId = body.job_id.trim();\n\nif (!jobId) {\n  throw new Error('INVALID_ROUTER_INPUT: job_id must not be empty');\n}\n\nif (jobId.length < 8 || jobId.length > 128) {\n  throw new Error('INVALID_ROUTER_INPUT: job_id length is invalid');\n}\n\nif (!/^[A-Za-z0-9._:-]+$/.test(jobId)) {\n  throw new Error('INVALID_ROUTER_INPUT: job_id contains invalid characters');\n}\n\n// explicit rejection of forbidden body fields\nconst forbiddenFields = [\n  'assigned_agent_id',\n  'assigned_instance_id',\n  'identity_fingerprint',\n  'authority_lease',\n  'lease_expires_at',\n  'agent_id',\n  'instance_id',\n  'acelogic_id',\n  'identity_context',\n  'runtime_context',\n  'job_type',\n  'provider',\n  'model'\n];\n\nfor (const field of forbiddenFields) {\n  if (Object.prototype.hasOwnProperty.call(body, field)) {\n    throw new Error(`INVALID_ROUTER_INPUT: forbidden field supplied in body: ${field}`);\n  }\n}\n\nreturn [\n  {\n    json: {\n      job_id: jobId\n    }\n  }\n];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        -4032,
-        2048
-      ],
-      "id": "5e8da6de-80cf-4924-a828-4a70ae64cec1",
-      "name": "P1_VALIDATE_JOB_EXECUTION_INPUT"
-    },
-    {
-      "parameters": {
         "authentication": "serviceAccount",
         "projectId": "peak-catbird-487804-j1",
         "collection": "jobs",
@@ -790,8 +684,8 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        -3808,
-        2048
+        -3904,
+        3360
       ],
       "id": "1116c2c9-1067-48a7-bde9-abb8625eaccb",
       "name": "P1_LOAD_JOB_RECORD",
@@ -809,8 +703,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -3584,
-        2048
+        -3680,
+        3360
       ],
       "id": "4693a846-19b3-419c-a213-1a8604af2777",
       "name": "P1_VALIDATE_JOB_RECORD"
@@ -825,8 +719,8 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        -3360,
-        2112
+        -3456,
+        3440
       ],
       "id": "d712cd4d-6401-4afc-bfe9-aaab0dee52ba",
       "name": "P1_VERIFY_AGENT_INSTANCE_LEASE",
@@ -844,8 +738,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2688,
-        2048
+        -2784,
+        3360
       ],
       "id": "3bf37551-2c01-4682-8b2e-18b2ea605911",
       "name": "P1_VALIDATE_ACTIVE_LEASE_AND_IDENTITY"
@@ -862,8 +756,8 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        -2464,
-        2048
+        -2560,
+        3360
       ],
       "id": "4e73b4c4-c041-4003-8ac0-2cd3941e3da3",
       "name": "P1_SET_JOB_IN_PROGRESS",
@@ -883,8 +777,8 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        -2912,
-        2048
+        -3008,
+        3360
       ],
       "id": "ef1bb3dd-9d8a-4b6c-97fb-a9d49a7ea9b7",
       "name": "P1_MERGE_JOB_AND_INSTANCE_CONTEXT"
@@ -901,8 +795,8 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        -2016,
-        2048
+        -2112,
+        3360
       ],
       "id": "5165561d-d706-4da8-84fc-0683e403513d",
       "name": "P1_COO_SET_PLANNING_STATE",
@@ -920,8 +814,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2240,
-        2048
+        -2336,
+        3360
       ],
       "id": "526c089b-4e53-47db-81af-d45b36dec497",
       "name": "Code in JavaScript8"
@@ -938,8 +832,8 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        -768,
-        2048
+        -864,
+        3360
       ],
       "id": "56636609-41e8-4765-93bd-90d2b16a2372",
       "name": "P1_STORE_COO_PLAN",
@@ -952,58 +846,13 @@
     },
     {
       "parameters": {
-        "modelId": {
-          "__rl": true,
-          "value": "gpt-4o",
-          "mode": "list",
-          "cachedResultName": "GPT-4O"
-        },
-        "responses": {
-          "values": [
-            {
-              "role": "system",
-              "content": "You are the COO agent inside the NXQ runtime.\n\nYour task is to design a deterministic execution plan for the given task.\n\nYou must produce a structured JSON plan that divides work between:\n\nresearch agent\nworker agent\n\nRules:\n- research gathers information and analysis\n- worker performs implementation or structured output\n- COO will later assemble the final result\n\nReturn ONLY valid JSON.\n\nStructure:\n\n{\n  \"plan_summary\": \"\",\n  \"steps\": [\n    {\n      \"step_id\": \"step_1\",\n      \"agent\": \"research\",\n      \"task\": \"\"\n    },\n    {\n      \"step_id\": \"step_2\",\n      \"agent\": \"worker\",\n      \"task\": \"\"\n    }\n  ]\n}"
-            },
-            {
-              "content": "=User task:\n\n{{$json.prompt}}\n\nCreate the execution plan."
-            }
-          ]
-        },
-        "simplify": false,
-        "builtInTools": {},
-        "options": {
-          "textFormat": {
-            "textOptions": {
-              "type": "json_object"
-            }
-          },
-          "temperature": 0.2
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.openAi",
-      "typeVersion": 2.1,
-      "position": [
-        -1792,
-        2112
-      ],
-      "id": "92f00cdb-d256-448d-96ad-008ffd89af2b",
-      "name": "P1_COO_PLAN_MODEL_CALL",
-      "credentials": {
-        "openAiApi": {
-          "id": "2J7VIgVFv5KFkW4G",
-          "name": "OpenAi account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "const data = $json;\n\nconst plan =\n  data?.output?.[0]?.content?.[0]?.text;\n\nif (!plan || typeof plan !== 'object' || Array.isArray(plan)) {\n  throw new Error('COO_PLAN_NORMALIZATION_FAILED: missing plan object at output[0].content[0].text');\n}\n\nif (typeof plan.plan_summary !== 'string' || !plan.plan_summary.trim()) {\n  throw new Error('COO_PLAN_NORMALIZATION_FAILED: missing plan_summary');\n}\n\nif (!Array.isArray(plan.steps) || plan.steps.length === 0) {\n  throw new Error('COO_PLAN_NORMALIZATION_FAILED: steps must be a non-empty array');\n}\n\nfor (const step of plan.steps) {\n  if (!step || typeof step !== 'object') {\n    throw new Error('COO_PLAN_NORMALIZATION_FAILED: invalid step entry');\n  }\n  if (typeof step.step_id !== 'string' || !step.step_id.trim()) {\n    throw new Error('COO_PLAN_NORMALIZATION_FAILED: each step must include step_id');\n  }\n  if (!['research', 'worker'].includes(step.agent)) {\n    throw new Error(`COO_PLAN_NORMALIZATION_FAILED: invalid agent ${step.agent}`);\n  }\n  if (typeof step.task !== 'string' || !step.task.trim()) {\n    throw new Error(`COO_PLAN_NORMALIZATION_FAILED: step ${step.step_id} missing task`);\n  }\n}\n\nconst usage = data.usage || {};\n\nreturn [\n  {\n    json: {\n      job_id: data.job_id,\n      assigned_agent_id: data.assigned_agent_id,\n      assigned_instance_id: data.assigned_instance_id,\n      identity_fingerprint: data.identity_fingerprint,\n      job_type: data.job_type,\n      prompt: data.prompt,\n      runtime_context: data.runtime_context || {},\n      plan: {\n        plan_summary: plan.plan_summary,\n        steps: plan.steps\n      },\n      coo_token_usage: {\n        input_tokens: Number(usage.input_tokens || 0),\n        output_tokens: Number(usage.output_tokens || 0),\n        total_tokens: Number(usage.total_tokens || 0)\n      }\n    }\n  }\n];"
+        "jsCode": "const data = $json;\n\nfunction extractPlan(input) {\n  // Best source: already parsed JSON\n  if (input?.model_json && typeof input.model_json === 'object' && !Array.isArray(input.model_json)) {\n    return input.model_json;\n  }\n\n  // Next: cleaned JSON string\n  if (typeof input?.model_text_clean === 'string' && input.model_text_clean.trim()) {\n    try {\n      return JSON.parse(input.model_text_clean);\n    } catch (err) {\n      // continue to next fallback\n    }\n  }\n\n  // Next: raw provider text at output[0].content[0].text\n  let raw = input?.output?.[0]?.content?.[0]?.text;\n\n  if (typeof raw === 'string' && raw.trim()) {\n    raw = raw.trim();\n\n    // Remove ```json ... ``` fences if present\n    raw = raw.replace(/^```json\\s*/i, '').replace(/^```\\s*/i, '').replace(/\\s*```$/, '');\n\n    try {\n      return JSON.parse(raw);\n    } catch (err) {\n      throw new Error(`COO_PLAN_NORMALIZATION_FAILED: unable to parse plan JSON from output[0].content[0].text: ${err.message}`);\n    }\n  }\n\n  throw new Error('COO_PLAN_NORMALIZATION_FAILED: missing plan object at output[0].content[0].text');\n}\n\nconst plan = extractPlan(data);\n\nif (!plan || typeof plan !== 'object' || Array.isArray(plan)) {\n  throw new Error('COO_PLAN_NORMALIZATION_FAILED: missing plan object at output[0].content[0].text');\n}\n\nif (typeof plan.plan_summary !== 'string' || !plan.plan_summary.trim()) {\n  throw new Error('COO_PLAN_NORMALIZATION_FAILED: missing plan_summary');\n}\n\nif (!Array.isArray(plan.steps) || plan.steps.length === 0) {\n  throw new Error('COO_PLAN_NORMALIZATION_FAILED: steps must be a non-empty array');\n}\n\nfor (const step of plan.steps) {\n  if (!step || typeof step !== 'object' || Array.isArray(step)) {\n    throw new Error('COO_PLAN_NORMALIZATION_FAILED: invalid step entry');\n  }\n\n  if (typeof step.step_id !== 'string' || !step.step_id.trim()) {\n    throw new Error('COO_PLAN_NORMALIZATION_FAILED: each step must include step_id');\n  }\n\n  if (!['research', 'worker'].includes(step.agent)) {\n    throw new Error(`COO_PLAN_NORMALIZATION_FAILED: invalid agent ${step.agent}`);\n  }\n\n  if (typeof step.task !== 'string' || !step.task.trim()) {\n    throw new Error(`COO_PLAN_NORMALIZATION_FAILED: step ${step.step_id} missing task`);\n  }\n}\n\nconst usage =\n  data?.usage ||\n  data?.original_response?.usage ||\n  {};\n\nreturn [\n  {\n    json: {\n      job_id: data.job_id,\n      assigned_agent_id: data.assigned_agent_id,\n      assigned_instance_id: data.assigned_instance_id,\n      identity_fingerprint: data.identity_fingerprint,\n      job_type: data.job_type,\n      prompt: data.prompt,\n      runtime_context: data.runtime_context || {},\n      plan: {\n        plan_summary: plan.plan_summary,\n        steps: plan.steps\n      },\n      coo_token_usage: {\n        input_tokens: Number(usage.input_tokens || 0),\n        output_tokens: Number(usage.output_tokens || 0),\n        total_tokens: Number(\n          usage.total_tokens ||\n          ((Number(usage.input_tokens || 0)) + (Number(usage.output_tokens || 0)))\n        )\n      }\n    }\n  }\n];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1216,
-        2048
+        -1312,
+        3488
       ],
       "id": "0fc20814-f8b7-4ae2-9ecb-ced417e59e87",
       "name": "P1_NORMALIZE_COO_PLAN_OUTPUT"
@@ -1017,8 +866,8 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        -1440,
-        2048
+        -1536,
+        3360
       ],
       "id": "c1f608d5-b492-4b37-89b2-ff4f49746289",
       "name": "Merge4"
@@ -1030,8 +879,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -992,
-        2048
+        -1088,
+        3360
       ],
       "id": "f8110473-9374-4575-b4ac-1dd6339bd583",
       "name": "P1_PREPARE_COO_PLAN_STATE"
@@ -1043,8 +892,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -544,
-        2048
+        -640,
+        3360
       ],
       "id": "510198e7-961e-4d28-9459-9a609cb34fe0",
       "name": "P1_ROUTE_PLAN_STEPS"
@@ -1061,8 +910,8 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        -96,
-        2048
+        -192,
+        3360
       ],
       "id": "1deb4c3f-d376-489d-aed9-2628d224a1c4",
       "name": "P1_SET_RESEARCH_IN_PROGRESS",
@@ -1080,66 +929,21 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -320,
-        2048
+        -416,
+        3360
       ],
       "id": "540ad358-8b9b-4687-9957-6a879cd071d3",
       "name": "P1_PREPARE_RESEARCH_EXECUTION_STATE"
     },
     {
       "parameters": {
-        "modelId": {
-          "__rl": true,
-          "value": "gpt-4o",
-          "mode": "list",
-          "cachedResultName": "GPT-4O"
-        },
-        "responses": {
-          "values": [
-            {
-              "role": "system",
-              "content": "You are the research agent inside the NXQ runtime.\n\nYou execute only the assigned research task.\nDo not plan, do not delegate, and do not perform worker actions.\n\nReturn ONLY valid JSON in this structure:\n\n{\n  \"research_summary\": \"\",\n  \"findings\": [\n    {\n      \"id\": \"finding_1\",\n      \"title\": \"\",\n      \"detail\": \"\"\n    }\n  ],\n  \"risks\": [\n    {\n      \"id\": \"risk_1\",\n      \"detail\": \"\"\n    }\n  ],\n  \"recommended_inputs_for_worker\": [\n    \"\"\n  ]\n}"
-            },
-            {
-              "content": "=Job prompt:\n{{$json.prompt}}\n\nResearch task:\n{{$json.research_task.task}}\n\nExecute the research task and return structured JSON."
-            }
-          ]
-        },
-        "simplify": false,
-        "builtInTools": {},
-        "options": {
-          "textFormat": {
-            "textOptions": {
-              "type": "json_object"
-            }
-          },
-          "temperature": 0.2
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.openAi",
-      "typeVersion": 2.1,
-      "position": [
-        128,
-        1968
-      ],
-      "id": "c3513866-fafd-46e8-b8fd-a754ee872f1f",
-      "name": "P1_RESEARCH_MODEL_CALL",
-      "credentials": {
-        "openAiApi": {
-          "id": "2J7VIgVFv5KFkW4G",
-          "name": "OpenAi account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "const data = $json;\n\nconst research = data?.output?.[0]?.content?.[0]?.text;\n\nif (!research || typeof research !== 'object' || Array.isArray(research)) {\n  throw new Error('RESEARCH_NORMALIZATION_FAILED: missing research object at output[0].content[0].text');\n}\n\nif (typeof research.research_summary !== 'string' || !research.research_summary.trim()) {\n  throw new Error('RESEARCH_NORMALIZATION_FAILED: missing research_summary');\n}\n\nif (!Array.isArray(research.findings)) {\n  throw new Error('RESEARCH_NORMALIZATION_FAILED: findings must be an array');\n}\n\nif (!Array.isArray(research.risks)) {\n  throw new Error('RESEARCH_NORMALIZATION_FAILED: risks must be an array');\n}\n\nif (!Array.isArray(research.recommended_inputs_for_worker)) {\n  throw new Error('RESEARCH_NORMALIZATION_FAILED: recommended_inputs_for_worker must be an array');\n}\n\nfor (const finding of research.findings) {\n  if (!finding || typeof finding !== 'object') {\n    throw new Error('RESEARCH_NORMALIZATION_FAILED: invalid finding entry');\n  }\n  if (typeof finding.id !== 'string' || !finding.id.trim()) {\n    throw new Error('RESEARCH_NORMALIZATION_FAILED: each finding must include id');\n  }\n  if (typeof finding.title !== 'string' || !finding.title.trim()) {\n    throw new Error(`RESEARCH_NORMALIZATION_FAILED: finding ${finding.id} missing title`);\n  }\n  if (typeof finding.detail !== 'string' || !finding.detail.trim()) {\n    throw new Error(`RESEARCH_NORMALIZATION_FAILED: finding ${finding.id} missing detail`);\n  }\n}\n\nfor (const risk of research.risks) {\n  if (!risk || typeof risk !== 'object') {\n    throw new Error('RESEARCH_NORMALIZATION_FAILED: invalid risk entry');\n  }\n  if (typeof risk.id !== 'string' || !risk.id.trim()) {\n    throw new Error('RESEARCH_NORMALIZATION_FAILED: each risk must include id');\n  }\n  if (typeof risk.detail !== 'string' || !risk.detail.trim()) {\n    throw new Error(`RESEARCH_NORMALIZATION_FAILED: risk ${risk.id} missing detail`);\n  }\n}\n\nfor (const item of research.recommended_inputs_for_worker) {\n  if (typeof item !== 'string' || !item.trim()) {\n    throw new Error('RESEARCH_NORMALIZATION_FAILED: recommended_inputs_for_worker must contain non-empty strings');\n  }\n}\n\nconst usage = data.usage || {};\n\nreturn [\n  {\n    json: {\n      job_id: data.job_id,\n      assigned_agent_id: data.assigned_agent_id,\n      assigned_instance_id: data.assigned_instance_id,\n      identity_fingerprint: data.identity_fingerprint,\n      job_type: data.job_type,\n      prompt: data.prompt,\n      runtime_context: data.runtime_context || {},\n      research_task: data.research_task,\n      worker_task: data.worker_task,\n      research_result: {\n        research_summary: research.research_summary,\n        findings: research.findings,\n        risks: research.risks,\n        recommended_inputs_for_worker: research.recommended_inputs_for_worker\n      },\n      research_token_usage: {\n        input_tokens: Number(usage.input_tokens || 0),\n        output_tokens: Number(usage.output_tokens || 0),\n        total_tokens: Number(usage.total_tokens || 0)\n      }\n    }\n  }\n];"
+        "jsCode": "const raw = $json;\nconst data = Array.isArray(raw) ? raw[0] : raw;\n\n/**\n * Normalize research object into the expected shape.\n */\nfunction normalizeResearchObject(obj) {\n  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return null;\n\n  return {\n    research_summary:\n      typeof obj.research_summary === 'string' ? obj.research_summary : '',\n    findings: Array.isArray(obj.findings) ? obj.findings : [],\n    risks: Array.isArray(obj.risks) ? obj.risks : [],\n    recommended_inputs_for_worker: Array.isArray(obj.recommended_inputs_for_worker)\n      ? obj.recommended_inputs_for_worker\n      : [],\n  };\n}\n\n/**\n * Try to extract a research object from the actual input shape.\n * Priority:\n * 1) important_output\n * 2) forwarded_text_only.final_compiled_text (JSON inside ```json ... ```)\n * 3) legacy path: output[0].content[0].text\n */\nfunction extractResearchObject(input) {\n  // 1) Direct structured object\n  if (\n    input?.important_output &&\n    typeof input.important_output === 'object' &&\n    !Array.isArray(input.important_output)\n  ) {\n    return normalizeResearchObject(input.important_output);\n  }\n\n  // 2) JSON embedded in final_compiled_text\n  const compiledText = input?.forwarded_text_only?.final_compiled_text;\n  if (typeof compiledText === 'string' && compiledText.trim()) {\n    const fencedJsonMatch = compiledText.match(/```json\\s*([\\s\\S]*?)\\s*```/i);\n    const rawJson = fencedJsonMatch ? fencedJsonMatch[1] : compiledText.trim();\n\n    try {\n      const parsed = JSON.parse(rawJson);\n      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {\n        return normalizeResearchObject(parsed);\n      }\n    } catch (_) {\n      // ignore and continue to legacy fallback\n    }\n  }\n\n  // 3) Legacy path from old schema\n  const legacy = input?.output?.[0]?.content?.[0]?.text;\n  if (legacy && typeof legacy === 'object' && !Array.isArray(legacy)) {\n    return normalizeResearchObject(legacy);\n  }\n\n  return null;\n}\n\nconst research = extractResearchObject(data);\n\nif (!research || typeof research !== 'object' || Array.isArray(research)) {\n  throw new Error('RESEARCH_NORMALIZATION_FAILED: missing research object');\n}\n\nif (typeof research.research_summary !== 'string' || !research.research_summary.trim()) {\n  throw new Error('RESEARCH_NORMALIZATION_FAILED: missing research_summary');\n}\n\nif (!Array.isArray(research.findings)) {\n  throw new Error('RESEARCH_NORMALIZATION_FAILED: findings must be an array');\n}\n\nif (!Array.isArray(research.risks)) {\n  throw new Error('RESEARCH_NORMALIZATION_FAILED: risks must be an array');\n}\n\nif (!Array.isArray(research.recommended_inputs_for_worker)) {\n  throw new Error('RESEARCH_NORMALIZATION_FAILED: recommended_inputs_for_worker must be an array');\n}\n\nfor (const finding of research.findings) {\n  if (!finding || typeof finding !== 'object') {\n    throw new Error('RESEARCH_NORMALIZATION_FAILED: invalid finding entry');\n  }\n  if (typeof finding.id !== 'string' || !finding.id.trim()) {\n    throw new Error('RESEARCH_NORMALIZATION_FAILED: each finding must include id');\n  }\n  if (typeof finding.title !== 'string' || !finding.title.trim()) {\n    throw new Error(`RESEARCH_NORMALIZATION_FAILED: finding ${finding.id} missing title`);\n  }\n  if (typeof finding.detail !== 'string' || !finding.detail.trim()) {\n    throw new Error(`RESEARCH_NORMALIZATION_FAILED: finding ${finding.id} missing detail`);\n  }\n}\n\nfor (const risk of research.risks) {\n  if (!risk || typeof risk !== 'object') {\n    throw new Error('RESEARCH_NORMALIZATION_FAILED: invalid risk entry');\n  }\n  if (typeof risk.id !== 'string' || !risk.id.trim()) {\n    throw new Error('RESEARCH_NORMALIZATION_FAILED: each risk must include id');\n  }\n  if (typeof risk.detail !== 'string' || !risk.detail.trim()) {\n    throw new Error(`RESEARCH_NORMALIZATION_FAILED: risk ${risk.id} missing detail`);\n  }\n}\n\nfor (const item of research.recommended_inputs_for_worker) {\n  if (typeof item !== 'string' || !item.trim()) {\n    throw new Error('RESEARCH_NORMALIZATION_FAILED: recommended_inputs_for_worker must contain non-empty strings');\n  }\n}\n\nconst usage = data?.important_output?.usage || data?.usage || {};\n\nreturn [\n  {\n    json: {\n      job_id: data.job_id,\n      assigned_agent_id: data.assigned_agent_id,\n      assigned_instance_id: data.assigned_instance_id,\n      identity_fingerprint: data.identity_fingerprint,\n      job_type: data.job_type,\n      prompt: data.prompt,\n      runtime_context: data.runtime_context || {},\n      research_task: data.research_task,\n      worker_task: data.worker_task,\n      research_result: {\n        research_summary: research.research_summary,\n        findings: research.findings,\n        risks: research.risks,\n        recommended_inputs_for_worker: research.recommended_inputs_for_worker\n      },\n      research_token_usage: {\n        input_tokens: Number(usage.input_tokens || 0),\n        output_tokens: Number(usage.output_tokens || 0),\n        total_tokens: Number(usage.total_tokens || 0)\n      }\n    }\n  }\n];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        480,
-        1968
+        432,
+        3504
       ],
       "id": "132bc7c3-5701-4b25-b53e-4eda149aa433",
       "name": "P1_NORMALIZE_RESEARCH_OUTPUT"
@@ -1151,8 +955,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        928,
-        2048
+        832,
+        3360
       ],
       "id": "914da4cd-7373-4400-bd26-3baedce1c239",
       "name": "P1_PREPARE_RESEARCH_RESULT_STATE"
@@ -1166,8 +970,8 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        704,
-        2048
+        608,
+        3360
       ],
       "id": "318c54ab-4caa-4f44-87cf-a666e121f503",
       "name": "Merge5"
@@ -1184,8 +988,8 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        1152,
-        2048
+        1264,
+        3360
       ],
       "id": "f95ac880-66f7-4e81-9816-41fa3bc2ecbb",
       "name": "P1_STORE_RESEARCH_RESULT",
@@ -1203,8 +1007,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1376,
-        2048
+        1488,
+        3360
       ],
       "id": "d7cecfc0-085b-4611-b75e-94afaf243e16",
       "name": "P1_PREPARE_WORKER_EXECUTION_STATE"
@@ -1221,8 +1025,8 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        1600,
-        2048
+        1712,
+        3360
       ],
       "id": "a1a31fed-6f2d-488d-84fd-977fb65b1679",
       "name": "P1_SET_WORKER_IN_PROGRESS",
@@ -1248,7 +1052,7 @@
               "content": "You are the worker agent inside the NXQ runtime.\n\nYou execute only the assigned worker task.\nDo not plan, do not delegate, and do not perform COO orchestration.\n\nUse the provided research result as input context.\n\nReturn ONLY valid JSON in this structure:\n\n{\n  \"worker_summary\": \"\",\n  \"deliverables\": [\n    {\n      \"id\": \"deliverable_1\",\n      \"title\": \"\",\n      \"content\": \"\"\n    }\n  ],\n  \"implementation_steps\": [\n    {\n      \"step_id\": \"impl_1\",\n      \"description\": \"\"\n    }\n  ],\n  \"open_issues\": [\n    {\n      \"id\": \"issue_1\",\n      \"detail\": \"\"\n    }\n  ]\n}"
             },
             {
-              "content": "=Job prompt:\n{{$json.prompt}}\n\nWorker task:\n{{$json.worker_task.task}}\n\nResearch result:\n{{$json.runtime_context.research_result}}\n\nExecute the worker task and return structured JSON."
+              "content": "=Job prompt:\n{{$json.prompt}}\n\nWorker task should be done with high details:\n{{$json.worker_task.task}}\n\nResearch result:\n{{$json.runtime_context.research_result}}\n\nExecute the worker task and return structured JSON."
             }
           ]
         },
@@ -1260,14 +1064,14 @@
               "type": "json_object"
             }
           },
-          "temperature": 0.2
+          "temperature": 0.4
         }
       },
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 2.1,
       "position": [
-        1824,
-        2112
+        1936,
+        3440
       ],
       "id": "082f8e79-90d0-4fc4-bdf7-8ee24e17c9ff",
       "name": "P1_WORKER_MODEL_CALL",
@@ -1285,8 +1089,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2176,
-        2112
+        2288,
+        3440
       ],
       "id": "bb93cd18-277c-4c91-9bee-d463079c2b6c",
       "name": "P1_NORMALIZE_WORKER_OUTPUT"
@@ -1300,8 +1104,8 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        2400,
-        2048
+        2512,
+        3360
       ],
       "id": "8403477a-03e2-4818-aeed-a902bf203d9d",
       "name": "Merge6"
@@ -1313,8 +1117,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2624,
-        2048
+        2736,
+        3360
       ],
       "id": "b10934d4-ac72-490a-bebc-868db69c381f",
       "name": "P1_PREPARE_WORKER_RESULT_STATE"
@@ -1331,8 +1135,8 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        2848,
-        2048
+        2960,
+        3360
       ],
       "id": "2504b688-aa81-42b8-bdcf-fe7b083cea02",
       "name": "P1_STORE_WORKER_RESULT",
@@ -1350,8 +1154,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3072,
-        2048
+        3184,
+        3360
       ],
       "id": "cd00c786-a3ec-466c-bada-b6a884cfd829",
       "name": "P1_PREPARE_COO_FINALIZATION_STATE"
@@ -1368,8 +1172,8 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        3296,
-        2048
+        3408,
+        3360
       ],
       "id": "ea47e3b4-eae5-4b8e-b96b-5a6fd8a204d2",
       "name": "P1_SET_COO_FINALIZATION_IN_PROGRESS",
@@ -1382,58 +1186,13 @@
     },
     {
       "parameters": {
-        "modelId": {
-          "__rl": true,
-          "value": "gpt-4o",
-          "mode": "list",
-          "cachedResultName": "GPT-4O"
-        },
-        "responses": {
-          "values": [
-            {
-              "role": "system",
-              "content": "You are the COO agent inside the NXQ runtime.\n\nYour task is to synthesize the final result using:\n- the original user request\n- the COO plan\n- the research result\n- the worker result\n\nDo not invent new work.\nDo not delegate.\nDo not return free-form prose outside the required JSON structure.\n\nReturn ONLY valid JSON in this structure:\n\n{\n  \"final_summary\": \"\",\n  \"final_output\": {\n    \"title\": \"\",\n    \"content\": \"\"\n  },\n  \"supporting_points\": [\n    {\n      \"id\": \"point_1\",\n      \"detail\": \"\"\n    }\n  ],\n  \"risk_flags\": [\n    {\n      \"id\": \"risk_1\",\n      \"detail\": \"\"\n    }\n  ]\n}"
-            },
-            {
-              "content": "=Job prompt:\n{{$json.prompt}}\n\nCOO plan:\n{{$json.runtime_context.plan}}\n\nResearch result:\n{{$json.runtime_context.research_result}}\n\nWorker result:\n{{$json.runtime_context.worker_result}}\n\nProduce the final synthesized result as valid JSON only."
-            }
-          ]
-        },
-        "simplify": false,
-        "builtInTools": {},
-        "options": {
-          "textFormat": {
-            "textOptions": {
-              "type": "json_object"
-            }
-          },
-          "temperature": 0.2
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.openAi",
-      "typeVersion": 2.1,
-      "position": [
-        3520,
-        1968
-      ],
-      "id": "738bc758-3d4c-4b7c-87a9-75f9c1f6c745",
-      "name": "P1_COO_FINAL_MODEL_CALL",
-      "credentials": {
-        "openAiApi": {
-          "id": "2J7VIgVFv5KFkW4G",
-          "name": "OpenAi account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "const data = $json;\n\nconst finalResult = data?.output?.[0]?.content?.[0]?.text;\n\nif (!finalResult || typeof finalResult !== 'object') {\n  throw new Error('COO_FINAL_NORMALIZATION_FAILED: invalid final result structure');\n}\n\nif (typeof finalResult.final_summary !== 'string') {\n  throw new Error('COO_FINAL_NORMALIZATION_FAILED: missing final_summary');\n}\n\nif (!finalResult.final_output || typeof finalResult.final_output !== 'object') {\n  throw new Error('COO_FINAL_NORMALIZATION_FAILED: missing final_output');\n}\n\nif (!Array.isArray(finalResult.supporting_points)) {\n  throw new Error('COO_FINAL_NORMALIZATION_FAILED: supporting_points must be array');\n}\n\nif (!Array.isArray(finalResult.risk_flags)) {\n  throw new Error('COO_FINAL_NORMALIZATION_FAILED: risk_flags must be array');\n}\n\nconst usage = data.usage || {};\n\nreturn [\n  {\n    json: {\n      job_id: data.job_id,\n      assigned_agent_id: data.assigned_agent_id,\n      assigned_instance_id: data.assigned_instance_id,\n      identity_fingerprint: data.identity_fingerprint,\n      job_type: data.job_type,\n      prompt: data.prompt,\n      runtime_context: data.runtime_context,\n\n      final_result: {\n        final_summary: finalResult.final_summary,\n        final_output: finalResult.final_output,\n        supporting_points: finalResult.supporting_points,\n        risk_flags: finalResult.risk_flags\n      },\n\n      coo_final_token_usage: {\n        input_tokens: Number(usage.input_tokens || 0),\n        output_tokens: Number(usage.output_tokens || 0),\n        total_tokens: Number(usage.total_tokens || 0)\n      }\n    }\n  }\n];"
+        "jsCode": "const data = $json;\n\n// Prefer already-normalized final_result if present.\n// Fallback to raw model output if this node is ever fed directly from the model.\nlet finalResult =\n  data?.final_result ??\n  data?.output?.[0]?.content?.[0]?.text;\n\n// Missing both normalized result and raw model output\nif (!finalResult) {\n  throw new Error('COO_FINAL_NORMALIZATION_FAILED: missing final_result and model output');\n}\n\n// Handle case where model returns JSON string\nif (typeof finalResult === 'string') {\n  try {\n    finalResult = JSON.parse(finalResult);\n  } catch (err) {\n    throw new Error('COO_FINAL_NORMALIZATION_FAILED: model output not valid JSON');\n  }\n}\n\nif (!finalResult || typeof finalResult !== 'object' || Array.isArray(finalResult)) {\n  throw new Error('COO_FINAL_NORMALIZATION_FAILED: invalid final result structure');\n}\n\n// Validate fields\nif (typeof finalResult.final_summary !== 'string') {\n  throw new Error('COO_FINAL_NORMALIZATION_FAILED: missing final_summary');\n}\n\nif (!finalResult.final_output || typeof finalResult.final_output !== 'object') {\n  throw new Error('COO_FINAL_NORMALIZATION_FAILED: missing final_output');\n}\n\nif (typeof finalResult.final_output.title !== 'string' || !finalResult.final_output.title.trim()) {\n  throw new Error('COO_FINAL_NORMALIZATION_FAILED: missing final_output.title');\n}\n\nif (typeof finalResult.final_output.content !== 'string' || !finalResult.final_output.content.trim()) {\n  throw new Error('COO_FINAL_NORMALIZATION_FAILED: missing final_output.content');\n}\n\n// Normalize supporting_points\nconst supportingPoints = Array.isArray(finalResult.supporting_points)\n  ? finalResult.supporting_points.map((p, i) => {\n      if (typeof p === 'string') {\n        return {\n          id: `point_${i + 1}`,\n          detail: p\n        };\n      }\n\n      if (p && typeof p === 'object') {\n        return {\n          id: typeof p.id === 'string' && p.id.trim() ? p.id : `point_${i + 1}`,\n          detail:\n            typeof p.detail === 'string' && p.detail.trim()\n              ? p.detail\n              : JSON.stringify(p)\n        };\n      }\n\n      return {\n        id: `point_${i + 1}`,\n        detail: String(p)\n      };\n    })\n  : [];\n\n// Normalize risk_flags\nconst riskFlags = Array.isArray(finalResult.risk_flags)\n  ? finalResult.risk_flags.map((r, i) => {\n      if (typeof r === 'string') {\n        return {\n          id: `risk_${i + 1}`,\n          detail: r\n        };\n      }\n\n      if (r && typeof r === 'object') {\n        return {\n          id: typeof r.id === 'string' && r.id.trim() ? r.id : `risk_${i + 1}`,\n          detail:\n            typeof r.detail === 'string' && r.detail.trim()\n              ? r.detail\n              : JSON.stringify(r)\n        };\n      }\n\n      return {\n        id: `risk_${i + 1}`,\n        detail: String(r)\n      };\n    })\n  : [];\n\n// Prefer already-computed coo_final_token_usage, then usage, then coo_token_usage\nconst usage = data.coo_final_token_usage || data.usage || data.coo_token_usage || {};\n\nreturn [\n  {\n    json: {\n      job_id: data.job_id,\n      assigned_agent_id: data.assigned_agent_id,\n      assigned_instance_id: data.assigned_instance_id,\n      identity_fingerprint: data.identity_fingerprint,\n      job_type: data.job_type,\n      prompt: data.prompt,\n      runtime_context: data.runtime_context,\n\n      final_result: {\n        final_summary: finalResult.final_summary,\n        final_output: {\n          title: finalResult.final_output.title,\n          content: finalResult.final_output.content,\n          format: finalResult.final_output.format || \"markdown\"\n        },\n        supporting_points: supportingPoints,\n        risk_flags: riskFlags\n      },\n\n      coo_final_token_usage: {\n        input_tokens: Number(usage.input_tokens || 0),\n        output_tokens: Number(usage.output_tokens || 0),\n        total_tokens: Number(\n          usage.total_tokens ||\n          (Number(usage.input_tokens || 0) + Number(usage.output_tokens || 0))\n        )\n      }\n    }\n  }\n];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3872,
-        1968
+        3984,
+        3296
       ],
       "id": "6d5026fa-3e23-46d1-baac-dc44bdf161a4",
       "name": "P1_NORMALIZE_COO_FINAL_OUTPUT"
@@ -1447,8 +1206,8 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        4096,
-        2048
+        4208,
+        3360
       ],
       "id": "7c38ea83-3ddc-45ab-8601-77fb846b982a",
       "name": "Merge7"
@@ -1460,8 +1219,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4320,
-        2048
+        4432,
+        3360
       ],
       "id": "9fea63ef-7e17-4460-9c39-47f8f5863992",
       "name": "P1_PREPARE_COO_FINAL_RESULT_STATE"
@@ -1478,8 +1237,8 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        4544,
-        2048
+        4656,
+        3360
       ],
       "id": "12a4bbd9-b331-49f0-8495-1085c6bb122a",
       "name": "P1_STORE_FINAL_RESULT",
@@ -1497,8 +1256,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4768,
-        2048
+        4880,
+        3360
       ],
       "id": "1fc2dda1-66ed-4f6e-8b02-47d6dc2f7bd1",
       "name": "P1_PREPARE_GRADING_STATE"
@@ -1515,8 +1274,8 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        4992,
-        2048
+        5056,
+        3360
       ],
       "id": "b4c6e0f0-53b0-48c0-9510-310bee506439",
       "name": "P1_SET_GRADING_IN_PROGRESS",
@@ -1529,71 +1288,26 @@
     },
     {
       "parameters": {
-        "modelId": {
-          "__rl": true,
-          "value": "gpt-4o",
-          "mode": "list",
-          "cachedResultName": "GPT-4O"
-        },
-        "responses": {
-          "values": [
-            {
-              "role": "system",
-              "content": "You are the grader agent inside the NXQ runtime.\n\nYour task is to evaluate whether the final result satisfies the original job request.\n\nGrade only the provided result.\nDo not rewrite the result.\nDo not add new solution content.\nReturn ONLY valid JSON in the following structure:\n\n{\n  \"score\": 0,\n  \"pass_fail\": \"\",\n  \"risk_flags\": [\n    {\n      \"id\": \"risk_1\",\n      \"detail\": \"\"\n    }\n  ],\n  \"grading_summary\": \"\",\n  \"governance_recommendation\": \"\"\n}\n\nRules:\n- score must be an integer from 0 to 100\n- pass_fail must be either \"pass\" or \"fail\"\n- governance_recommendation must be one of:\n  \"approve\"\n  \"request_revision\"\n  \"reject\""
-            },
-            {
-              "content": "=Original job prompt:\n{{$json.prompt}}\n\nFinal result:\n{{$json.runtime_context.final_result}}\n\nEvaluate the final result and return valid JSON only."
-            }
-          ]
-        },
-        "simplify": false,
-        "builtInTools": {},
-        "options": {
-          "textFormat": {
-            "textOptions": {
-              "type": "json_object"
-            }
-          },
-          "temperature": 0.2
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.openAi",
-      "typeVersion": 2.1,
-      "position": [
-        5216,
-        1968
-      ],
-      "id": "fb1aa0cb-d97d-4139-aabf-3be20296a11e",
-      "name": "P1_GRADER_MODEL_CALL",
-      "credentials": {
-        "openAiApi": {
-          "id": "2J7VIgVFv5KFkW4G",
-          "name": "OpenAi account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "const data = $json;\n\nconst grading = data?.output?.[0]?.content?.[0]?.text;\n\nif (!grading || typeof grading !== 'object') {\n  throw new Error('GRADER_NORMALIZATION_FAILED: invalid grading structure');\n}\n\nif (typeof grading.score !== 'number') {\n  throw new Error('GRADER_NORMALIZATION_FAILED: score must be number');\n}\n\nif (!['pass', 'fail'].includes(grading.pass_fail)) {\n  throw new Error('GRADER_NORMALIZATION_FAILED: pass_fail must be pass or fail');\n}\n\nif (!Array.isArray(grading.risk_flags)) {\n  throw new Error('GRADER_NORMALIZATION_FAILED: risk_flags must be array');\n}\n\nif (typeof grading.grading_summary !== 'string') {\n  throw new Error('GRADER_NORMALIZATION_FAILED: missing grading_summary');\n}\n\nif (!['approve','request_revision','reject'].includes(grading.governance_recommendation)) {\n  throw new Error('GRADER_NORMALIZATION_FAILED: invalid governance_recommendation');\n}\n\nconst usage = data.usage || {};\n\nreturn [\n  {\n    json: {\n      job_id: data.job_id,\n      assigned_agent_id: data.assigned_agent_id,\n      assigned_instance_id: data.assigned_instance_id,\n      identity_fingerprint: data.identity_fingerprint,\n      job_type: data.job_type,\n      prompt: data.prompt,\n      runtime_context: data.runtime_context,\n\n      grading_result: {\n        score: grading.score,\n        pass_fail: grading.pass_fail,\n        risk_flags: grading.risk_flags,\n        grading_summary: grading.grading_summary,\n        governance_recommendation: grading.governance_recommendation\n      },\n\n      grader_token_usage: {\n        input_tokens: Number(usage.input_tokens || 0),\n        output_tokens: Number(usage.output_tokens || 0),\n        total_tokens: Number(usage.total_tokens || 0)\n      }\n    }\n  }\n];"
+        "jsCode": "const data = $json;\n\n// Support both formats:\n// 1) direct grading object at top level\n// 2) nested provider response at output[0].content[0].text\nlet grading = data?.output?.[0]?.content?.[0]?.text ?? data;\n\n// If the nested text is a JSON string, parse it\nif (typeof grading === 'string') {\n  try {\n    grading = JSON.parse(grading);\n  } catch {\n    throw new Error('GRADER_NORMALIZATION_FAILED: grading text is not valid JSON');\n  }\n}\n\nif (!grading || typeof grading !== 'object' || Array.isArray(grading)) {\n  throw new Error('GRADER_NORMALIZATION_FAILED: invalid grading structure');\n}\n\nif (typeof grading.score !== 'number') {\n  throw new Error('GRADER_NORMALIZATION_FAILED: score must be number');\n}\n\nif (!['pass', 'fail'].includes(grading.pass_fail)) {\n  throw new Error('GRADER_NORMALIZATION_FAILED: pass_fail must be pass or fail');\n}\n\nif (!Array.isArray(grading.risk_flags)) {\n  throw new Error('GRADER_NORMALIZATION_FAILED: risk_flags must be array');\n}\n\nif (typeof grading.grading_summary !== 'string') {\n  throw new Error('GRADER_NORMALIZATION_FAILED: missing grading_summary');\n}\n\nif (!['approve', 'request_revision', 'reject'].includes(grading.governance_recommendation)) {\n  throw new Error('GRADER_NORMALIZATION_FAILED: invalid governance_recommendation');\n}\n\nconst usage = data.usage || grading.usage || {};\n\nreturn [\n  {\n    json: {\n      job_id: data.job_id,\n      assigned_agent_id: data.assigned_agent_id,\n      assigned_instance_id: data.assigned_instance_id,\n      identity_fingerprint: data.identity_fingerprint,\n      job_type: data.job_type,\n      prompt: data.prompt,\n      runtime_context: data.runtime_context,\n\n      grading_result: {\n        score: grading.score,\n        pass_fail: grading.pass_fail,\n        risk_flags: grading.risk_flags,\n        grading_summary: grading.grading_summary,\n        governance_recommendation: grading.governance_recommendation\n      },\n\n      grader_token_usage: {\n        input_tokens: Number(usage.input_tokens || 0),\n        output_tokens: Number(usage.output_tokens || 0),\n        total_tokens: Number(\n          usage.total_tokens ||\n          ((Number(usage.input_tokens || 0)) + (Number(usage.output_tokens || 0)))\n        )\n      }\n    }\n  }\n];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        5568,
-        1968
+        5744,
+        2000
       ],
       "id": "755a59f1-72a5-4842-8f25-e2258456c029",
       "name": "P1_NORMALIZE_GRADER_OUTPUT"
     },
     {
       "parameters": {
-        "jsCode": "const data = $json;\n\nif (!data.job_id) {\n  throw new Error('PREPARE_GRADING_RESULT_STATE_FAILED: missing job_id');\n}\n\nif (!data.runtime_context || typeof data.runtime_context !== 'object') {\n  throw new Error('PREPARE_GRADING_RESULT_STATE_FAILED: runtime_context missing');\n}\n\nif (!data.grading_result) {\n  throw new Error('PREPARE_GRADING_RESULT_STATE_FAILED: grading_result missing');\n}\n\nif (!data.grader_token_usage) {\n  throw new Error('PREPARE_GRADING_RESULT_STATE_FAILED: grader_token_usage missing');\n}\n\nconst runtimeContext = data.runtime_context;\nconst modelStates = runtimeContext.model_states || {};\nconst tokenUsage = runtimeContext.token_usage || {};\n\nconst cooInput = Number(tokenUsage?.coo?.input_tokens || 0);\nconst cooOutput = Number(tokenUsage?.coo?.output_tokens || 0);\nconst researchInput = Number(tokenUsage?.research?.input_tokens || 0);\nconst researchOutput = Number(tokenUsage?.research?.output_tokens || 0);\nconst workerInput = Number(tokenUsage?.worker?.input_tokens || 0);\nconst workerOutput = Number(tokenUsage?.worker?.output_tokens || 0);\n\nconst graderInput = Number(data.grader_token_usage.input_tokens || 0);\nconst graderOutput = Number(data.grader_token_usage.output_tokens || 0);\n\nconst totalInput = cooInput + researchInput + workerInput + graderInput;\nconst totalOutput = cooOutput + researchOutput + workerOutput + graderOutput;\nconst totalTokens = totalInput + totalOutput;\n\nreturn [\n  {\n    json: {\n      ...data,\n      runtime_context: {\n        ...runtimeContext,\n        active_stage: 'grading_complete',\n\n        grading_result: data.grading_result,\n\n        model_states: {\n          ...modelStates,\n          grader: {\n            ...(modelStates.grader || {}),\n            status: 'completed'\n          }\n        },\n\n        token_usage: {\n          ...tokenUsage,\n\n          grader: {\n            input_tokens: graderInput,\n            output_tokens: graderOutput\n          },\n\n          total_input_tokens: totalInput,\n          total_output_tokens: totalOutput,\n          total_tokens: totalTokens\n        }\n      }\n    }\n  }\n];"
+        "jsCode": "const data = $json;\n\nif (!data.job_id) {\n  throw new Error('PREPARE_GRADING_RESULT_STATE_FAILED: missing job_id');\n}\n\nif (!data.runtime_context || typeof data.runtime_context !== 'object' || Array.isArray(data.runtime_context)) {\n  throw new Error('PREPARE_GRADING_RESULT_STATE_FAILED: runtime_context missing');\n}\n\nif (!data.grading_result || typeof data.grading_result !== 'object') {\n  throw new Error('PREPARE_GRADING_RESULT_STATE_FAILED: grading_result missing');\n}\n\nif (!data.grader_token_usage || typeof data.grader_token_usage !== 'object') {\n  throw new Error('PREPARE_GRADING_RESULT_STATE_FAILED: grader_token_usage missing');\n}\n\nconst runtimeContext = data.runtime_context || {};\nconst modelStates = runtimeContext.model_states || {};\nconst tokenUsage = runtimeContext.token_usage || {};\n\nconst toInt = (value) => {\n  const n = Number(value);\n  return Number.isFinite(n) ? Math.trunc(n) : 0;\n};\n\nconst safeClone = (value) => {\n  if (value === undefined) return null;\n  if (value === null) return null;\n\n  if (Array.isArray(value)) {\n    return value.map((item) => safeClone(item));\n  }\n\n  if (typeof value === 'object') {\n    const out = {};\n    for (const [key, val] of Object.entries(value)) {\n      if (val !== undefined) {\n        out[key] = safeClone(val);\n      }\n    }\n    return out;\n  }\n\n  if (typeof value === 'number') {\n    return Number.isFinite(value) ? value : null;\n  }\n\n  return value;\n};\n\nconst cooInput = toInt(tokenUsage?.coo?.input_tokens);\nconst cooOutput = toInt(tokenUsage?.coo?.output_tokens);\nconst researchInput = toInt(tokenUsage?.research?.input_tokens);\nconst researchOutput = toInt(tokenUsage?.research?.output_tokens);\nconst workerInput = toInt(tokenUsage?.worker?.input_tokens);\nconst workerOutput = toInt(tokenUsage?.worker?.output_tokens);\n\nconst graderInput = toInt(data.grader_token_usage?.input_tokens);\nconst graderOutput = toInt(data.grader_token_usage?.output_tokens);\nconst graderTotal = toInt(data.grader_token_usage?.total_tokens || (graderInput + graderOutput));\n\nconst totalInput = cooInput + researchInput + workerInput + graderInput;\nconst totalOutput = cooOutput + researchOutput + workerOutput + graderOutput;\nconst totalTokens = totalInput + totalOutput;\n\nconst updatedRuntimeContextObject = safeClone({\n  ...runtimeContext,\n  active_stage: 'grading_complete',\n\n  grading_result: safeClone(data.grading_result),\n\n  model_states: {\n    ...modelStates,\n    grader: {\n      ...(modelStates.grader || {}),\n      status: 'completed'\n    }\n  },\n\n  token_usage: {\n    ...tokenUsage,\n\n    grader: {\n      input_tokens: graderInput,\n      output_tokens: graderOutput,\n      total_tokens: graderTotal\n    },\n\n    total_input_tokens: totalInput,\n    total_output_tokens: totalOutput,\n    total_tokens: totalTokens\n  }\n});\n\nreturn [\n  {\n    json: {\n      ...safeClone(data),\n\n      grading_result: safeClone(data.grading_result),\n\n      grader_token_usage: {\n        input_tokens: graderInput,\n        output_tokens: graderOutput,\n        total_tokens: graderTotal\n      },\n\n      // Firestore-safe for the n8n Firestore node\n      runtime_context: JSON.stringify(updatedRuntimeContextObject),\n\n      // optional: keep object form for downstream debugging if needed\n      runtime_context_object: updatedRuntimeContextObject\n    }\n  }\n];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        6016,
-        2048
+        6192,
+        2064
       ],
       "id": "2003c6aa-6da4-40f9-ae21-3793cb68598a",
       "name": "P1_PREPARE_GRADING_RESULT_STATE"
@@ -1607,8 +1321,8 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        5792,
-        2048
+        5968,
+        2064
       ],
       "id": "3032c5c5-d0b4-4753-b5bb-451154f16c1b",
       "name": "Merge8"
@@ -1625,8 +1339,8 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        6240,
-        2048
+        6416,
+        2064
       ],
       "id": "e9ca5c52-3bb7-4694-abb9-d278f487a7bb",
       "name": "P1_STORE_GRADING_RESULT",
@@ -1649,8 +1363,8 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        6688,
-        2048
+        6864,
+        2064
       ],
       "id": "58b42ed2-3661-4327-bdb1-54d61f5acf5d",
       "name": "P1_STORE_GRADING_RESULT1",
@@ -1679,8 +1393,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        6464,
-        2048
+        6640,
+        2064
       ],
       "id": "4ce67e3e-52d3-4411-a4f2-ae54fe4a76f7",
       "name": "Edit Fields2"
@@ -1692,8 +1406,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -3488,
-        1520
+        -3392,
+        1488
       ],
       "id": "0075713e-c136-406b-a578-fbde22b30bc3",
       "name": "P1_BUILD_CANONICAL_IDENTITY_JSON"
@@ -1705,8 +1419,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1024,
-        1456
+        416,
+        1312
       ],
       "id": "247ba155-8eff-408d-8059-5be8bb298da5",
       "name": "P1_BUILD_FINGERPRINT_VERIFIED_TRACE"
@@ -1723,8 +1437,8 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        1248,
-        1456
+        656,
+        2112
       ],
       "id": "39a02f06-cc15-47c3-a696-ce9fbf383814",
       "name": "P1_CREATE_FINGERPRINT_TRACE_RECORD",
@@ -1755,8 +1469,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -3136,
-        2112
+        -3232,
+        3440
       ],
       "id": "81c6e953-e6de-4a51-b054-81ac75f02bf7",
       "name": "Edit Fields"
@@ -1768,8 +1482,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -3264,
-        1520
+        -3168,
+        1488
       ],
       "id": "746d77e8-b6b0-49ac-b05e-f2488e4a77e2",
       "name": "VERIFY_AGENT_FINGERPRINT"
@@ -1781,8 +1495,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2816,
-        1616
+        -2720,
+        1776
       ],
       "id": "f400f8cd-5b22-4076-8536-bccd337d1c0b",
       "name": "BUILD_IDENTITY_QUARANTINE_PAYLOAD"
@@ -1799,8 +1513,8 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        -2576,
-        1616
+        -2496,
+        1776
       ],
       "id": "597e911c-69be-45dd-9456-326fa60691c2",
       "name": "QUARANTINE_AGENT_IDENTITY_FAILURE",
@@ -1822,8 +1536,8 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        -1856,
-        1616
+        -2272,
+        1776
       ],
       "id": "b0494769-29f5-4033-8131-bfbd3c70a8d7",
       "name": "RESPOND_IDENTITY_QUARANTINED"
@@ -1835,8 +1549,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2368,
-        1472
+        -2272,
+        1584
       ],
       "id": "47e568ee-b221-46b8-ade1-7d8a5dc0066a",
       "name": "BUILD_IDENTITY_VERIFIED_TRACE"
@@ -1853,8 +1567,8 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        -1488,
-        1152
+        -2048,
+        1392
       ],
       "id": "44ab908a-d7a8-4218-90a8-ee7aba1f4424",
       "name": "Firestore: Update Completed",
@@ -1877,8 +1591,8 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        -1152,
-        1184
+        -2048,
+        1584
       ],
       "id": "edc26e5a-a1f7-4ca8-92de-532dfd915ff2",
       "name": "trace event firestore",
@@ -1901,8 +1615,8 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        -784,
-        1712
+        -480,
+        1488
       ],
       "id": "7dbbb068-8307-47da-aabd-a6b07d1e49d3",
       "name": "Acquire Lease1",
@@ -1920,8 +1634,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -3600,
-        992
+        -3616,
+        896
       ],
       "id": "2d10d457-adf4-472e-b4af-b8f095400a73",
       "name": "BUILD_FORK_QUARANTINE_PAYLOAD"
@@ -1938,8 +1652,8 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        -3328,
-        992
+        -3392,
+        896
       ],
       "id": "12f3c853-4d54-4f7f-bbed-aa0b70deb1f7",
       "name": "QUARANTINE_AGENT_ON_FORK_DETECTED",
@@ -1962,8 +1676,8 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        -2432,
-        992
+        -2496,
+        896
       ],
       "id": "f7962b32-1767-4740-8ef7-07f850be0f0f",
       "name": "Firestore: Update Rejected2",
@@ -1981,8 +1695,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2160,
-        1120
+        -2272,
+        1200
       ],
       "id": "820dcee9-b4d8-4b74-9d1f-1b6531fbe276",
       "name": "BUILD_RESURRECTION_EVENT"
@@ -1999,8 +1713,8 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        -1680,
-        992
+        -1808,
+        1136
       ],
       "id": "bb0a88e0-842e-43b6-91cd-08ad1ea98338",
       "name": "CREATE_RESURRECTION_EVENT_RECORD",
@@ -2036,7 +1750,7 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        -2896,
+        -2944,
         448
       ],
       "id": "5176d07e-9a7a-47c6-86a6-239ffa5897c5",
@@ -2055,7 +1769,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -3376,
+        -3392,
         672
       ],
       "id": "7c7692d1-4a9b-4fa5-a35e-6d181ce73094",
@@ -2073,7 +1787,7 @@
       "type": "n8n-nodes-base.googleFirebaseCloudFirestore",
       "typeVersion": 1.1,
       "position": [
-        -3040,
+        -3168,
         672
       ],
       "id": "271d77dc-1dcb-46df-9fd1-eeb97e3b45cf",
@@ -2092,8 +1806,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2080,
-        1504
+        -2048,
+        1776
       ],
       "id": "5ed5c95e-4f44-4b72-a2b4-44f6e2d3bdb0",
       "name": "BUILD_AGENT_CONTINUITY_UPDATE"
@@ -2126,8 +1840,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -1952,
-        1120
+        -2048,
+        1200
       ],
       "id": "6fd13e5c-1c67-4bba-8467-a3685db9d181",
       "name": "IS_RESURRECTION_EVENT"
@@ -2139,8 +1853,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1088,
-        1680
+        -704,
+        1488
       ],
       "id": "9ecd1be5-9524-45ef-958b-b16ae4fe2f8a",
       "name": "BUILD_LEASE_FORK_QUARANTINE_PAYLOAD"
@@ -2152,8 +1866,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2896,
-        992
+        -2944,
+        896
       ],
       "id": "3537b27d-f9a3-4cf8-81dd-81477550c62f",
       "name": "BUILD_FORK_JOB_REJECTION_PAYLOAD"
@@ -2165,7 +1879,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -3600,
+        -3616,
         448
       ],
       "id": "cec77caa-36e7-45f1-a39d-0504fc7ef136",
@@ -2178,59 +1892,212 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2688,
-        992
+        -2720,
+        896
       ],
       "id": "7d1a4846-7050-4645-9bf7-484117c948ae",
       "name": "BUILD_REJECTION_TRACE1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4dd99562-b421-4571-88bb-0cc8a6138029",
+              "name": "job_id",
+              "value": "={{ $json.job_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1424,
+        2448
+      ],
+      "id": "55ca0254-8dfc-4640-91f2-37a3e4cc76ea",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "claude-sonnet-4-6",
+          "mode": "list",
+          "cachedResultName": "claude-sonnet-4-6"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=User task:\n\n{{$json.prompt}}\n\nCreate the execution plan."
+            }
+          ]
+        },
+        "simplify": false,
+        "options": {
+          "system": "You are the COO agent inside the NXQ runtime.  Your task is to design a deterministic execution plan for the given task.  You must produce a structured JSON plan that divides work between:  research agent worker agent  Rules: - research gathers information and analysis - worker performs implementation or structured output - COO will later assemble the final result  Return ONLY valid JSON.  Structure:  {   \"plan_summary\": \"\",   \"steps\": [     {       \"step_id\": \"step_1\",       \"agent\": \"research\",       \"task\": \"\"     },     {       \"step_id\": \"step_2\",       \"agent\": \"worker\",       \"task\": \"\"     }   ] }",
+          "temperature": 0.2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        -2112,
+        3776
+      ],
+      "id": "19e8c45b-09f1-455e-acdb-12a96d5e4816",
+      "name": "P1_COO_PLAN_MODEL_CALL1",
+      "credentials": {
+        "anthropicApi": {
+          "id": "ct5qFWcgS2SFWsqp",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Claude -> legacy workflow adapter\n// Reads Anthropic-style response, strips ```json fences,\n// parses when possible, and re-emits in a workflow-safe format.\n\nfunction extractText(payload) {\n  if (!payload) return '';\n\n  // Common Claude structure\n  if (Array.isArray(payload.content) && payload.content.length > 0) {\n    const firstTextBlock = payload.content.find(\n      (c) => c && c.type === 'text' && typeof c.text === 'string'\n    );\n    if (firstTextBlock) return firstTextBlock.text;\n  }\n\n  // Fallbacks\n  if (typeof payload.text === 'string') return payload.text;\n  if (typeof payload.response === 'string') return payload.response;\n  if (typeof payload.output === 'string') return payload.output;\n\n  return '';\n}\n\nfunction stripCodeFences(text) {\n  if (typeof text !== 'string') return '';\n\n  let cleaned = text.trim();\n\n  // remove starting ```json or ```\n  cleaned = cleaned.replace(/^```json\\s*/i, '');\n  cleaned = cleaned.replace(/^```\\s*/i, '');\n\n  // remove trailing ```\n  cleaned = cleaned.replace(/\\s*```$/i, '');\n\n  return cleaned.trim();\n}\n\nconst source = $json;\nconst rawText = extractText(source);\nconst cleanedText = stripCodeFences(rawText);\n\nlet parsedJson = null;\nlet parseOk = false;\nlet parseError = null;\n\ntry {\n  parsedJson = JSON.parse(cleanedText);\n  parseOk = true;\n} catch (err) {\n  parseError = err.message;\n}\n\nreturn [\n  {\n    json: {\n      // legacy-compatible path\n      output: [\n        {\n          content: [\n            {\n              text: cleanedText\n            }\n          ]\n        }\n      ],\n\n      // convenience fields for future cleanup\n      model_text_raw: rawText,\n      model_text_clean: cleanedText,\n      model_json: parsedJson,\n      model_json_valid: parseOk,\n      model_json_error: parseError,\n\n      // passthrough metadata\n      provider: 'anthropic',\n      provider_model: source.model || null,\n      provider_message_id: source.id || null,\n      provider_stop_reason: source.stop_reason || null,\n\n      // full original response for debugging\n      original_response: source\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1792,
+        3568
+      ],
+      "id": "7929071e-8145-4349-bcaf-fcd80e6e000e",
+      "name": "P1_COO_PLAN_ADAPTER"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "claude-sonnet-4-6",
+          "mode": "list",
+          "cachedResultName": "claude-sonnet-4-6"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Job prompt:\n{{$json.prompt}}\n\nResearch task:\n{{$json.research_task.task}}\n\nExecute the research taskin high detailed and return structured JSON."
+            }
+          ]
+        },
+        "simplify": false,
+        "options": {
+          "system": "You are the research agent inside the NXQ runtime.  You execute only the assigned research task. Do not plan, do not delegate, and do not perform worker actions.  Return ONLY valid JSON in this structure:  {   \"research_summary\": \"\",   \"findings\": [     {       \"id\": \"finding_1\",       \"title\": \"\",       \"detail\": \"\"     }   ],   \"risks\": [     {       \"id\": \"risk_1\",       \"detail\": \"\"     }   ],   \"recommended_inputs_for_worker\": [     \"\"   ] }",
+          "webSearch": true,
+          "maxUses": 2,
+          "temperature": 0.3
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        -32,
+        3840
+      ],
+      "id": "a364b7c3-bdeb-4e3a-a565-ab6d4d8c247b",
+      "name": "P1_COO_PLAN_MODEL_CALL2",
+      "credentials": {
+        "anthropicApi": {
+          "id": "ct5qFWcgS2SFWsqp",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Code node\n// Input: raw model response object/array\n// Output: one clean item with important information only\n\nfunction safeJsonParse(str) {\n  try {\n    return JSON.parse(str);\n  } catch {\n    return null;\n  }\n}\n\nfunction normalizeInput(raw) {\n  if (Array.isArray(raw)) return raw[0] || {};\n  return raw || {};\n}\n\nfunction extractJsonFromText(text) {\n  if (!text || typeof text !== 'string') return null;\n\n  // Try fenced json block first\n  const fenced = text.match(/```json\\s*([\\s\\S]*?)\\s*```/i);\n  if (fenced?.[1]) {\n    const parsed = safeJsonParse(fenced[1]);\n    if (parsed) return parsed;\n  }\n\n  // Fallback: try to locate first { ... last }\n  const firstBrace = text.indexOf('{');\n  const lastBrace = text.lastIndexOf('}');\n  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {\n    const candidate = text.slice(firstBrace, lastBrace + 1);\n    const parsed = safeJsonParse(candidate);\n    if (parsed) return parsed;\n  }\n\n  return null;\n}\n\n// Extract a single JSON string field even if the whole JSON is broken/truncated\nfunction extractJsonStringField(text, fieldName) {\n  if (!text || typeof text !== 'string') return null;\n\n  // Look inside fenced block first if present\n  const fenced = text.match(/```json\\s*([\\s\\S]*?)$/i);\n  const source = fenced?.[1] || text;\n\n  const escapedField = fieldName.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\n  const regex = new RegExp(`\"${escapedField}\"\\\\s*:\\\\s*\"((?:\\\\\\\\.|[^\"\\\\\\\\])*)\"`);\n  const match = source.match(regex);\n\n  if (!match?.[1]) return null;\n\n  try {\n    // Re-wrap as JSON string so escapes are decoded correctly\n    return JSON.parse(`\"${match[1]}\"`);\n  } catch {\n    return match[1]\n      .replace(/\\\\\"/g, '\"')\n      .replace(/\\\\\\\\/g, '\\\\')\n      .replace(/\\\\n/g, '\\n')\n      .replace(/\\\\t/g, '\\t')\n      .replace(/\\\\r/g, '\\r');\n  }\n}\n\n// Optional partial findings extractor for truncated JSON\nfunction extractFindingsFromBrokenJson(text) {\n  if (!text || typeof text !== 'string') return [];\n\n  const fenced = text.match(/```json\\s*([\\s\\S]*?)$/i);\n  const source = fenced?.[1] || text;\n\n  const findingsMatch = source.match(/\"findings\"\\s*:\\s*\\[([\\s\\S]*?)(?:\\]\\s*,\\s*\"stop_reason\"|$)/);\n  if (!findingsMatch?.[1]) return [];\n\n  const block = findingsMatch[1];\n  const objectMatches = block.match(/\\{[\\s\\S]*?\"id\"\\s*:\\s*\"[^\"]+\"[\\s\\S]*?\"title\"\\s*:\\s*\"[^\"]+\"[\\s\\S]*?\"detail\"\\s*:\\s*\"[\\s\\S]*?\"[\\s\\S]*?\\}/g) || [];\n\n  return objectMatches\n    .map(objText => {\n      const id = extractJsonStringField(objText, 'id');\n      const title = extractJsonStringField(objText, 'title');\n      const detail = extractJsonStringField(objText, 'detail');\n\n      if (!id && !title && !detail) return null;\n\n      return {\n        id: id || null,\n        title: title || null,\n        detail: detail || null\n      };\n    })\n    .filter(Boolean);\n}\n\nfunction compactSearchResults(content) {\n  if (!Array.isArray(content)) return [];\n\n  return content\n    .filter(entry => entry?.type === 'web_search_result')\n    .map(entry => ({\n      title: entry.title || null,\n      url: entry.url || null,\n      page_age: entry.page_age || null\n    }));\n}\n\nconst inputItems = $input.all();\n\n// Support both:\n// 1) normal n8n item => inputItems[0].json = {...}\n// 2) weird case where json itself is an array => inputItems[0].json = [{...}]\nconst rawRoot = inputItems[0]?.json;\nconst payload = normalizeInput(rawRoot);\n\nconst content = Array.isArray(payload.content) ? payload.content : [];\n\nconst textBlocks = [];\nconst successfulSearches = [];\nconst failedSearches = [];\nconst serverToolUses = [];\n\nfor (const block of content) {\n  if (block?.type === 'text' && block.text) {\n    textBlocks.push(block.text);\n  }\n\n  if (block?.type === 'server_tool_use') {\n    serverToolUses.push({\n      id: block.id || null,\n      name: block.name || null,\n      query: block.input?.query || null\n    });\n  }\n\n  if (block?.type === 'web_search_tool_result') {\n    if (Array.isArray(block.content)) {\n      successfulSearches.push({\n        tool_use_id: block.tool_use_id || null,\n        results: compactSearchResults(block.content)\n      });\n    }\n\n    if (block.content?.type === 'web_search_tool_result_error') {\n      failedSearches.push({\n        tool_use_id: block.tool_use_id || null,\n        error_code: block.content.error_code || 'unknown_error'\n      });\n    }\n  }\n}\n\n// Usually the last text block contains the compiled answer/JSON\nconst finalText = textBlocks.length ? textBlocks[textBlocks.length - 1] : null;\nconst parsedResearchJson = extractJsonFromText(finalText);\n\n// Fallbacks for truncated JSON\nconst fallbackResearchSummary = extractJsonStringField(finalText, 'research_summary');\nconst fallbackStopReason = extractJsonStringField(finalText, 'stop_reason');\nconst fallbackFindings = extractFindingsFromBrokenJson(finalText);\n\n// Flatten successful sources\nconst flattenedSources = successfulSearches.flatMap(group => group.results);\n\n// Deduplicate by URL/title\nconst seen = new Set();\nconst uniqueSources = flattenedSources.filter(source => {\n  const key = source.url || source.title;\n  if (!key || seen.has(key)) return false;\n  seen.add(key);\n  return true;\n});\n\nconst cleaned = {\n  model: payload.model || null,\n  message_id: payload.id || null,\n  role: payload.role || null,\n  type: payload.type || null,\n\n  important_output: {\n    research_summary:\n      parsedResearchJson?.research_summary ||\n      fallbackResearchSummary ||\n      null,\n\n    findings: Array.isArray(parsedResearchJson?.findings)\n      ? parsedResearchJson.findings\n          .filter(f => f && (f.title || f.detail || f.id))\n          .map(f => ({\n            id: f.id || null,\n            title: f.title || null,\n            detail: f.detail || null\n          }))\n      : fallbackFindings,\n\n    stop_reason:\n      payload.stop_reason ||\n      parsedResearchJson?.stop_reason ||\n      fallbackStopReason ||\n      null,\n\n    source_summary: {\n      successful_search_count: successfulSearches.length,\n      successful_source_count: uniqueSources.length,\n      failed_search_count: failedSearches.length,\n      failed_queries: failedSearches.map(f => {\n        const tool = serverToolUses.find(t => t.id === f.tool_use_id);\n        return {\n          query: tool?.query || null,\n          error_code: f.error_code\n        };\n      }),\n      sources: uniqueSources\n    },\n\n    usage: payload.usage || null\n  },\n\n  forwarded_text_only: {\n    final_compiled_text: finalText || null\n  }\n};\n\nreturn [{ json: cleaned }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        272,
+        3648
+      ],
+      "id": "22f053ee-37fa-47d7-bb85-1a5969156917",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "jsCode": "const doc = { ...$json };\n\n// Remove or null out empty arrays that break Firestore node serialization\nif (doc.runtime_context?.research_result) {\n  if (Array.isArray(doc.runtime_context.research_result.risks) && doc.runtime_context.research_result.risks.length === 0) {\n    doc.runtime_context.research_result.risks = null;\n  }\n\n  if (\n    Array.isArray(doc.runtime_context.research_result.recommended_inputs_for_worker) &&\n    doc.runtime_context.research_result.recommended_inputs_for_worker.length === 0\n  ) {\n    doc.runtime_context.research_result.recommended_inputs_for_worker = null;\n  }\n}\n\nif (doc.research_result) {\n  if (Array.isArray(doc.research_result.risks) && doc.research_result.risks.length === 0) {\n    doc.research_result.risks = null;\n  }\n\n  if (\n    Array.isArray(doc.research_result.recommended_inputs_for_worker) &&\n    doc.research_result.recommended_inputs_for_worker.length === 0\n  ) {\n    doc.research_result.recommended_inputs_for_worker = null;\n  }\n}\n\n// Empty objects can also be problematic in this node\nif (doc.status && typeof doc.status === 'object' && !Array.isArray(doc.status) && Object.keys(doc.status).length === 0) {\n  doc.status = null;\n}\n\nreturn [{ json: doc }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        3360
+      ],
+      "id": "e6f7c43d-e9b5-4b50-b7d6-0bc4cef4a5e4",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "claude-haiku-4-5-20251001",
+          "mode": "list",
+          "cachedResultName": "claude-haiku-4-5-20251001"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Original job prompt:\n{{$json.prompt}}\n\nFinal result:\n{{$json.runtime_context.final_result.final_output.content}}\n\nEvaluate the final result and return valid JSON only."
+            }
+          ]
+        },
+        "simplify": false,
+        "options": {
+          "system": "You are the grader agent inside the NXQ runtime.  Your task is to evaluate whether the final result satisfies the original job request.  Grade only the provided result. Do not rewrite the result. Do not add new solution content.  Return ONLY valid JSON in the following structure:  {   \"score\": 0,   \"pass_fail\": \"\",   \"risk_flags\": [     {       \"id\": \"risk_1\",       \"detail\": \"\"     }   ],   \"grading_summary\": \"\",   \"governance_recommendation\": \"\" }  Rules: - score must be an integer from 0 to 100 - pass_fail must be either \"pass\" or \"fail\" - governance_recommendation must be one of:   \"approve\"   \"request_revision\"   \"reject\" - grading_summary must clearly explain why the score was assigned - each risk_flags.detail must describe a specific issue found in the provided result - base the explanation only on the provided result and the original job request - do not include markdown - do not include any text outside the JSON",
+          "temperature": 0.1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        5248,
+        2576
+      ],
+      "id": "e28b53b6-efc0-4ea5-a229-94a66584fb66",
+      "name": "Message a model",
+      "credentials": {
+        "anthropicApi": {
+          "id": "ct5qFWcgS2SFWsqp",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Input item\nconst item = $input.first().json;\n\n// Extract text from Claude response\nlet rawText = item.content?.[0]?.text || \"\";\n\n// Remove markdown code block wrappers\nrawText = rawText\n  .replace(/```json/g, \"\")\n  .replace(/```/g, \"\")\n  .trim();\n\n// Parse JSON safely\nlet parsed;\n\ntry {\n  parsed = JSON.parse(rawText);\n} catch (err) {\n  parsed = {\n    parse_error: true,\n    raw_output: rawText\n  };\n}\n\n// Return structured output\nreturn [\n  {\n    json: {\n      model: item.model,\n      message_id: item.id,\n      score: parsed.score ?? null,\n      pass_fail: parsed.pass_fail ?? null,\n      governance_recommendation: parsed.governance_recommendation ?? null,\n      grading_summary: parsed.grading_summary ?? null,\n      risk_flags: parsed.risk_flags ?? [],\n      usage: item.usage ?? {}\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5536,
+        2272
+      ],
+      "id": "2d59de1e-94ab-4673-bc93-e2fb6a6eaab7",
+      "name": "Code in JavaScript4"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $json;\n\n/**\n * Try to parse COO finalization result from model output if present.\n * Also supports already-normalized final_result.\n */\nfunction tryParseModelResult(input) {\n  const candidates = [\n    input?.final_result,\n    input?.output?.[0]?.content?.[0]?.text,\n    input?.content?.[0]?.text,\n    input?.text,\n    input?.response,\n    input?.finalization_output\n  ];\n\n  let raw = candidates.find((v) => v !== undefined && v !== null && v !== \"\");\n\n  if (!raw) return null;\n\n  if (typeof raw === \"object\" && !Array.isArray(raw)) {\n    return raw;\n  }\n\n  if (typeof raw === \"string\") {\n    const cleaned = raw\n      .trim()\n      .replace(/^```json\\s*/i, \"\")\n      .replace(/^```\\s*/i, \"\")\n      .replace(/\\s*```$/, \"\");\n\n    try {\n      return JSON.parse(cleaned);\n    } catch {\n      throw new Error(\"FINALIZATION_FAILED: model output is not valid JSON\");\n    }\n  }\n\n  return null;\n}\n\nfunction normalizeText(value) {\n  if (typeof value === \"string\") {\n    return value.trim();\n  }\n\n  if (Array.isArray(value)) {\n    return value.map((item) => normalizeText(item)).filter(Boolean).join(\"\\n\");\n  }\n\n  if (value && typeof value === \"object\") {\n    const entries = Object.entries(value);\n\n    if (!entries.length) return \"\";\n\n    return entries\n      .map(([key, val]) => {\n        if (Array.isArray(val)) {\n          const lines = val.map((item) => `- ${String(item)}`).join(\"\\n\");\n          return `### ${key}\\n${lines}`;\n        }\n\n        if (val && typeof val === \"object\") {\n          return `### ${key}\\n${JSON.stringify(val, null, 2)}`;\n        }\n\n        return `### ${key}\\n${String(val)}`;\n      })\n      .join(\"\\n\\n\");\n  }\n\n  if (value === undefined || value === null) {\n    return \"\";\n  }\n\n  return String(value).trim();\n}\n\n/**\n * Build final result from existing workflow state when no raw model output exists.\n */\nfunction buildFromRuntimeState(input) {\n  const workerDeliverable = Array.isArray(input?.worker_result?.deliverables)\n    ? input.worker_result.deliverables[0]\n    : null;\n\n  const workerTitle =\n    typeof workerDeliverable?.title === \"string\" && workerDeliverable.title.trim()\n      ? workerDeliverable.title.trim()\n      : \"Final Research Brief\";\n\n  const workerContent = normalizeText(workerDeliverable?.content);\n\n  if (!workerContent) {\n    throw new Error(\n      \"FINALIZATION_FAILED: no model output present and worker_result.deliverables[0].content is missing\"\n    );\n  }\n\n  const researchFindings = Array.isArray(input?.research_result?.findings)\n    ? input.research_result.findings\n    : [];\n\n  const supportingPoints = researchFindings.map((finding, index) => ({\n    id:\n      typeof finding?.id === \"string\" && finding.id.trim()\n        ? finding.id\n        : `point_${index + 1}`,\n    detail:\n      typeof finding?.detail === \"string\" && finding.detail.trim()\n        ? finding.detail\n        : typeof finding?.title === \"string\" && finding.title.trim()\n        ? finding.title\n        : JSON.stringify(finding)\n  }));\n\n  const workerIssues = Array.isArray(input?.worker_result?.open_issues)\n    ? input.worker_result.open_issues\n    : [];\n\n  const researchRisks = Array.isArray(input?.research_result?.risks)\n    ? input.research_result.risks\n    : [];\n\n  const riskFlags = [\n    ...workerIssues.map((issue, index) => ({\n      id:\n        typeof issue?.id === \"string\" && issue.id.trim()\n          ? issue.id\n          : `risk_${index + 1}`,\n      detail:\n        typeof issue?.detail === \"string\" && issue.detail.trim()\n          ? issue.detail\n          : JSON.stringify(issue)\n    })),\n    ...researchRisks.map((risk, index) => ({\n      id:\n        typeof risk?.id === \"string\" && risk.id.trim()\n          ? risk.id\n          : `research_risk_${index + 1}`,\n      detail:\n        typeof risk?.detail === \"string\" && risk.detail.trim()\n          ? risk.detail\n          : JSON.stringify(risk)\n    }))\n  ];\n\n  return {\n    final_summary:\n      typeof input?.worker_result?.worker_summary === \"string\"\n        ? input.worker_result.worker_summary\n        : \"\",\n    final_output: {\n      title: workerTitle,\n      content: workerContent,\n      format: \"markdown\"\n    },\n    artifact_type: \"research_brief\",\n    supporting_points: supportingPoints,\n    risk_flags: riskFlags\n  };\n}\n\nlet result = tryParseModelResult(data);\n\nif (!result) {\n  result = buildFromRuntimeState(data);\n}\n\nif (!result || typeof result !== \"object\" || Array.isArray(result)) {\n  throw new Error(\"FINALIZATION_FAILED: invalid final result structure\");\n}\n\nconst finalOutput = result.final_output || {};\n\nif (typeof finalOutput.title !== \"string\" || !finalOutput.title.trim()) {\n  throw new Error(\"FINALIZATION_FAILED: missing final_output.title\");\n}\n\nconst normalizedFinalContent = normalizeText(finalOutput.content);\n\nif (!normalizedFinalContent) {\n  throw new Error(\"FINALIZATION_FAILED: missing final_output.content\");\n}\n\nconst supportingPoints = Array.isArray(result.supporting_points)\n  ? result.supporting_points.map((point, index) => {\n      if (typeof point === \"string\") {\n        return {\n          id: `point_${index + 1}`,\n          detail: point\n        };\n      }\n\n      if (point && typeof point === \"object\") {\n        return {\n          id:\n            typeof point.id === \"string\" && point.id.trim()\n              ? point.id\n              : `point_${index + 1}`,\n          detail:\n            typeof point.detail === \"string\" && point.detail.trim()\n              ? point.detail\n              : JSON.stringify(point)\n        };\n      }\n\n      return {\n        id: `point_${index + 1}`,\n        detail: String(point)\n      };\n    })\n  : [];\n\nconst riskFlags = Array.isArray(result.risk_flags)\n  ? result.risk_flags.map((risk, index) => ({\n      id:\n        typeof risk?.id === \"string\" && risk.id.trim()\n          ? risk.id\n          : `risk_${index + 1}`,\n      detail:\n        typeof risk?.detail === \"string\" && risk.detail.trim()\n          ? risk.detail\n          : JSON.stringify(risk)\n    }))\n  : [];\n\nconst runtimeContext = data.runtime_context || {};\nconst modelStates = runtimeContext.model_states || {};\nconst tokenUsage = runtimeContext.token_usage || {};\n\nconst cooInputTokens = Number(\n  data?.usage?.input_tokens ||\n  data?.coo_token_usage?.input_tokens ||\n  data?.coo_final_token_usage?.input_tokens ||\n  tokenUsage?.coo?.input_tokens ||\n  0\n);\n\nconst cooOutputTokens = Number(\n  data?.usage?.output_tokens ||\n  data?.coo_token_usage?.output_tokens ||\n  data?.coo_final_token_usage?.output_tokens ||\n  tokenUsage?.coo?.output_tokens ||\n  0\n);\n\nconst researchInputTokens = Number(\n  data?.research_token_usage?.input_tokens ||\n  tokenUsage?.research?.input_tokens ||\n  0\n);\n\nconst researchOutputTokens = Number(\n  data?.research_token_usage?.output_tokens ||\n  tokenUsage?.research?.output_tokens ||\n  0\n);\n\nconst workerInputTokens = Number(\n  data?.worker_token_usage?.input_tokens ||\n  tokenUsage?.worker?.input_tokens ||\n  0\n);\n\nconst workerOutputTokens = Number(\n  data?.worker_token_usage?.output_tokens ||\n  tokenUsage?.worker?.output_tokens ||\n  0\n);\n\nconst totalInputTokens = cooInputTokens + researchInputTokens + workerInputTokens;\nconst totalOutputTokens = cooOutputTokens + researchOutputTokens + workerOutputTokens;\nconst totalTokens = totalInputTokens + totalOutputTokens;\n\nreturn [\n  {\n    json: {\n      ...data,\n\n      final_result: {\n        final_summary:\n          typeof result.final_summary === \"string\" ? result.final_summary : \"\",\n        final_output: {\n          title: finalOutput.title.trim(),\n          content: normalizedFinalContent,\n          format:\n            typeof finalOutput.format === \"string\" && finalOutput.format.trim()\n              ? finalOutput.format\n              : \"markdown\"\n        },\n        artifact_type:\n          typeof result.artifact_type === \"string\" && result.artifact_type.trim()\n            ? result.artifact_type\n            : \"research_brief\",\n        supporting_points: supportingPoints,\n        risk_flags: riskFlags\n      },\n\n      coo_final_token_usage: {\n        input_tokens: cooInputTokens,\n        output_tokens: cooOutputTokens,\n        total_tokens: Number(\n          data?.usage?.total_tokens ||\n          data?.coo_token_usage?.total_tokens ||\n          data?.coo_final_token_usage?.total_tokens ||\n          (cooInputTokens + cooOutputTokens)\n        )\n      },\n\n      runtime_context: {\n        ...runtimeContext,\n        active_stage: \"final_result_ready\",\n        final_result: {\n          final_summary:\n            typeof result.final_summary === \"string\" ? result.final_summary : \"\",\n          final_output: {\n            title: finalOutput.title.trim(),\n            content: normalizedFinalContent,\n            format:\n              typeof finalOutput.format === \"string\" && finalOutput.format.trim()\n                ? finalOutput.format\n                : \"markdown\"\n          },\n          artifact_type:\n            typeof result.artifact_type === \"string\" && result.artifact_type.trim()\n              ? result.artifact_type\n              : \"research_brief\",\n          supporting_points: supportingPoints,\n          risk_flags: riskFlags\n        },\n        model_states: {\n          ...modelStates,\n          coo: {\n            ...(modelStates.coo || {}),\n            status: \"completed\"\n          }\n        },\n        token_usage: {\n          ...tokenUsage,\n          coo: {\n            ...(tokenUsage.coo || {}),\n            input_tokens: cooInputTokens,\n            output_tokens: cooOutputTokens\n          },\n          research: {\n            ...(tokenUsage.research || {}),\n            input_tokens: researchInputTokens,\n            output_tokens: researchOutputTokens\n          },\n          worker: {\n            ...(tokenUsage.worker || {}),\n            input_tokens: workerInputTokens,\n            output_tokens: workerOutputTokens\n          },\n          total_input_tokens: totalInputTokens,\n          total_output_tokens: totalOutputTokens,\n          total_tokens: totalTokens\n        }\n      }\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3728,
+        3568
+      ],
+      "id": "79f740d9-3ef8-4177-be98-810f053562f0",
+      "name": "Code in JavaScript6"
     }
   ],
   "pinData": {
-    "P1_ROUTER_WEBHOOK_IN": [
-      {
-        "json": {
-          "headers": {
-            "host": "nxq3.app.n8n.cloud",
-            "user-agent": "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Mobile Safari/537.36",
-            "content-length": "30",
-            "accept": "*/*",
-            "accept-encoding": "gzip, br",
-            "accept-language": "en-GB,en;q=0.9",
-            "cdn-loop": "cloudflare; loops=1; subreqs=1",
-            "cf-connecting-ip": "2409:40d6:1194:4384:2d42:bce4:98d7:3063",
-            "cf-ew-via": "15",
-            "cf-ipcountry": "IN",
-            "cf-ray": "9d85dc34dc7a4d7f-FRA",
-            "cf-visitor": "{\"scheme\":\"https\"}",
-            "cf-worker": "n8n.cloud",
-            "content-type": "application/json",
-            "origin": "null",
-            "priority": "u=1, i",
-            "sec-ch-ua": "\"Not:A-Brand\";v=\"99\", \"Brave\";v=\"145\", \"Chromium\";v=\"145\"",
-            "sec-ch-ua-mobile": "?1",
-            "sec-ch-ua-platform": "\"Android\"",
-            "sec-fetch-dest": "empty",
-            "sec-fetch-mode": "cors",
-            "sec-fetch-site": "cross-site",
-            "sec-gpc": "1",
-            "x-forwarded-for": "2409:40d6:1194:4384:2d42:bce4:98d7:3063, 172.69.151.135",
-            "x-forwarded-host": "nxq3.app.n8n.cloud",
-            "x-forwarded-port": "443",
-            "x-forwarded-proto": "https",
-            "x-forwarded-server": "traefik-prod-users-gwc-7-77fc66445c-kt69w",
-            "x-is-trusted": "yes",
-            "x-real-ip": "2409:40d6:1194:4384:2d42:bce4:98d7:3063"
-          },
-          "params": {},
-          "query": {},
-          "body": {
-            "job_id": "job_1773002507485"
-          },
-          "webhookUrl": "https://nxq3.app.n8n.cloud/webhook-test/job-execution-router",
-          "executionMode": "test"
-        }
-      }
-    ],
     "P1_JOB_INTAKE": [
       {
         "json": {
@@ -2354,28 +2221,6 @@
     ]
   },
   "connections": {
-    "Get Job By ID": {
-      "main": [
-        [
-          {
-            "node": "Firestore: Get Job",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get All Jobs": {
-      "main": [
-        [
-          {
-            "node": "Firestore: List Jobs",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Job Approve": {
       "main": [
         [
@@ -2745,28 +2590,6 @@
         ]
       ]
     },
-    "P1_ROUTER_WEBHOOK_IN": {
-      "main": [
-        [
-          {
-            "node": "P1_VALIDATE_JOB_EXECUTION_INPUT",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "P1_VALIDATE_JOB_EXECUTION_INPUT": {
-      "main": [
-        [
-          {
-            "node": "P1_LOAD_JOB_RECORD",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "P1_LOAD_JOB_RECORD": {
       "main": [
         [
@@ -2853,23 +2676,12 @@
       "main": [
         [
           {
-            "node": "P1_COO_PLAN_MODEL_CALL",
-            "type": "main",
-            "index": 0
-          },
-          {
             "node": "Merge4",
             "type": "main",
             "index": 1
-          }
-        ]
-      ]
-    },
-    "P1_COO_PLAN_MODEL_CALL": {
-      "main": [
-        [
+          },
           {
-            "node": "Merge4",
+            "node": "P1_COO_PLAN_MODEL_CALL1",
             "type": "main",
             "index": 0
           }
@@ -2946,23 +2758,12 @@
       "main": [
         [
           {
-            "node": "P1_RESEARCH_MODEL_CALL",
-            "type": "main",
-            "index": 0
-          },
-          {
             "node": "Merge5",
             "type": "main",
             "index": 1
-          }
-        ]
-      ]
-    },
-    "P1_RESEARCH_MODEL_CALL": {
-      "main": [
-        [
+          },
           {
-            "node": "P1_NORMALIZE_RESEARCH_OUTPUT",
+            "node": "P1_COO_PLAN_MODEL_CALL2",
             "type": "main",
             "index": 0
           }
@@ -2995,7 +2796,7 @@
       "main": [
         [
           {
-            "node": "P1_STORE_RESEARCH_RESULT",
+            "node": "Code in JavaScript3",
             "type": "main",
             "index": 0
           }
@@ -3110,23 +2911,12 @@
       "main": [
         [
           {
-            "node": "P1_COO_FINAL_MODEL_CALL",
-            "type": "main",
-            "index": 0
-          },
-          {
             "node": "Merge7",
             "type": "main",
             "index": 1
-          }
-        ]
-      ]
-    },
-    "P1_COO_FINAL_MODEL_CALL": {
-      "main": [
-        [
+          },
           {
-            "node": "P1_NORMALIZE_COO_FINAL_OUTPUT",
+            "node": "Code in JavaScript6",
             "type": "main",
             "index": 0
           }
@@ -3192,7 +2982,7 @@
       "main": [
         [
           {
-            "node": "P1_GRADER_MODEL_CALL",
+            "node": "Message a model",
             "type": "main",
             "index": 0
           },
@@ -3200,17 +2990,6 @@
             "node": "Merge8",
             "type": "main",
             "index": 1
-          }
-        ]
-      ]
-    },
-    "P1_GRADER_MODEL_CALL": {
-      "main": [
-        [
-          {
-            "node": "P1_NORMALIZE_GRADER_OUTPUT",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
@@ -3526,6 +3305,116 @@
           }
         ]
       ]
+    },
+    "P1_CREATE_FINGERPRINT_TRACE_RECORD": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "P1_LOAD_JOB_RECORD",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "P1_COO_PLAN_MODEL_CALL1": {
+      "main": [
+        [
+          {
+            "node": "P1_COO_PLAN_ADAPTER",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "P1_COO_PLAN_ADAPTER": {
+      "main": [
+        [
+          {
+            "node": "Merge4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "P1_COO_PLAN_MODEL_CALL2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "P1_NORMALIZE_RESEARCH_OUTPUT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "P1_STORE_RESEARCH_RESULT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript4": {
+      "main": [
+        [
+          {
+            "node": "P1_NORMALIZE_GRADER_OUTPUT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript6": {
+      "main": [
+        [
+          {
+            "node": "P1_NORMALIZE_COO_FINAL_OUTPUT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
@@ -3534,7 +3423,7 @@
     "binaryMode": "separate",
     "availableInMCP": true
   },
-  "versionId": "4f026ce5-96a8-4f22-a3e8-f80a72dda72b",
+  "versionId": "50df9f0a-46f2-455c-be57-99b8d99790d2",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "0e440d961c930abf3d1df477fca0586210abd7f1a2fd56e0c1be1a5a2d2e3c9c"

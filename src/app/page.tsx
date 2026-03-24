@@ -1,12 +1,16 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { Zap, Shield, Globe, Terminal } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function LandingPage() {
+  const [mounted, setMounted] = useState(false);
+
   useEffect(() => {
+    setMounted(true);
+
     // 5 minutes = 300,000 ms
     const RELOAD_INTERVAL = 5 * 60 * 1000;
 
@@ -18,8 +22,19 @@ export default function LandingPage() {
     return () => clearInterval(interval);
   }, []);
 
+  // SSR Shell: Minimal background and essential structure to avoid blank flashes
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center p-8 tech-grid overflow-hidden" suppressHydrationWarning>
+        <div className="animate-pulse opacity-20">
+          <Terminal className="w-16 h-16 text-cyan-500" />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-transparent flex flex-col items-center justify-center p-8 tech-grid scanline overflow-hidden">
+    <div className="min-h-screen bg-transparent flex flex-col items-center justify-center p-8 tech-grid scanline overflow-hidden" suppressHydrationWarning>
       {/* Background Glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-cyan-900/10 blur-[150px] rounded-full -z-10 animate-pulse" />
 

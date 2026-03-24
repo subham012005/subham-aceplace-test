@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
     Send,
     Terminal,
@@ -19,10 +20,14 @@ interface TaskComposerProps {
 }
 
 export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
+    const router = useRouter();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [task, setTask] = useState("");
+    const [useDeterministicRuntime, setUseDeterministicRuntime] = useState(
+        process.env.NEXT_PUBLIC_USE_DETERMINISTIC_RUNTIME === "true"
+    );
 
     const maxChars = 2000;
     const charPercentage = Math.min((task.length / maxChars) * 100, 100);
@@ -51,7 +56,8 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
                 job_id: generatedJobId,
                 job_type: "agent_coo",
                 prompt: task,
-            });
+                use_deterministic: useDeterministicRuntime
+            } as any);
 
             // Trigger Firestore logging in parallel
             import("@/lib/user-stats").then(({ incrementUserRequestCount }) => {
@@ -64,9 +70,14 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
             setSuccess(true);
             setTask("");
 
+            // Redirect to job detail page
+            setTimeout(() => {
+                router.push(`jobs/${generatedJobId}`);
+            }, 1000); // Small delay to show success state
+
         } catch (err: any) {
             console.error("Orchestration failed:", err);
-            setError(err.message || "Dimensional link failed. Check n8n status.");
+            setError(err.message || "Dimensional link failed. Check workflow engine status.");
         } finally {
             setIsSubmitting(false);
         }
@@ -74,8 +85,8 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
 
     return (
         <form onSubmit={handleSubmit} className={cn("space-y-6", className)}>
-            <SciFiFrame 
-                title="Tactical Command Orchestrator" 
+            <SciFiFrame
+                title="Tactical Command Orchestrator"
                 variant="glass"
                 className="overflow-hidden"
             >
@@ -89,9 +100,32 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
                         <div className="h-3 w-[1px] bg-white/10" />
                         <span className="text-[8px] font-bold text-slate-500 tracking-widest uppercase">Latency: 24ms</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <span className="text-[8px] font-bold text-cyan-500/60 tracking-widest uppercase">Encryption:</span>
-                        <span className="text-[9px] font-black text-cyan-400 tracking-tighter">RSA_OMEGA_4096</span>
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                            <span className="text-[8px] font-bold text-cyan-500/60 tracking-widest uppercase">Encryption:</span>
+                            <span className="text-[9px] font-black text-cyan-400 tracking-tighter">RSA_OMEGA_4096</span>
+                        </div>
+                        <div className="h-3 w-[1px] bg-white/10" />
+                        <label className="flex items-center gap-2 cursor-pointer group/toggle">
+                            <span className={cn(
+                                "text-[8px] font-bold tracking-widest uppercase transition-colors",
+                                useDeterministicRuntime ? "text-amber-400" : "text-slate-500 group-hover/toggle:text-slate-400"
+                            )}>
+                                Deterministic Runtime {useDeterministicRuntime ? "ON" : "OFF"}
+                            </span>
+                            <div
+                                onClick={() => setUseDeterministicRuntime(!useDeterministicRuntime)}
+                                className={cn(
+                                    "w-7 h-3.5 rounded-full p-0.5 transition-colors relative border",
+                                    useDeterministicRuntime ? "bg-amber-500/20 border-amber-500/50" : "bg-slate-900 border-white/10"
+                                )}
+                            >
+                                <div className={cn(
+                                    "w-2 h-2 rounded-full transition-all shadow-sm",
+                                    useDeterministicRuntime ? "translate-x-3.5 bg-amber-400" : "translate-x-0 bg-slate-600"
+                                )} />
+                            </div>
+                        </label>
                     </div>
                 </div>
 
@@ -102,11 +136,11 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
                                 <Terminal className="w-3 h-3" />
                                 Direct Command Sequence
                             </label>
-                            
+
                             <div className="flex items-center gap-3">
                                 <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Buffer Status</span>
                                 <div className="w-24 h-1 bg-white/5 border border-white/5 rounded-full overflow-hidden">
-                                    <div 
+                                    <div
                                         className={cn(
                                             "h-full transition-all duration-500",
                                             charPercentage > 90 ? "bg-rose-500" : "bg-cyan-500 shadow-[0_0_8px_#06b6d4]"
@@ -170,11 +204,11 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
                         >
                             {/* Animated Background Gradients */}
                             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover/btn:translate-x-full transition-transform duration-1000 ease-out" />
-                            
+
                             {success && (
                                 <div className="absolute inset-0 bg-white animate-out fade-out duration-700 pointer-events-none z-50" />
                             )}
-                            
+
                             {isSubmitting ? (
                                 <>
                                     <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
@@ -192,16 +226,16 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
                                 </>
                             )}
                         </button>
-                        
+
                         <div className="mt-4 flex items-center justify-between px-2">
                             <div className="flex gap-1">
                                 {Array.from({ length: 4 }).map((_, i) => (
-                                    <div 
-                                        key={i} 
+                                    <div
+                                        key={i}
                                         className={cn(
                                             "w-3 h-1 rounded-full transition-colors duration-500",
                                             task.length > 0 ? "bg-cyan-500/40" : "bg-white/5"
-                                        )} 
+                                        )}
                                         style={{ transitionDelay: `${i * 100}ms` }}
                                     />
                                 ))}

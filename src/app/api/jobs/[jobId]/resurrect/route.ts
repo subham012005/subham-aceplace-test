@@ -1,73 +1,43 @@
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase-admin";
+import { workflowEngine } from "@/lib/workflow-engine";
 
 /**
- * Resurrect (Resume) Job Proxy
+ * Resurrect (Resume) Job by ID
  * POST /api/jobs/[jobId]/resurrect
  */
 export async function POST(
     req: Request,
-    { params }: { params: { jobId: string } }
+    { params }: { params: Promise<{ jobId: string }> }
 ) {
     try {
-        const jobId = params.jobId;
+        const { jobId } = await params;
         const { user_id, reason } = await req.json().catch(() => ({}));
 
-        if (!adminDb) {
-            return NextResponse.json({ error: "ADMIN_NOT_INITIALIZED" }, { status: 503 });
-        }
-
-        // 1. Verify Ownership & Status
-        const jobRef = adminDb.collection("jobs").doc(jobId);
-        const jobDoc = await jobRef.get();
-
-        if (!jobDoc.exists) {
-            return NextResponse.json({ error: "Job not found" }, { status: 404 });
-        }
-
-        const jobData = jobDoc.data();
-        if (user_id && jobData?.user_id !== user_id) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-        }
-
-        // 2. Call n8n Resurrect Webhook
-        const baseUrl = process.env.NEXT_PUBLIC_N8N_WEBHOOK_BASE_URL;
-        const n8nUrl = `${baseUrl}job-resurrect`;
-
-        const response = await fetch(n8nUrl, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${process.env.N8N_ACCESS_TOKEN}`
-            },
-            body: JSON.stringify({ job_id: jobId, reason: reason || "Operator Manual Override" }),
-        });
-
-        if (!response.ok) {
-            const error = await response.text();
-            return NextResponse.json({ error: "n8n resurrection failed", details: error }, { status: response.status });
-        }
-
-        // 3. Update Firestore Status
-        await jobRef.update({
-            status: "queued", // Or in_progress, depending on if we want to wait for router
-            quarantine_reason: null, // Clear quarantine
-            updated_at: new Date().toISOString()
-        });
-
-        // 4. Log Trace
-        await adminDb.collection("job_traces").add({
+        const result = await workflowEngine.resurrectJob({
             job_id: jobId,
-            user_id: jobData?.user_id,
-            event_type: "OPERATOR_RESUMED",
-            message: `Operator has resumed the job from quarantine.`,
-            created_at: new Date().toISOString()
+            user_id,
+            reason,
         });
 
-        return NextResponse.json({ success: true, status: "resumed" });
+        // Trigger the Python agent engine asynchronously
+        const agentEngineUrl = process.env.AGENT_ENGINE_URL || "http://localhost:8000";
+        fetch(`${agentEngineUrl}/execute`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                job_id: jobId,
+                prompt: result.prompt || "Resume job execution",
+                user_id: user_id || "system",
+            }),
+        }).catch(e => console.error("Agent Engine failed to restart from API:", e));
+
+        return NextResponse.json(result);
 
     } catch (error: any) {
         console.error("Resurrection error:", error);
-        return NextResponse.json({ error: error.message || "Failed to resume job" }, { status: 500 });
+        const status = error.message?.includes("NOT_FOUND") ? 404
+            : error.message?.includes("UNAUTHORIZED") ? 403
+            : 500;
+        return NextResponse.json({ error: error.message || "Failed to resume job" }, { status });
     }
 }

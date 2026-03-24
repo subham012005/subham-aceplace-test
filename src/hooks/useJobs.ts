@@ -80,7 +80,7 @@ export interface Job {
     resurrection_reason?: string;
     resurrected_by?: string;
     resurrected_at?: string;
-    // New fields from n8n
+    // Agent pipeline fields
     grade_score?: number;
     pass_fail?: string;
     output?: any[];
@@ -102,7 +102,7 @@ export interface Job {
     assigned_agent_id?: string;
     assigned_agent_role?: string;
     fork_last_at?: string;
-    // Direct from n8n result
+    // Direct from result
     event_id?: string;
     action_taken?: string;
     block_reason?: string;
@@ -119,6 +119,8 @@ export interface Job {
     last_safe_step?: string;
     resume_allowed?: boolean;
     grade_status?: string;
+    execution_id?: string;
+    envelope_id?: string;
 }
 
 export interface ForkEvent {
@@ -176,9 +178,9 @@ export function useJobs(userId: string | undefined) {
     }, []);
 
     const refresh = useCallback(async () => {
-        if (!userId) return;
-        setRefreshing(true);
         try {
+            if (!userId) return;
+
             const jobsData = await nxqApi.getAllJobs(userId);
             if (Array.isArray(jobsData)) {
                 setJobs(prev => {
@@ -238,8 +240,9 @@ export function useJobs(userId: string | undefined) {
         setJobs([]);
         setLoading(true);
 
+        const jobsRef = collection(db, "jobs");
         const q = query(
-            collection(db, "jobs"),
+            jobsRef,
             where("user_id", "==", userId)
         );
 
@@ -324,7 +327,44 @@ export function useJob(jobId: string | null, userId: string | undefined, onUpdat
         return () => unsubscribe();
     }, [jobId, userId, onUpdate, refresh]);
 
-    return { job, loading, refreshing, refresh };
+    const [isStalled, setIsStalled] = useState(false);
+
+    useEffect(() => {
+        const checkStalled = () => {
+            if (!job || !job.updated_at) {
+                setIsStalled(false);
+                return;
+            }
+
+            const updated = new Date(job.updated_at).getTime();
+            const now = Date.now();
+            const ACTIVE_STATUSES = [
+                "queued",
+                "in_progress",
+                "coo_planning",
+                "research_execution",
+                "worker_execution",
+                "grading",
+                "assigned"
+            ];
+
+            const status = String(job.status || "").toLowerCase();
+
+            // If active and no update for > 300s (5m), consider it stalled
+            const timeout = 300000; // 5 minutes
+            if (ACTIVE_STATUSES.includes(status) && (now - updated) > timeout) {
+                setIsStalled(true);
+            } else {
+                setIsStalled(false);
+            }
+        };
+
+        const timer = setInterval(checkStalled, 10000);
+        checkStalled();
+        return () => clearInterval(timer);
+    }, [job]);
+
+    return { job, loading, refreshing, refresh, isStalled };
 }
 
 export function useForkProtection(jobId: string | null) {

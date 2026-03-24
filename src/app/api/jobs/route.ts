@@ -11,12 +11,6 @@ export async function GET(req: Request) {
         const { searchParams } = new URL(req.url);
         const userId = searchParams.get("user_id");
 
-        if (!userId) {
-            return NextResponse.json({ error: "Missing user_id" }, { status: 400 });
-        }
-
-        console.log(`[ADMIN] Fetching jobs for user: ${userId}`);
-
         if (!adminDb) {
             return NextResponse.json({
                 error: "Backend not configured",
@@ -26,7 +20,17 @@ export async function GET(req: Request) {
         }
 
         const jobsRef = adminDb.collection("jobs");
-        const snapshot = await jobsRef.where("user_id", "==", userId).get();
+        let query;
+
+        if (userId === "all") {
+            console.log(`[ADMIN] Fetching ALL jobs (Global View)`);
+            query = jobsRef.orderBy("created_at", "desc").limit(200);
+        } else {
+            console.log(`[ADMIN] Fetching jobs for user: ${userId}`);
+            query = jobsRef.where("user_id", "==", userId);
+        }
+
+        const snapshot = await query.get();
 
         const jobs = snapshot.docs.map(doc => ({
             id: doc.id,

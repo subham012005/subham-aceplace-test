@@ -1,0 +1,2 @@
+Yes — that acceptNovaHandoff.ts is the old single-agent version and it needs to 
+

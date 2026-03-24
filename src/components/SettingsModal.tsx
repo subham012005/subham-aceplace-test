@@ -10,7 +10,8 @@ import {
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { useSettings } from "@/context/SettingsContext";
-import { Settings, MousePointer2, Target, Zap, Shield, Cpu } from "lucide-react";
+import { Settings, MousePointer2, Target, Zap, Shield, Cpu, Eye, Copy, Check } from "lucide-react";
+import { auth } from "@/lib/firebase";
 
 interface SettingsModalProps {
     isOpen: boolean;
@@ -19,6 +20,14 @@ interface SettingsModalProps {
 
 export default function SettingsModal({ isOpen, onOpenChange }: SettingsModalProps) {
     const { settings, updateCursorStyle } = useSettings();
+    const [copied, setCopied] = React.useState(false);
+    const userId = auth.currentUser?.uid || "Not Authenticated";
+
+    const copyToClipboard = () => {
+        navigator.clipboard.writeText(userId);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -48,6 +57,25 @@ export default function SettingsModal({ isOpen, onOpenChange }: SettingsModalPro
                 </DialogHeader>
 
                 <div className="py-6 space-y-6 relative z-10">
+                    {/* User Identity Section */}
+                    <div className="space-y-4">
+                        <div className="flex items-center gap-2 text-[9px] uppercase font-black text-cyan-500/60 tracking-widest mb-1">
+                            <Shield className="w-3 h-3" /> Identity Signature
+                        </div>
+                        <div className="p-4 border border-white/5 bg-white/5 scifi-clip flex items-center justify-between hover:border-cyan-500/30 transition-all group">
+                            <div className="space-y-1 min-w-0 flex-1 mr-4">
+                                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Local UID</span>
+                                <p className="text-[11px] font-mono text-cyan-400 truncate">{userId}</p>
+                            </div>
+                            <button
+                                onClick={copyToClipboard}
+                                className="p-2 border border-white/10 bg-white/5 hover:bg-cyan-500/20 hover:border-cyan-500/50 transition-all"
+                            >
+                                {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3 text-cyan-500" />}
+                            </button>
+                        </div>
+                    </div>
+
                     {/* Interface Section */}
                     <div className="space-y-4">
                         <div className="flex items-center gap-2 text-[9px] uppercase font-black text-cyan-500/60 tracking-widest mb-1">

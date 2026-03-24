@@ -27,7 +27,9 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         const saved = localStorage.getItem('nxq_settings');
         if (saved) {
             try {
-                setSettings(JSON.parse(saved));
+                // Ensure legacy settings don't break the app by picking only what we need
+                const parsed = JSON.parse(saved);
+                setSettings({ cursorStyle: parsed.cursorStyle || 'targeting' });
             } catch (e) {
                 console.error("Failed to parse settings", e);
             }

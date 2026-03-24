@@ -8,6 +8,9 @@ import {
     useJobArtifacts
 } from "@/hooks/useJobs";
 import { useAuth } from "@/hooks/useAuth";
+import { useEnvelope } from "@/hooks/useEnvelope";
+import { EnvelopeInspector } from "@/components/EnvelopeInspector";
+import { KernelStatusBadge } from "@/components/KernelStatusBadge";
 import { nxqApi } from "@/lib/api-client";
 import {
     ChevronLeft,
@@ -38,12 +41,16 @@ import {
     Zap,
     Key,
     Database,
-    Check
+    Check,
+    RotateCw,
+    AlertCircle,
+    Layers
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HUDFrame } from "@/components/HUDFrame";
 import { SciFiFrame } from "@/components/SciFiFrame";
 import { MarkdownReport } from "@/components/MarkdownReport";
+import { DeliverableItem } from "@/components/DeliverableItem";
 import {
     Dialog,
     DialogContent,
@@ -102,7 +109,7 @@ export default function JobDetailsPage() {
 
     const extractOutputData = (j: any) => {
         if (!j) return null;
-        
+
         // 1. Check for known nested results
         const nestedResult = j?.runtime_context?.final_result || j?.runtime_context?.worker_result || j?.runtime_context?.research_result || j?.runtime_context?.plan;
         if (nestedResult) return nestedResult;
@@ -130,13 +137,14 @@ export default function JobDetailsPage() {
             return j.result;
         }
 
-        // 4. Check for direct delivery fields (common in n8n)
+        // 4. Check for direct delivery fields
         return j.strategic_plan || j.strategicPlan || j.research_intelligence || j.researchIntelligence || j.artifact || j.final_result || j.finalResult || j.worker_result || j.workerResult;
     };
 
-    const { job, loading: jobLoading, refresh: refreshJob } = useJob(jobId, user?.uid);
+    const { job, loading: jobLoading, refresh: refreshJob, isStalled } = useJob(jobId, user?.uid);
     const { traces, loading: tracesLoading } = useJobTraces(jobId);
     const { artifacts, loading: artifactsLoading } = useJobArtifacts(jobId);
+    const { envelope, steps, loading: envelopeLoading } = useEnvelope(job?.execution_id || null);
 
     // Unified Governance Logic
     const govScoreRaw = job?.runtime_context?.grading_result?.compliance_score ??
@@ -169,12 +177,37 @@ export default function JobDetailsPage() {
     const finalGovStatus = isActuallyPending ? 'PENDING' : (isActuallyPass ? 'PASS' : 'FAIL');
 
     const [actionLoading, setActionLoading] = useState(false);
+    const [isResurrecting, setIsResurrecting] = useState(false);
     const [viewingArtifact, setViewingArtifact] = useState<{ title: string; content: any } | null>(null);
     const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
     const [rejectionReason, setRejectionReason] = useState("");
     const [activeTab, setActiveTab] = useState<'plan' | 'research' | 'worker' | 'grader'>('plan');
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const maxIndexRef = useRef<number>(0);
+    const [staleSinceSeconds, setStaleSinceSeconds] = useState<number>(0);
+
+    // Live countdown: how long since the last update (used in crash banner)
+    useEffect(() => {
+        if (!isStalled) { setStaleSinceSeconds(0); return; }
+        const tick = () => {
+            const updatedAt = parseFirestoreDate(job?.updated_at);
+            if (!updatedAt) return;
+            setStaleSinceSeconds(Math.floor((Date.now() - updatedAt.getTime()) / 1000));
+        };
+        tick();
+        const interval = setInterval(tick, 1000);
+        return () => clearInterval(interval);
+    }, [isStalled, job?.updated_at]);
+
+    // Clear the "resurrecting" banner once the pipeline actually starts running
+    // (job status moves away from "queued" meaning the agent engine picked it up)
+    useEffect(() => {
+        if (!isResurrecting) return;
+        const status = String(job?.status || "").toLowerCase();
+        if (status !== "queued") {
+            setIsResurrecting(false);
+        }
+    }, [job?.status, isResurrecting]);
 
     const scrollTimeline = (direction: 'left' | 'right') => {
         if (scrollContainerRef.current) {
@@ -189,7 +222,7 @@ export default function JobDetailsPage() {
 
     const getActiveIndex = () => {
         const status = job?.status?.toLowerCase();
-        
+
         // Data-based transition checks
         const hasPlan = job?.runtime_context?.plan || (job as any)?.plan || (job as any)?.strategic_plan || (job as any)?.output_plan || (job as any)?.coo_plan || extractOutputData(job);
         const hasResearch = job?.runtime_context?.research_result || (job as any)?.research_result || (job as any)?.research || (job as any)?.research_intelligence;
@@ -203,24 +236,20 @@ export default function JobDetailsPage() {
         else if (hasWorker || status === 'grading') calculated = 8;
         else if (hasResearch || status === 'worker_execution') calculated = 7;
         else if (hasPlan || status === 'research_execution') calculated = 6;
-        else if (status === 'coo_planning') calculated = 5;
+        else if (status === 'coo_planning' || envelope?.execution_context?.status === "running") calculated = 5;
         else {
             // Trace-based heuristics for system stages
-            const traceMessages = traces.map(t => t.message.toLowerCase()).join(' ');
-            
-            // Node 4: CONTEXT_SYNC
-            if (traceMessages.includes('ready') || traceMessages.includes('environment ready') || traceMessages.includes('context') || traceMessages.includes('syncing context')) calculated = 4;
-            // Node 3: INSTANCE_BOOT
-            else if (job?.assigned_instance_id || traceMessages.includes('booting') || traceMessages.includes('runtime')) calculated = 3;
-            // Node 2: AUTHORITY_LEASE
-            else if (job?.identity_id || traceMessages.includes('lease') || traceMessages.includes('authority')) calculated = 2;
-            // Node 1: RESURRECTION_CHECK
-            else if (job?.resurrection_reason || traceMessages.includes('fork') || traceMessages.includes('resurrection')) calculated = 1;
-            // Node 0: IDENTITY_CHECK (Default if job exists)
-            else if (job?.identity_fingerprint || traceMessages.includes('fingerprint') || status === 'created' || status === 'queued') calculated = 0;
+            if (envelope?.execution_context?.status === "completed") calculated = 10;
+            else if (envelope?.identity_context?.verified) calculated = 2;
+            else if (envelope?.authority_context?.lease_id) calculated = 3;
+            else {
+                const traceMessages = traces.map(t => t.message.toLowerCase()).join(' ');
+                if (traceMessages.includes('ready') || traceMessages.includes('environment ready')) calculated = 4;
+                else if (job?.assigned_instance_id) calculated = 3;
+                else calculated = 0;
+            }
         }
-        
-        // Prevent backsliding during hydration/sync
+
         if (calculated > maxIndexRef.current) {
             maxIndexRef.current = calculated;
         }
@@ -272,14 +301,18 @@ export default function JobDetailsPage() {
         );
     }
 
-    const handleResume = async () => {
+    const handleResurrect = async () => {
         if (!user || actionLoading) return;
         setActionLoading(true);
         try {
-            await nxqApi.resurrectJob(jobId, "Operator Manual Resume");
+            const result = await nxqApi.resurrectJob(jobId, "Operator Manual Continuity Restore");
+            // Show resurrecting banner — cleared automatically once pipeline starts
+            setIsResurrecting(true);
+            // Reset timeline advancement so it rebuilds from step 1
+            maxIndexRef.current = 0;
             refreshJob();
         } catch (error) {
-            console.error("Resume failed:", error);
+            console.error("Resurrection failed:", error);
         } finally {
             setActionLoading(false);
         }
@@ -337,7 +370,7 @@ export default function JobDetailsPage() {
     };
 
     // Derived states from traces
-    const steps = [
+    const fallbackSteps = [
         { id: 'identity', name: 'IDENTITY_CHECK', icon: Fingerprint, subtext: 'Verifying ACELOGIC identity fingerprint', color: '#00E5FF' },
         { id: 'resurrection', name: 'RESURRECTION_CHECK', icon: RefreshCw, subtext: 'Preventing duplicate execution forks', color: '#FFC857' },
         { id: 'authority', name: 'AUTHORITY_LEASE', icon: Key, subtext: 'Acquiring execution authority lease', color: '#9C6BFF' },
@@ -386,16 +419,15 @@ export default function JobDetailsPage() {
                                 <Fingerprint className="w-3 h-3" />
                                 {jobId}
                             </div>
-                            <div className={cn(
-                                "px-3 py-1 border font-bold text-[10px] uppercase tracking-widest scifi-clip animate-pulse-slow",
-                                getStatusColor(job?.status)
-                            )}>
-                                {job?.status?.replace('_', ' ')}
-                            </div>
                         </div>
                     </div>
-
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mt-2 lg:mt-0 w-full lg:w-auto">
+                        <div className={cn(
+                            "px-3 py-1 border font-bold text-[10px] uppercase tracking-widest scifi-clip animate-pulse-slow",
+                            getStatusColor(job?.status)
+                        )}>
+                            {job?.status?.replace('_', ' ')}
+                        </div>
                         <button
                             onClick={() => refreshJob()}
                             disabled={jobLoading}
@@ -405,23 +437,115 @@ export default function JobDetailsPage() {
                             <RefreshCcw className={cn("w-5 h-5", jobLoading && "animate-spin")} />
                         </button>
 
-                        {(job?.status?.toLowerCase() === 'quarantined' || job?.quarantine_reason) && (
-                            <button
-                                onClick={handleResume}
-                                disabled={actionLoading || !job?.resume_allowed}
-                                className={cn(
-                                    "px-6 py-3 border font-bold uppercase tracking-widest transition-all scifi-clip flex items-center gap-2 cursor-target",
-                                    job?.resume_allowed
-                                        ? "bg-cyan-500/10 border-cyan-500/30 text-cyan-500 hover:bg-cyan-500/20"
-                                        : "bg-slate-500/10 border-slate-500/30 text-slate-500 opacity-50 cursor-not-allowed"
-                                )}
-                            >
-                                <RefreshCcw className={cn("w-4 h-4", actionLoading && "animate-spin")} />
-                                Resume Job
-                            </button>
-                        )}
+                        {(() => {
+                            const status = String(job?.status || "").toLowerCase();
+                            const canResurrect = ["failed", "rejected"].includes(status) || isStalled || job?.status?.toLowerCase() === 'quarantined' || job?.quarantine_reason;
+
+                            if (!canResurrect) return null;
+
+                            return (
+                                <button
+                                    onClick={handleResurrect}
+                                    disabled={actionLoading}
+                                    className="px-6 py-3 bg-cyan-500/10 border border-cyan-500/30 text-cyan-500 font-bold uppercase tracking-widest hover:bg-cyan-500/20 transition-all scifi-clip flex items-center gap-2 cursor-pointer shadow-[0_0_15px_rgba(6,182,212,0.1)]"
+                                >
+                                    <RefreshCw className={cn("w-4 h-4", actionLoading && "animate-spin")} />
+                                    Continuity Restore
+                                </button>
+                            );
+                        })()}
                     </div>
                 </div>
+
+                {/* ── CRASH / STALL ALERT BANNER ─────────────────────────── */}
+                {isStalled && (
+                    <div className="relative overflow-hidden border border-amber-500/60 bg-amber-500/5 animate-pulse-slow">
+                        {/* pulsing red glow top edge */}
+                        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-400 to-transparent" />
+                        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-red-500/50 to-transparent" />
+
+                        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-4 sm:p-6">
+                            <div className="flex items-start gap-4">
+                                <div className="relative shrink-0">
+                                    <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/40 flex items-center justify-center">
+                                        <div className="absolute inset-0 rounded-full animate-ping opacity-30 bg-amber-400" />
+                                        <Zap className="w-5 h-5 text-amber-400 relative z-10" />
+                                    </div>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className="text-xs font-black text-amber-400 uppercase tracking-[0.3em]">⚡ SERVER CRASH DETECTED</span>
+                                        <span className="px-2 py-0.5 bg-red-500/20 border border-red-500/40 text-red-400 text-[9px] font-black uppercase tracking-widest scifi-clip">
+                                            PIPELINE STALLED
+                                        </span>
+                                    </div>
+                                    <p className="text-slate-300 text-sm leading-relaxed max-w-xl">
+                                        The agent-engine process stopped responding during job execution. No updates have been received for{" "}
+                                        <span className="text-amber-400 font-bold font-mono">{staleSinceSeconds}s</span>.
+                                        The job can be restored from its last safe checkpoint.
+                                    </p>
+                                    <div className="flex items-center gap-3 pt-1">
+                                        <div className="flex items-center gap-1.5">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                                            <span className="text-[10px] text-slate-500 font-mono uppercase tracking-widest">
+                                                Last heartbeat: {formatDate(job?.updated_at)}
+                                            </span>
+                                        </div>
+                                        {job?.runtime_context?.active_stage && (
+                                            <div className="text-[10px] font-mono text-slate-600 uppercase tracking-widest">
+                                                | Stage: {String(job.runtime_context.active_stage).replace(/_/g, ' ')}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="shrink-0 flex flex-col gap-2 w-full md:w-auto">
+                                <button
+                                    onClick={handleResurrect}
+                                    disabled={actionLoading}
+                                    className="px-6 py-3 bg-amber-500/10 border border-amber-500/50 text-amber-400 font-black uppercase tracking-widest hover:bg-amber-500/20 transition-all scifi-clip flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_20px_rgba(245,158,11,0.15)] w-full md:w-auto"
+                                >
+                                    <RefreshCw className={cn("w-4 h-4", actionLoading && "animate-spin")} />
+                                    Continuity Restore
+                                </button>
+                                <p className="text-[9px] text-slate-600 text-center uppercase tracking-widest">
+                                    Resume From Last Checkpoint
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* ── CONTINUITY RESTORE IN PROGRESS BANNER ─────────────────────────── */}
+                {isResurrecting && (
+                    <div className="relative overflow-hidden border border-cyan-500/60 bg-cyan-500/5">
+                        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-400 to-transparent" />
+                        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent" />
+                        <div className="flex items-center gap-5 p-4 sm:p-6">
+                            <div className="relative shrink-0">
+                                <div className="w-12 h-12 rounded-full bg-cyan-500/10 border border-cyan-500/40 flex items-center justify-center">
+                                    <div className="absolute inset-0 rounded-full animate-ping opacity-25 bg-cyan-400" />
+                                    <RefreshCw className="w-5 h-5 text-cyan-400 relative z-10 animate-spin" />
+                                </div>
+                            </div>
+                            <div className="flex-1 space-y-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-xs font-black text-cyan-400 uppercase tracking-[0.3em]">⟳ CONTINUITY RESTORE TRIGGERED</span>
+                                    <span className="px-2 py-0.5 bg-cyan-500/20 border border-cyan-500/40 text-cyan-400 text-[9px] font-black uppercase tracking-widest scifi-clip">
+                                        PIPELINE REACTIVATING
+                                    </span>
+                                </div>
+                                <p className="text-slate-300 text-sm leading-relaxed max-w-xl">
+                                    The agent engine has been signalled. The pipeline will resume momentarily — this banner will clear once the first agent stage begins.
+                                </p>
+                                <p className="text-[10px] text-slate-500 font-mono uppercase tracking-widest">
+                                    Restore #{(job as any)?.resurrection_count ?? "—"} · Waiting for agent engine heartbeat...
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* 2. Job Overview Grid */}
                 <HUDFrame title="JOB METADATA">
@@ -474,6 +598,31 @@ export default function JobDetailsPage() {
                             </label>
                             <p className="text-slate-500 font-mono text-xs">{formatDate(job?.updated_at || job?.created_at)}</p>
                         </div>
+                        {/* Resurrection count — shown only if restored at least once */}
+                        {Number((job as any)?.resurrection_count || 0) > 0 && (
+                            <div className="space-y-1">
+                                <label className="text-[10px] uppercase font-bold text-slate-500 tracking-widest flex items-center gap-2">
+                                    <RotateCw className="w-3 h-3 text-cyan-500" /> Restore Count
+                                </label>
+                                <p className="text-cyan-400 font-bold text-sm">
+                                    #{(job as any)?.resurrection_count}
+                                    {(job as any)?.resurrected_at && (
+                                        <span className="text-slate-500 font-mono text-[10px] ml-2">
+                                            Last: {formatDate((job as any)?.resurrected_at)}
+                                        </span>
+                                    )}
+                                </p>
+                            </div>
+                        )}
+
+                        {job?.execution_id && (
+                            <div className="md:col-span-2 lg:col-span-4 grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-white/5">
+                                <KernelStatusBadge kernel="identity" status={envelope?.identity_context?.verified ? "verified" : "active"} />
+                                <KernelStatusBadge kernel="authority" status={envelope?.authority_context?.lease_id ? "granted" : "idle"} />
+                                <KernelStatusBadge kernel="execution" status={envelope?.execution_context?.status === "running" ? "active" : "idle"} />
+                                <KernelStatusBadge kernel="persistence" status="verified" />
+                            </div>
+                        )}
 
                         <div className="md:col-span-2 lg:col-span-4 space-y-2 mt-4 pt-4 border-t border-white/5">
                             <label className="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Input Prompt</label>
@@ -487,256 +636,120 @@ export default function JobDetailsPage() {
                 </HUDFrame>
 
                 {/* OPERATOR DECISION CARD */}
-                {job?.status?.toLowerCase() === 'awaiting_approval' && (
-                    <HUDFrame title="OPERATOR DECISION REQUIRED" className="border-orange-500/50 bg-orange-500/5 shadow-[0_0_30px_rgba(249,115,22,0.1)]">
-                        <div className="p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6">
-                            <div className="flex flex-col md:flex-row items-start justify-between gap-6">
-                                <div className="flex-1 space-y-4">
-                                    <div className="flex items-center gap-3">
-                                        <AlertTriangle className="w-6 h-6 text-orange-500" />
-                                        <h2 className="text-xl font-black text-white italic tracking-tighter uppercase">Manual Governance Review</h2>
-                                    </div>
-                                    <p className="text-slate-300 text-sm leading-relaxed max-w-2xl">
-                                        The autonomous worker pipeline has completed, but the governance grader flagged the deliverable for manual review. Please review the grading summary and tactical output before approving or rejecting this job.
-                                    </p>
-                                </div>
-                                <div className="shrink-0 text-left md:text-right space-y-2 w-full md:w-auto mt-4 md:mt-0">
-                                    <div className="text-[10px] uppercase font-black text-slate-500 tracking-widest">Grader Score</div>
-                                    <div className={cn(
-                                        "text-4xl font-black italic tracking-tighter shadow-sm",
-                                        (job?.runtime_context?.grading_result?.pass_fail ?? job?.pass_fail) === 'pass' ? "text-green-400 drop-shadow-[0_0_8px_rgba(74,222,128,0.3)]" : "text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.3)]"
-                                    )}>
-                                        {(() => {
-                                            const score = job?.runtime_context?.grading_result?.score ?? job?.compliance_score ?? job?.grade_score ?? 0;
-                                            const numericScore = typeof score === 'object' ? (score.value || 0) : Number(score);
-                                            const normalized = numericScore > 10 ? numericScore / 10 : numericScore;
-                                            return isNaN(normalized) ? '0.0' : normalized.toFixed(1);
-                                        })()}
-                                        <span className="text-lg text-slate-600"> /10</span>
-                                    </div>
-                                    <div className={cn(
-                                        "inline-block px-3 py-1 text-[10px] font-black uppercase tracking-widest scifi-clip",
-                                        (job?.runtime_context?.grading_result?.pass_fail ?? job?.pass_fail) === 'fail' ? "bg-red-500/20 text-red-500 border border-red-500/50" : "bg-emerald-500/20 text-emerald-500 border border-emerald-500/50"
-                                    )}>
-                                        {String(job?.runtime_context?.grading_result?.pass_fail ?? job?.pass_fail ?? 'PENDING')}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                <div className="p-4 bg-black/40 border border-white/5 rounded-sm space-y-2">
-                                    <label className="text-[9px] uppercase font-bold text-cyan-500 tracking-widest block flex items-center gap-2">
-                                        <Activity className="w-3 h-3" /> Original Prompt
-                                    </label>
-                                    <p className="text-slate-300 text-sm italic">{typeof job?.prompt === 'object' ? JSON.stringify(job.prompt) : String(job?.prompt || '')}</p>
-                                </div>
-                                {(() => {
-                                    const isPass = (job?.runtime_context?.grading_result?.pass_fail ?? job?.pass_fail) === 'pass';
-                                    return (
-                                        <div className={cn(
-                                            "p-4 border rounded-sm space-y-2",
-                                            isPass ? "bg-emerald-500/5 border-emerald-500/20" : "bg-red-500/5 border-red-500/20"
-                                        )}>
-                                            <label className={cn(
-                                                "text-[9px] uppercase font-bold tracking-widest block flex items-center gap-2",
-                                                isPass ? "text-emerald-400" : "text-red-400"
-                                            )}>
-                                                <ShieldCheck className="w-3 h-3" /> Grading Summary
-                                            </label>
-                                            <p className="text-slate-300 text-xs leading-relaxed">
-                                                {(() => {
-                                                    const summary = job?.runtime_context?.grading_result?.grading_summary ?? job?.grading_summary ?? job?.grader_params?.reasoning_summary;
-                                                    const extracted = typeof summary === 'object' ? (summary.detail || summary.summary || JSON.stringify(summary)) : String(summary || "No summary provided.");
-                                                    return (typeof extracted === 'object' ? JSON.stringify(extracted) : String(extracted))
-                                                        .replace(/The result '\[object Object\]' /g, 'The submitted deliverable ')
-                                                        .replace(/\[object Object\]/g, 'the unformatted data');
-                                                })()}
-                                            </p>
+                {
+                    job?.status?.toLowerCase() === 'awaiting_approval' && (
+                        <HUDFrame title="OPERATOR DECISION REQUIRED" className="border-orange-500/50 bg-orange-500/5 shadow-[0_0_30px_rgba(249,115,22,0.1)]">
+                            <div className="p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6">
+                                <div className="flex flex-col md:flex-row items-start justify-between gap-6">
+                                    <div className="flex-1 space-y-4">
+                                        <div className="flex items-center gap-3">
+                                            <AlertTriangle className="w-6 h-6 text-orange-500" />
+                                            <h2 className="text-xl font-black text-white italic tracking-tighter uppercase">Manual Governance Review</h2>
                                         </div>
-                                    );
-                                })()}
-                            </div>
+                                        <p className="text-slate-300 text-sm leading-relaxed max-w-2xl">
+                                            The autonomous worker pipeline has completed, but the governance grader flagged the deliverable for manual review. Please review the grading summary and tactical output before approving or rejecting this job.
+                                        </p>
+                                    </div>
+                                    <div className="shrink-0 text-left md:text-right space-y-2 w-full md:w-auto mt-4 md:mt-0">
+                                        <div className="text-[10px] uppercase font-black text-slate-500 tracking-widest">Grader Score</div>
+                                        <div className={cn(
+                                            "text-4xl font-black italic tracking-tighter shadow-sm",
+                                            (job?.runtime_context?.grading_result?.pass_fail ?? job?.pass_fail) === 'pass' ? "text-green-400 drop-shadow-[0_0_8px_rgba(74,222,128,0.3)]" : "text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.3)]"
+                                        )}>
+                                            {(() => {
+                                                const score = job?.runtime_context?.grading_result?.score ?? job?.compliance_score ?? job?.grade_score ?? 0;
+                                                const numericScore = typeof score === 'object' ? (score.value || 0) : Number(score);
+                                                const normalized = numericScore > 10 ? numericScore / 10 : numericScore;
+                                                return isNaN(normalized) ? '0.0' : normalized.toFixed(1);
+                                            })()}
+                                            <span className="text-lg text-slate-600"> /10</span>
+                                        </div>
+                                        <div className={cn(
+                                            "inline-block px-3 py-1 text-[10px] font-black uppercase tracking-widest scifi-clip",
+                                            (job?.runtime_context?.grading_result?.pass_fail ?? job?.pass_fail) === 'fail' ? "bg-red-500/20 text-red-500 border border-red-500/50" : "bg-emerald-500/20 text-emerald-500 border border-emerald-500/50"
+                                        )}>
+                                            {String(job?.runtime_context?.grading_result?.pass_fail ?? job?.pass_fail ?? 'PENDING')}
+                                        </div>
+                                    </div>
+                                </div>
 
-                            <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-white/10">
-                                <button
-                                    onClick={handleApprove}
-                                    disabled={actionLoading}
-                                    className="flex-1 py-4 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/50 text-emerald-500 font-black uppercase tracking-widest transition-all cursor-target flex items-center justify-center gap-2 scifi-clip shadow-[0_0_15px_rgba(16,185,129,0.1)]"
-                                >
-                                    <ShieldCheck className="w-5 h-5" /> Approve Artifact
-                                </button>
-                                <button
-                                    onClick={() => setIsRejectModalOpen(true)}
-                                    disabled={actionLoading}
-                                    className="flex-1 py-4 bg-red-500/10 hover:bg-red-500/20 border border-red-500/50 text-red-500 font-black uppercase tracking-widest transition-all cursor-target flex items-center justify-center gap-2 scifi-clip"
-                                >
-                                    <XCircle className="w-5 h-5" /> Reject Artifact
-                                </button>
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                    <div className="p-4 bg-black/40 border border-white/5 rounded-sm space-y-2">
+                                        <label className="text-[9px] uppercase font-bold text-cyan-500 tracking-widest block flex items-center gap-2">
+                                            <Activity className="w-3 h-3" /> Original Prompt
+                                        </label>
+                                        <p className="text-slate-300 text-sm italic">{typeof job?.prompt === 'object' ? JSON.stringify(job.prompt) : String(job?.prompt || '')}</p>
+                                    </div>
+                                    {(() => {
+                                        const isPass = (job?.runtime_context?.grading_result?.pass_fail ?? job?.pass_fail) === 'pass';
+                                        return (
+                                            <div className={cn(
+                                                "p-4 border rounded-sm space-y-2",
+                                                isPass ? "bg-emerald-500/5 border-emerald-500/20" : "bg-red-500/5 border-red-500/20"
+                                            )}>
+                                                <label className={cn(
+                                                    "text-[9px] uppercase font-bold tracking-widest block flex items-center gap-2",
+                                                    isPass ? "text-emerald-400" : "text-red-400"
+                                                )}>
+                                                    <ShieldCheck className="w-3 h-3" /> Grading Summary
+                                                </label>
+                                                <p className="text-slate-300 text-xs leading-relaxed">
+                                                    {(() => {
+                                                        const summary = job?.runtime_context?.grading_result?.grading_summary ?? job?.grading_summary ?? job?.grader_params?.reasoning_summary;
+                                                        const extracted = typeof summary === 'object' ? (summary.detail || summary.summary || JSON.stringify(summary)) : String(summary || "No summary provided.");
+                                                        return (typeof extracted === 'object' ? JSON.stringify(extracted) : String(extracted))
+                                                            .replace(/The result '\[object Object\]' /g, 'The submitted deliverable ')
+                                                            .replace(/\[object Object\]/g, 'the unformatted data');
+                                                    })()}
+                                                </p>
+                                            </div>
+                                        );
+                                    })()}
+                                </div>
+
+                                <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-white/10">
+                                    <button
+                                        onClick={handleApprove}
+                                        disabled={actionLoading}
+                                        className="flex-1 py-4 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/50 text-emerald-500 font-black uppercase tracking-widest transition-all cursor-target flex items-center justify-center gap-2 scifi-clip shadow-[0_0_15px_rgba(16,185,129,0.1)]"
+                                    >
+                                        <ShieldCheck className="w-5 h-5" /> Approve Artifact
+                                    </button>
+                                    <button
+                                        onClick={() => setIsRejectModalOpen(true)}
+                                        disabled={actionLoading}
+                                        className="flex-1 py-4 bg-red-500/10 hover:bg-red-500/20 border border-red-500/50 text-red-500 font-black uppercase tracking-widest transition-all cursor-target flex items-center justify-center gap-2 scifi-clip"
+                                    >
+                                        <XCircle className="w-5 h-5" /> Reject Artifact
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-                    </HUDFrame>
-                )}
+                        </HUDFrame>
+                    )
+                }
 
                 {/* 3. Execution Lifecycle Timeline */}
                 <div className="space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div className="flex items-center gap-6">
-                            <h3 className="text-xs font-black text-cyan-500 uppercase tracking-[0.3em] flex items-center gap-2">
-                                <Clock className="w-4 h-4 animate-pulse" />
-                                Execution Lifecycle
-                            </h3>
-
-                            <div className="flex items-center gap-2">
-                                <div className="flex items-center gap-1.5 px-3 py-1 bg-cyan-500/10 border border-cyan-500/20 rounded-full">
-                                    <span className="text-[10px] font-black text-cyan-400 font-mono tracking-tighter">
-                                        {currentActiveIndex.toString().padStart(2, '0')}
-                                    </span>
-                                    <span className="text-[10px] text-cyan-400/40">/</span>
-                                    <span className="text-[10px] font-black text-cyan-400/60 font-mono tracking-tighter">
-                                        09
-                                    </span>
+                    {job?.execution_id ? (
+                        <EnvelopeInspector executionId={job.execution_id} />
+                    ) : (
+                        <div className="space-y-4">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div className="flex items-center gap-6">
+                                    <h3 className="text-xs font-black text-cyan-500 uppercase tracking-[0.3em] flex items-center gap-2">
+                                        <Clock className="w-4 h-4 animate-pulse" />
+                                        Legacy Execution Lifecycle
+                                    </h3>
                                 </div>
-                                <span className="text-[8px] font-black text-cyan-500/60 uppercase tracking-widest leading-none">
-                                    Nodes Synchronized
+                            </div>
+                            <HUDFrame variant="dark" className="p-12 text-center text-slate-600">
+                                <span className="text-[10px] font-black uppercase tracking-[0.3em]">
+                                    Direct Execution Context Not Found
                                 </span>
-                            </div>
+                            </HUDFrame>
                         </div>
-
-                        {currentActiveIndex >= 10 && (
-                            <div className="px-4 py-1 bg-emerald-500/20 border border-emerald-500/50 text-emerald-400 text-[10px] font-black uppercase tracking-widest animate-in fade-in slide-in-from-right duration-1000">
-                                EXECUTION COMPLETE
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="relative group">
-                        {/* Navigation Arrows */}
-                        <button 
-                            onClick={() => scrollTimeline('left')}
-                            className="absolute left-0 top-1/2 -translate-y-1/2 z-20 w-10 h-20 flex items-center justify-center bg-gradient-to-r from-black to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-cyan-500 hover:text-white"
-                        >
-                            <ChevronLeft className="w-8 h-8" />
-                        </button>
-                        <button 
-                            onClick={() => scrollTimeline('right')}
-                            className="absolute right-0 top-1/2 -translate-y-1/2 z-20 w-10 h-20 flex items-center justify-center bg-gradient-to-l from-black to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-cyan-500 hover:text-white"
-                        >
-                            <ChevronRight className="w-8 h-8" />
-                        </button>
-
-                        {/* Edge Masks */}
-                        <div className="absolute inset-y-0 left-0 w-12 bg-gradient-to-r from-black to-transparent z-10 pointer-events-none" />
-                        <div className="absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-black to-transparent z-10 pointer-events-none" />
-
-                        <div 
-                            ref={scrollContainerRef}
-                            className="relative overflow-x-auto pb-4 scrollbar-hide"
-                        >
-                            <div className="flex items-center gap-4 min-w-max px-20 py-4">
-                            {steps.map((step, idx) => {
-                                const status = getStepStatus(idx);
-                                const StepIcon = step.icon;
-
-                                return (
-                                    <div key={step.id} className="relative flex items-center">
-                                        {/* Connector Line */}
-                                        {idx > 0 && (
-                                            <div className="w-8 h-[1px] relative mx-1">
-                                                <div className="absolute inset-0 bg-white/10" />
-                                                {status !== 'queued' && (
-                                                    <div className="absolute inset-0 animate-energy-flow" />
-                                                )}
-                                            </div>
-                                        )}
-
-                                        {/* Node Card */}
-                                        <div 
-                                            data-active={status === 'in_progress'}
-                                            className={cn(
-                                                "relative w-44 h-32 p-5 rounded-[12px] border transition-all duration-700 flex flex-col justify-between overflow-hidden shrink-0",
-                                                status === 'completed' ? "bg-emerald-950/20 border-[#00FFA8] shadow-[0_0_15px_rgba(0,255,168,0.2)]" :
-                                                status === 'in_progress' ? "bg-[#050C14] border-cyan-500/40 animate-cyber-breathing z-10" :
-                                                "bg-[#050C14] border-white/5 opacity-40 grayscale"
-                                            )}
-                                        >
-                                            {/* Glow Background for active node */}
-                                            {status === 'in_progress' && (
-                                                <div 
-                                                    className="absolute inset-0 opacity-20 pointer-events-none"
-                                                    style={{ background: `radial-gradient(circle at center, ${step.color} 0%, transparent 70%)` }}
-                                                />
-                                            )}
-
-                                            {/* HUD elements */}
-                                            <div className="absolute -top-[1px] -left-[1px] w-2 h-2 border-t-[1px] border-l-[1px] border-cyan-500/30 rounded-tl-[12px]" />
-                                            <div className="absolute -top-[1px] -right-[1px] w-2 h-2 border-t-[1px] border-r-[1px] border-cyan-500/30 rounded-tr-[12px]" />
-
-                                            {/* Icon & Status Area */}
-                                            <div className="flex items-center justify-between relative z-10">
-                                                <div 
-                                                    className={cn(
-                                                        "p-2 rounded-lg transition-all duration-500",
-                                                        status === 'completed' ? "text-emerald-400 bg-emerald-500/10" :
-                                                        status === 'in_progress' ? "text-cyan-400 bg-cyan-500/10 scale-110" : "text-slate-500"
-                                                    )}
-                                                    style={status === 'in_progress' ? { color: step.color } : {}}
-                                                >
-                                                    <StepIcon className={cn(
-                                                        "w-5 h-5",
-                                                        status === 'in_progress' && (
-                                                            step.id === 'identity' ? "animate-scan-line" :
-                                                            step.id === 'resurrection' ? "animate-arc-sweep" : "animate-glow-pulse"
-                                                        )
-                                                    )} />
-                                                </div>
-                                                {status === 'completed' ? (
-                                                    <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center shadow-[0_0_10px_rgba(16,185,129,0.5)]">
-                                                        <Check className="w-3 h-3 text-black font-black" />
-                                                    </div>
-                                                ) : status === 'in_progress' && (
-                                                    <div className="flex gap-1">
-                                                        <div className="w-1 h-3 bg-cyan-500/50 animate-tech-pulse" />
-                                                        <div className="w-1 h-3 bg-cyan-500/50 animate-tech-pulse delay-75" />
-                                                        <div className="w-1 h-3 bg-cyan-500/50 animate-tech-pulse delay-150" />
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            {/* Labels Area */}
-                                            <div className="relative z-10 mt-auto">
-                                                <p className={cn(
-                                                    "text-[8px] font-black uppercase tracking-[0.2em] mb-0.5 transition-colors duration-500",
-                                                    status === 'completed' ? "text-emerald-500/70" :
-                                                    status === 'in_progress' ? "text-cyan-500/70" : "text-slate-600"
-                                                )}>
-                                                    {status === 'completed' ? 'NODE_VERIFIED' : status === 'in_progress' ? 'STAGELOCK_ACTIVE' : 'SYSTEM_IDLE'}
-                                                </p>
-                                                <h4 className={cn(
-                                                    "text-sm font-black uppercase tracking-tight italic",
-                                                    status === 'completed' ? "text-white" :
-                                                    status === 'in_progress' ? "text-white" : "text-slate-700"
-                                                )}>
-                                                    {step.name}
-                                                </h4>
-                                                <p className={cn(
-                                                    "text-[7px] uppercase font-bold tracking-widest mt-1.5 opacity-60 truncate",
-                                                    status === 'completed' ? "text-emerald-400" :
-                                                    status === 'in_progress' ? "text-cyan-400" : "text-slate-800"
-                                                )}>
-                                                    {step.subtext}
-                                                </p>
-                                            </div>
-
-                                            {/* Scanline for active node */}
-                                            {status === 'in_progress' && <div className="tech-scanline" />}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
+                    )}
                 </div>
-            </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8 mt-4 lg:mt-0">
                     {/* Left Column - Detailed Outputs */}
@@ -759,92 +772,17 @@ export default function JobDetailsPage() {
                                         </AccordionTrigger>
                                         <AccordionContent className="pb-6">
                                             {(() => {
-                                                const plan = job?.runtime_context?.plan || 
-                                                             (job as any)?.plan || 
-                                                             (job as any)?.strategic_plan || 
-                                                             (job as any)?.strategicPlan || 
-                                                             (job as any)?.output_plan || 
-                                                             (job as any)?.coo_plan || 
-                                                             (job as any)?.cooPlan || 
-                                                             extractOutputData(job);
-                                                return plan ? (
-                                                <div className="space-y-4">
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                        <div className="p-4 bg-white/5 border border-white/10 rounded-sm">
-                                                            <label className="text-[9px] uppercase font-bold text-slate-500 block mb-2">Strategic Overview</label>
-                                                            <div className="text-slate-300 leading-relaxed font-mono">
-                                                                {(() => {
-                                                                    const plan = job?.runtime_context?.plan || 
-                                                                                 (job as any)?.plan || 
-                                                                                 (job as any)?.strategic_plan || 
-                                                                                 (job as any)?.strategicPlan || 
-                                                                                 (job as any)?.output_plan || 
-                                                                                 (job as any)?.coo_plan || 
-                                                                                 (job as any)?.cooPlan || 
-                                                                                 extractOutputData(job);
-                                                                    if (!plan) return null;
+                                                const plan = job?.runtime_context?.plan || (job as any)?.plan || (job as any)?.strategic_plan || (job as any)?.strategicPlan;
+                                                if (!plan) return <div className="text-center py-4 opacity-20 italic text-[10px]">Awaiting COO output...</div>;
 
-                                                                    try {
-                                                                        let parsedPlan = plan;
-                                                                        if (typeof plan === 'string') {
-                                                                            try { parsedPlan = JSON.parse(plan); } catch (e) { }
-                                                                        }
-
-                                                                        if (typeof parsedPlan === 'object' && parsedPlan !== null && (parsedPlan.plan_summary || parsedPlan.steps)) {
-                                                                            return (
-                                                                                <div className="space-y-4 font-sans">
-                                                                                    {parsedPlan.plan_summary && <p className="text-sm text-slate-200">{parsedPlan.plan_summary}</p>}
-                                                                                    {parsedPlan.steps && Array.isArray(parsedPlan.steps) && (
-                                                                                        <div className="space-y-3 mt-4">
-                                                                                            <h4 className="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Execution Steps</h4>
-                                                                                            {parsedPlan.steps.map((step: any, idx: number) => (
-                                                                                                <div key={idx} className="p-4 bg-white/5 border border-white/10 scifi-clip">
-                                                                                                    <div className="flex justify-between items-center mb-2 pb-2 border-b border-white/5">
-                                                                                                        <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest flex items-center gap-2">
-                                                                                                            <Cpu className="w-3 h-3" /> {step.agent || "Agent"}
-                                                                                                        </span>
-                                                                                                        <span className="text-[9px] font-bold text-slate-500 uppercase">{step.step_id}</span>
-                                                                                                    </div>
-                                                                                                    <p className="text-xs text-slate-300 leading-relaxed">{step.task}</p>
-                                                                                                </div>
-                                                                                            ))}
-                                                                                        </div>
-                                                                                    )}
-                                                                                </div>
-                                                                            );
-                                                                        }
-                                                                    } catch (e) { }
-
-                                                                    const extracted = typeof plan === 'object' ? (plan.findings || plan.summary || JSON.stringify(plan, null, 2)) : plan;
-                                                                    return <pre className="text-[10px] whitespace-pre-wrap">{typeof extracted === 'object' ? JSON.stringify(extracted, null, 2) : String(extracted)}</pre>;
-                                                                })()}
-                                                            </div>
-                                                        </div>
-                                                        <div className="p-4 bg-white/5 border border-white/10 rounded-sm">
-                                                            <label className="text-[9px] uppercase font-bold text-slate-500 block mb-2">Compliance & Risks</label>
-                                                            <div className="text-xs text-slate-300 leading-relaxed font-mono">
-                                                                {(() => {
-                                                                    const planData = job?.runtime_context?.plan || (job as any)?.plan || {};
-                                                                    const risk = planData.risk_assessment || planData.risks;
-                                                                    if (!risk) return "Standard operational protocol applied.";
-                                                                    const extracted = typeof risk === 'object' ? (risk.detail || risk.summary || JSON.stringify(risk)) : risk;
-                                                                    return typeof extracted === 'object' ? JSON.stringify(extracted) : String(extracted);
-                                                                })()}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                                {(job?.runtime_context?.plan || (job as any)?.plan)?.recommended_inputs_for_worker && (
-                                                        <div className="p-4 bg-cyan-500/5 border border-cyan-500/20 rounded-sm">
-                                                            <label className="text-[9px] uppercase font-bold text-cyan-500 block mb-2">Execution Protocol</label>
-                                                            <code className="text-[11px] text-cyan-300/80 font-mono block whitespace-pre-wrap">
-                                                                {(job?.runtime_context?.plan || (job as any)?.plan)?.recommended_inputs_for_worker}
-                                                            </code>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                ) : (
-                                                    <div className="text-center py-4 opacity-20 italic text-[10px]">Awaiting COO output...</div>
-                                                )
+                                                return (
+                                                    <DeliverableItem
+                                                        type="plan"
+                                                        title="Operational Blueprint"
+                                                        subtitle="COO Strategy"
+                                                        content={plan}
+                                                    />
+                                                );
                                             })()}
                                         </AccordionContent>
                                     </AccordionItem>
@@ -862,81 +800,17 @@ export default function JobDetailsPage() {
                                         </AccordionTrigger>
                                         <AccordionContent className="pb-6">
                                             {(() => {
-                                                const research = job?.runtime_context?.research_result || 
-                                                                 (job as any)?.research_result || 
-                                                                 (job as any)?.researchResult || 
-                                                                 (job as any)?.research || 
-                                                                 (job as any)?.research_intelligence || 
-                                                                 (job as any)?.researchIntelligence || 
-                                                                 extractOutputData(job);
-                                                return research ? (
-                                                <div className="space-y-4">
-                                                    <div className="p-4 bg-blue-500/5 border border-blue-500/20 rounded-sm">
-                                                        <label className="text-[9px] uppercase font-bold text-blue-400 block mb-2">Intelligence Summary</label>
-                                                        <div className="text-slate-300 leading-relaxed font-mono">
-                                                            {(() => {
-                                                                const res = job?.runtime_context?.research_result || 
-                                                                            (job as any)?.research_result || 
-                                                                            (job as any)?.researchResult || 
-                                                                            (job as any)?.research || 
-                                                                            (job as any)?.research_intelligence || 
-                                                                            (job as any)?.researchIntelligence || 
-                                                                            extractOutputData(job);
-                                                                if (!res) return null;
+                                                const res = job?.runtime_context?.research_result || (job as any)?.research_intelligence || (job as any)?.researchIntelligence || (job as any)?.research_result;
+                                                if (!res) return <div className="text-center py-4 opacity-20 italic text-[10px]">Awaiting Research output...</div>;
 
-                                                                try {
-                                                                    let parsedRes = res;
-                                                                    if (typeof res === 'string') {
-                                                                        try { parsedRes = JSON.parse(res); } catch (e) { }
-                                                                    }
-
-                                                                    // If the root is an array of findings
-                                                                    const findingsList = Array.isArray(parsedRes) ? parsedRes : (parsedRes && parsedRes.findings && Array.isArray(parsedRes.findings) ? parsedRes.findings : null);
-
-                                                                    if (findingsList) {
-                                                                        return (
-                                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 font-sans">
-                                                                                {findingsList.map((item: any, idx: number) => (
-                                                                                    <div key={idx} className="p-4 bg-blue-500/5 border border-blue-500/20 rounded-sm hover:bg-blue-500/10 transition-colors">
-                                                                                        <h4 className="text-xs font-black text-blue-300 mb-2 uppercase tracking-wide">{item.title || item.id || `Finding ${idx + 1}`}</h4>
-                                                                                        <p className="text-xs text-slate-300 leading-relaxed">{item.detail || item.summary || (typeof item === 'object' ? JSON.stringify(item) : String(item))}</p>
-                                                                                    </div>
-                                                                                ))}
-                                                                            </div>
-                                                                        );
-                                                                    } else if (typeof parsedRes === 'object' && parsedRes !== null && parsedRes.summary) {
-                                                                        return <p className="text-sm font-sans">{parsedRes.summary}</p>;
-                                                                    }
-                                                                } catch (e) { }
-
-                                                                const extracted = typeof res === 'object' ? (res.summary || res.findings || JSON.stringify(res, null, 2)) : res;
-                                                                return <pre className="text-[10px] whitespace-pre-wrap">{typeof extracted === 'object' ? JSON.stringify(extracted, null, 2) : String(extracted)}</pre>;
-                                                            })()}
-                                                        </div>
-                                                    </div>
-                                                    {(() => {
-                                                        const research = job?.runtime_context?.research_result || (job as any)?.research_result || (job as any)?.research || (job as any)?.research_intelligence || extractOutputData(job);
-                                                        if (research?.sources && Array.isArray(research.sources)) {
-                                                            return (
-                                                                <div className="flex flex-wrap gap-2">
-                                                                    {research.sources.map((src: any, si: number) => {
-                                                                        const extracted = typeof src === 'object' ? (src.title || src.id || src.url || JSON.stringify(src)) : String(src);
-                                                                        const srcText = typeof extracted === 'object' ? JSON.stringify(extracted) : String(extracted);
-                                                                        return (
-                                                                            <span key={si} className="px-2 py-1 bg-white/5 text-[9px] text-slate-500 font-mono border border-white/10 italic truncate max-w-[200px]" title={srcText}>
-                                                                                REF: {srcText}
-                                                                            </span>
-                                                                        );
-                                                                    })}
-                                                                </div>
-                                                            );
-                                                        }
-                                                        return null;
-                                                    })()}
-                                                </div>
-                                                ) : (
-                                                    <div className="text-center py-4 opacity-20 italic text-[10px]">Awaiting Research output...</div>
-                                                )
+                                                return (
+                                                    <DeliverableItem
+                                                        type="research"
+                                                        title="Intelligence Report"
+                                                        subtitle="Deep Search Findings"
+                                                        content={res}
+                                                    />
+                                                );
                                             })()}
                                         </AccordionContent>
                                     </AccordionItem>
@@ -946,92 +820,26 @@ export default function JobDetailsPage() {
                                         <AccordionTrigger className="hover:no-underline py-6">
                                             <div className="flex items-center justify-between w-full pr-4 text-left">
                                                 <div className="flex items-center gap-3">
-                                                    <Cpu className="w-5 h-5 text-purple-400" />
+                                                    <FileText className="w-5 h-5 text-purple-400" />
                                                     <span className="font-black text-white uppercase italic tracking-widest text-sm">Final Artifacts</span>
                                                 </div>
                                                 <span className="text-[9px] uppercase font-bold px-2 py-0.5 border border-purple-500/30 text-purple-500 rounded-full">Phase 3: Final</span>
                                             </div>
                                         </AccordionTrigger>
                                         <AccordionContent className="pb-6">
-                                            {(job?.artifact || 
-                                              job?.runtime_context?.worker_result || 
-                                              job?.runtime_context?.final_result || 
-                                              (job as any)?.worker_result || 
-                                              (job as any)?.workerResult || 
-                                              (job as any)?.final_result || 
-                                              (job as any)?.finalResult || 
-                                              (job as any)?.output || 
-                                              (job as any)?.result || 
-                                              extractOutputData(job)) ? (
-                                                <div className="group relative">
-                                                    <div className="p-6 glass border border-purple-500/20 bg-purple-500/5 rounded-sm space-y-4 overflow-hidden">
-                                                        <div className="absolute top-0 right-0 p-2 opacity-10">
-                                                            <Code className="w-12 h-12" />
-                                                        </div>
-                                                        <div className="relative">
-                                                            <div className="text-slate-300 leading-relaxed font-mono">
-                                                                {(() => {
-                                                                    const result = job?.runtime_context?.final_result || 
-                                                                                   job?.runtime_context?.worker_result || 
-                                                                                   job?.artifact || 
-                                                                                   (job as any)?.output || 
-                                                                                   (job as any)?.result ||
-                                                                                   extractOutputData(job);
-                                                                    if (!result) return null;
+                                            {(() => {
+                                                const result = job?.runtime_context?.final_result || job?.runtime_context?.worker_result || job?.artifact || (job as any)?.final_result || (job as any)?.worker_result || extractOutputData(job);
+                                                if (!result) return <div className="text-center py-4 opacity-20 italic text-[10px]">Awaiting final artifacts...</div>;
 
-                                                                    try {
-                                                                        let parsedResult = result;
-                                                                        if (typeof result === 'string') {
-                                                                            try { parsedResult = JSON.parse(result); } catch (e) { }
-                                                                        }
-
-                                                                        if (typeof parsedResult === 'object' && parsedResult !== null && (parsedResult.final_summary || parsedResult.final_output)) {
-                                                                            return (
-                                                                                <div className="space-y-6 font-sans">
-                                                                                    {parsedResult.final_summary && (
-                                                                                        <p className="text-sm text-slate-200 leading-relaxed border-b border-white/10 pb-4 italic">
-                                                                                            {parsedResult.final_summary}
-                                                                                        </p>
-                                                                                    )}
-                                                                                    {parsedResult.final_output && (
-                                                                                        <div className="bg-gradient-to-br from-purple-500/10 to-transparent border border-purple-500/20 p-6 rounded-sm">
-                                                                                            <h3 className="text-lg font-black text-white mb-4 uppercase tracking-tight">{parsedResult.final_output.title || "Report Output"}</h3>
-                                                                                            <MarkdownReport content={parsedResult.final_output.content} />
-                                                                                        </div>
-                                                                                    )}
-                                                                                    {parsedResult.supporting_points && Array.isArray(parsedResult.supporting_points) && (
-                                                                                        <div className="mt-6 space-y-3 bg-black/40 p-4 border border-white/5">
-                                                                                            <h4 className="text-[10px] uppercase font-black text-slate-500 tracking-widest mb-3 flex items-center gap-2">
-                                                                                                <Target className="w-3 h-3 text-purple-400" /> Supporting Points
-                                                                                            </h4>
-                                                                                            <ul className="space-y-3">
-                                                                                                {result.supporting_points.map((pt: any, idx: number) => (
-                                                                                                    <li key={idx} className="text-xs text-slate-300 flex items-start gap-3">
-                                                                                                        <div className="w-1.5 h-1.5 rounded-full bg-purple-500/50 mt-1.5 shrink-0" />
-                                                                                                        <div>
-                                                                                                            <span className="font-bold text-purple-300 block mb-0.5">{pt.title || pt.id}</span>
-                                                                                                            <span className="leading-relaxed opacity-80">{pt.detail}</span>
-                                                                                                        </div>
-                                                                                                    </li>
-                                                                                                ))}
-                                                                                            </ul>
-                                                                                        </div>
-                                                                                    )}
-                                                                                </div>
-                                                                            );
-                                                                        }
-                                                                    } catch (e) { }
-
-                                                                    const content = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
-                                                                    return <MarkdownReport content={content} />;
-                                                                })()}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <div className="text-center py-4 opacity-20 italic text-[10px]">Awaiting final artifacts...</div>
-                                            )}
+                                                return (
+                                                    <DeliverableItem
+                                                        type="final"
+                                                        title="Mission Deliverable"
+                                                        subtitle="End-to-End Synthesis"
+                                                        content={result}
+                                                    />
+                                                );
+                                            })()}
                                         </AccordionContent>
                                     </AccordionItem>
                                 </Accordion>
@@ -1201,10 +1009,10 @@ export default function JobDetailsPage() {
                                         <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest block">Governance Reasoning</label>
                                         <p className="text-xs text-slate-400 italic leading-relaxed bg-black/20 p-3 border border-white/5 rounded-sm">
                                             {(() => {
-                                                const summary = job?.runtime_context?.grading_result?.grading_summary ?? 
-                                                                job?.grading_summary ?? 
-                                                                (job?.runtime_context?.grading_result as any)?.reasoning ??
-                                                                job?.grader_params?.reasoning_summary;
+                                                const summary = job?.runtime_context?.grading_result?.grading_summary ??
+                                                    job?.grading_summary ??
+                                                    (job?.runtime_context?.grading_result as any)?.reasoning ??
+                                                    job?.grader_params?.reasoning_summary;
                                                 if (!summary) return "The governance protocol is currently analyzing the worker deliverable for policy adherence and risk factors.";
                                                 const extracted = typeof summary === 'object' ? (summary.detail || summary.summary || JSON.stringify(summary)) : String(summary);
                                                 return (typeof extracted === 'object' ? JSON.stringify(extracted) : String(extracted))
@@ -1220,11 +1028,11 @@ export default function JobDetailsPage() {
                                             isPass ? "text-emerald-400/90 border-emerald-500/20" : "text-red-400/90 border-red-500/20"
                                         )}>
                                             {(() => {
-                                                const result = job?.runtime_context?.final_result || 
-                                                                job?.runtime_context?.worker_result || 
-                                                                job?.artifact || 
-                                                                (job as any)?.output || 
-                                                                (job as any)?.result;
+                                                const result = job?.runtime_context?.final_result ||
+                                                    job?.runtime_context?.worker_result ||
+                                                    job?.artifact ||
+                                                    (job as any)?.output ||
+                                                    (job as any)?.result;
                                                 if (!result) return "Awaiting final worker output for grading completion.";
 
                                                 try {
@@ -1283,7 +1091,6 @@ export default function JobDetailsPage() {
 
                     </div>
                 </div>
-
             </div>
 
             {/* Artifact Manifest Viewer Modal */}
@@ -1301,9 +1108,9 @@ export default function JobDetailsPage() {
 
                     <div className="flex-1 overflow-y-auto p-6 font-mono text-sm custom-scroll bg-black/60">
                         <pre className="text-slate-300 whitespace-pre-wrap break-words leading-relaxed">
-                            {typeof viewingArtifact?.content === 'string'
+                            {viewingArtifact && (typeof viewingArtifact.content === 'string'
                                 ? viewingArtifact.content
-                                : JSON.stringify(viewingArtifact?.content, null, 2)
+                                : JSON.stringify(viewingArtifact.content, null, 2))
                             }
                         </pre>
                     </div>
