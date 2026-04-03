@@ -1,358 +1,486 @@
 # NXQ Workstation — API Reference
 
-> **Base URL:** `https://subhamnxq.app.n8n.cloud/webhook`  
-> **Content-Type:** `application/json` for all requests and responses.
+> Full REST API reference for the Next.js backend.
 
 ---
 
-## 0. Conventions
+## Base URL
 
-### Job State Lifecycle
+| Environment | URL |
+|------------|-----|
+| Local dev | `http://localhost:3000` |
+| Production | Your deployment URL |
+
+> All routes accept and return `application/json` unless noted.
+
+---
+
+## Authentication
+
+- **Dashboard routes** — Firebase Auth (session cookie via client SDK)
+- **Cron routes** — `Authorization: Bearer <CRON_SECRET>` header
+- **Administrative routes** — `Authorization: Bearer <MASTER_RUNTIME_SECRET>` header
+- **Runtime routes** — `Authorization: Bearer <token>` header, where the token is either:
+  - A **Firebase ID token** (Dashboard / Workstation users), or
+  - A **master API key** stored in Firestore `api_keys` (external agents)
+
+---
+
+## Runtime API (`/api/runtime/`)
+
+All runtime routes use the **same authentication mechanism** via `verifyUserApiKey`:
+
+- First, they try to decode the bearer token as a **Firebase ID token** and derive `userId` / `orgId`.
+- If that fails, they look up the token in the `api_keys` collection as a **master secret**.
+
+### POST `/api/runtime/dispatch`
+
+Submit a task using the **single-agent** deterministic runtime. Creates an envelope, triggers the runtime loop, and returns immediately.
+
+**Request body:**
+```json
+{
+  "prompt": "Write a market analysis for electric vehicles",
+  "user_id": "<firebase_auth_uid>",
+  "org_id": "default",
+  "agent_id": "agent_coo"
+}
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `prompt` | ✅ | Task description |
+| `user_id` | ❌ | Ignored; derived from bearer token when using Firebase ID tokens |
+| `org_id` | ❌ | Defaults to `"default"` if not present on the decoded token |
+| `agent_id` | ❌ | Defaults to `"agent_coo"` |
+
+**Response `200 OK`:**
+```json
+{
+  "success": true,
+  "envelope_id": "env_abcd1234...",
+  "envelope": { ...ExecutionEnvelope },
+  "message": "Envelope created. Runtime loop started."
+}
+```
+
+After dispatch, subscribe to `execution_envelopes/{envelope_id}` via Firestore for real-time status updates.
+
+---
+
+### POST `/api/runtime/dispatch/from-dashboard`
+
+Dashboard-only helper for dispatching tasks into the deterministic runtime from an authenticated workstation session.  
+This is the route used by the **TaskComposer** UI when the **Deterministic Runtime** toggle is ON.
+
+**Auth:**
+
+- Requires `Authorization: Bearer <firebase_id_token>` from the logged-in user.
+
+**Request body:**
+```json
+{
+  "prompt": "Write a market analysis for electric vehicles",
+  "job_id": "job_20260331_abc1234",
+  "agent_id": "agent_coo"
+}
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `prompt` | ✅ | Task description |
+| `job_id` | ❌ | Optional UI correlation id; if provided, the legacy job record will be linked to this envelope |
+| `agent_id` | ❌ | Defaults to `"agent_coo"` |
+
+**Response `200 OK`:**
+Same as `POST /api/runtime/dispatch`:
+```json
+{
+  "success": true,
+  "envelope_id": "env_abcd1234...",
+  "envelope": { "...": "ExecutionEnvelope" },
+  "message": "Envelope created. Runtime loop started."
+}
+```
+
+---
+
+### POST `/api/runtime/handoff`
+
+Submit a task using the **multi-agent** handoff path with explicit role assignments.
+
+**Request body:**
+```json
+{
+  "protocol": "#us#",
+  "version": "1.0",
+  "message_type": "#us#.task.handoff",
+  "execution": {
+    "org_id": "my_org",
+    "requested_by_user_id": "<firebase_auth_uid>",
+    "session_id": "sess_abc",
+    "draft_id": "draft_xyz",
+    "license_id": "dev_license"
+  },
+  "authority": {
+    "approval_required": false
+  },
+  "payload": {
+    "task": {
+      "description": "Research and produce a report on EV market trends",
+      "context": {},
+      "attachments": []
+    },
+    "role_assignments": [
+      { "role": "COO", "agent_id": "agent_coo" },
+      { "role": "Researcher", "agent_id": "agent_researcher" },
+      { "role": "Worker", "agent_id": "agent_worker" },
+      { "role": "Grader", "agent_id": "agent_grader" }
+    ]
+  }
+}
+```
+
+**Validation rules:**
+- `protocol` must be `"#us#"`
+- `message_type` must be `"#us#.task.handoff"`
+- `role_assignments` must include at least a `COO` role
+- Each role appears at most once
+- `agent_id` must be a non-empty string for each assignment
+
+**Response `200 OK`:**
+```json
+{
+  "success": true,
+  "envelope_id": "env_xyz..."
+}
+```
+
+---
+
+### GET `/api/runtime/envelope/[id]`
+
+Fetch the current state of an envelope.
+
+**Response `200 OK`:**
+```json
+{
+  "envelope": { ...ExecutionEnvelope },
+  "messages": [ ...ProtocolMessage[] ]
+}
+```
+
+**Response `404`:** `{ "error": "Envelope not found" }`
+
+---
+
+### POST `/api/runtime/envelope/[id]/approve`
+
+Human governance — approve an envelope in `awaiting_human` state.
+
+**Response `200 OK`:** `{ "success": true }`
+
+---
+
+### POST `/api/runtime/envelope/[id]/reject`
+
+Human governance — reject an envelope in `awaiting_human` state.
+
+**Request body:**
+```json
+{ "reason": "Quality insufficient — rework required" }
+```
+
+**Response `200 OK`:** `{ "success": true }`
+
+---
+
+### POST `/api/runtime/lease/acquire`
+
+Acquire an authority lease for an instance (single-agent path).
+
+**Request body:**
+```json
+{
+  "envelope_id": "env_abc",
+  "instance_id": "inst_xyz",
+  "duration_seconds": 300
+}
+```
+
+**Response `200 OK`:**
+```json
+{
+  "acquired": true,
+  "authority_lease": {
+    "holder_instance_id": "inst_xyz",
+    "leased_at": "...",
+    "expires_at": "..."
+  }
+}
+```
+
+---
+
+### POST `/api/runtime/lease/release`
+
+Release an authority lease.
+
+**Request body:**
+```json
+{
+  "lease_id": "lease_abc",
+  "envelope_id": "env_xyz",
+  "reason": "step_completed"
+}
+```
+
+**Response `200 OK`:** `{ "success": true }`
+
+---
+
+### POST `/api/runtime/identity/verify`
+
+Verify an agent's identity fingerprint.
+
+**Request body:**
+```json
+{
+  "agent_id": "agent_coo",
+  "identity_fingerprint": "sha256hex..."
+}
+```
+
+**Response `200 OK`:**
+```json
+{
+  "verified": true,
+  "agent_id": "agent_coo",
+  "verified_at": "..."
+}
+```
+
+---
+
+### POST `/api/runtime/identity/register`
+
+**Administrative only** — automated agent onboarding and fingerprinting. Requires `MASTER_RUNTIME_SECRET`.
+
+**Request body:**
+```json
+{
+  "display_name": "Market Analyst",
+  "role": "Researcher",
+  "mission": "Analyse real-time market data",
+  "org_id": "my_org"
+}
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `display_name` | ✅ | Human-readable name |
+| `role` | ✅ | One of `COO`, `Researcher`, `Worker`, `Grader` |
+| `mission` | ✅ | Agent's mission statement |
+| `org_id` | ✅ | Organisation owner |
+| `agent_id` | ❌ | Optional ID override |
+
+**Response `201 Created`:**
+```json
+{
+  "success": true,
+  "agent_id": "agent_market_analyst_abc123",
+  "identity_fingerprint": "sha256hex...",
+  "message": "Agent identity registered and fingerprinted successfully."
+}
+```
+```
+
+---
+
+### GET/POST `/api/runtime/checkpoint/[id]`
+
+Save or restore an execution checkpoint (pause/resume support).
+
+---
+
+## ACELOGIC API (`/api/acelogic/`)
+
+### GET `/api/acelogic/introspect`
+
+Returns the license capabilities for the current request context.
+
+**Response:**
+```json
+{
+  "license_id": "dev_license",
+  "org_id": "default",
+  "tier": 1,
+  "gates": [1, 2, 3, 4, 5, 6],
+  "modules": ["identity_core", "fork_detection"],
+  "limits": {}
+}
+```
+
+---
+
+### POST `/api/acelogic/identity`
+
+Verify agent identity against the ACELOGIC license.
+
+**Request body:** `{ "agent_id": "...", "identity_fingerprint": "...", "instance_id": "..." }`
+
+---
+
+### POST `/api/acelogic/authority/lease`
+
+ACELOGIC-managed lease operations (acquire, renew, release).
+
+**Query param:** `?action=acquire|renew|release`
+
+---
+
+## Explorer API (`/api/explorer/`)
+
+All Explorer routes are **read-only** and never mutate state.
+
+| Route | Purpose |
+|-------|---------|
+| `GET /api/explorer/envelopes` | List envelopes for org |
+| `GET /api/explorer/envelope/[id]` | Get single envelope with full detail |
+| `GET /api/explorer/envelope/[id]/messages` | List protocol messages for envelope |
+| `GET /api/explorer/envelope/[id]/traces` | List execution traces |
+| `GET /api/explorer/envelope/[id]/artifacts` | List artifacts produced |
+| `GET /api/explorer/telemetry` | Query telemetry events |
+
+---
+
+## Jobs API (`/api/jobs/`) — Legacy
+
+Legacy-style job records and governance routes, preserved for **UI compatibility** with Phase 1.
+These routes now use the in-process `workflowEngine` and can optionally trigger the deterministic
+runtime engine in the background when `use_deterministic` is enabled.
+
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/api/jobs/intake` | POST | Create job via local workflow engine; may also trigger deterministic runtime dispatch |
+| `/api/jobs/approve` | POST | Approve a graded job |
+| `/api/jobs/reject` | POST | Reject a graded job |
+| `/api/jobs/resurrect` | POST | Resurrect a failed/rejected job |
+
+See legacy [n8n webhook endpoints](#legacy-n8n-webhooks) below for the original webhook spec.
+
+---
+
+## Dashboard API (`/api/dashboard/`)
+
+Internal routes for dashboard statistics.
+
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/api/dashboard/stats` | GET | Aggregate runtime stats (active leases, envelope counts, etc.) |
+
+---
+
+## Cron API (`/api/cron/`)
+
+**Header required:** `Authorization: Bearer <CRON_SECRET>`
+
+| Route | Method | Recommended Schedule |
+|-------|--------|---------------------|
+| `/api/cron/lease-cleanup` | GET | Every 5 minutes |
+| `/api/cron/telemetry-rollup` | GET | Every hour |
+
+---
+
+## Error Reference
+
+| HTTP Status | Meaning |
+|------------|---------|
+| `400` | Bad request — missing/invalid fields |
+| `401` | Unauthorized — missing CRON_SECRET |
+| `403` | Forbidden — ACELOGIC guard blocked (license/capability check failed) |
+| `404` | Resource not found |
+| `409` | Conflict — invalid state transition or duplicate claim |
+| `500` | Internal server error — check runtime logs |
+
+Common runtime error codes (in response body):
+- `ENVELOPE_CREATED`, `HANDOFF_ENVELOPE_CREATED`
+- `STEP_COMPLETED_PLAN`, `STEP_COMPLETED_ASSIGN`, `STEP_COMPLETED_PRODUCE_ARTIFACT`, `STEP_COMPLETED_EVALUATE`
+- `STEP_FAILED`, `EXECUTION_COMPLETED`
+- `HUMAN_APPROVED`, `HUMAN_REJECTED`
+- `RUNTIME_CRASHED`          — fingerprint mismatch
+EXECUTION_BLOCKED        — ACELOGIC guard denied
+INVALID_TRANSITION       — state machine violation
+COO_ROLE_REQUIRED        — handoff missing COO assignment
+```
+
+---
+
+## Firestore Realtime Subscription Pattern
+
+Always prefer Firestore real-time subscriptions over polling:
+
+```typescript
+import { onSnapshot, doc, collection, query, where } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+
+// Subscribe to a single envelope
+const unsub = onSnapshot(
+  doc(db, "execution_envelopes", envelopeId),
+  (snap) => {
+    const envelope = snap.data() as ExecutionEnvelope;
+    updateUI(envelope);
+  }
+);
+
+// Subscribe to all envelopes for a user
+const unsub2 = onSnapshot(
+  query(collection(db, "execution_envelopes"), where("user_id", "==", userId)),
+  (snap) => {
+    const envelopes = snap.docs.map((d) => d.data() as ExecutionEnvelope);
+    updateList(envelopes);
+  }
+);
+
+// Cleanup
+return () => { unsub(); unsub2(); };
+```
+
+---
+
+## Legacy n8n Webhooks
+
+Original Phase 1 n8n-backed job webhooks. These are **not called directly** by the current
+Next.js backend; they are kept here as a historical reference and for migrations only.
+
+**Base URL:** `https://subhamnxq.app.n8n.cloud/webhook`
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/webhook/job-intake` | POST | Create job |
+| `/webhook/job?job_id=<id>` | GET | Get job by ID |
+| `/webhook/jobs?user_id=<uid>` | GET | List user's jobs |
+| `/webhook/job-approve` | POST | Approve graded job |
+| `/webhook/job-reject` | POST | Reject graded job |
+| `/webhook/resurrect` | POST | Resurrect failed/rejected job |
+
+### Legacy Job Lifecycle
 
 ```
 assigned → in_progress → completed → graded → approved
                                              ↘ rejected
-                  ↑______________________________↙  (resurrect)
+                  ↑______________________________↙
                               resurrected
-                              
-Terminal failure: failed
-Governance actions: approved | rejected | resurrected
 ```
 
-| Status | Description |
-|---|---|
-| `queued` | Job created, not yet picked up |
-| `assigned` | Routed to an AI agent |
-| `in_progress` | Agent is actively executing |
-| `completed` | Agent finished, awaiting grading |
-| `graded` | Grader scored the output; awaiting human decision |
-| `approved` | Human operator approved the result |
-| `rejected` | Human operator rejected the result |
-| `failed` | Terminal failure during execution |
-| `resurrected` | Failed/rejected job brought back into lifecycle |
+### Grader Output Schema
 
----
-
-## 1. Firestore Data Model
-
-### Collection: `jobs`
-
-This is the canonical single source of truth the frontend should subscribe to.
-
-| Field | Type | Description |
-|---|---|---|
-| `job_id` | `string` | Primary key / updateKey |
-| `user_id` | `string` | Firebase Auth UID (used for filtering) |
-| `prompt` | `string` | The submitted task prompt |
-| `status` | `string` | Current lifecycle state (see above) |
-| `updated_at` | `ISO string` | Last state-change timestamp |
-| `artifact` | `string` | Execution output from the agent |
-| `role` | `string` | Assigned AI role/agent |
-| `provider` | `string` | AI provider (e.g. OpenAI) |
-| `model` | `string` | Model used for execution |
-
-#### Governance Fields (set on approve/reject)
-
-| Field | Type | Set On |
-|---|---|---|
-| `approved_at` | `ISO string` | Approve |
-| `approved_by` | `string` | Approve |
-| `rejected_at` | `ISO string` | Reject |
-| `rejected_by` | `string` | Reject |
-| `failure_reason` | `string` | Reject |
-
-#### Continuity Restore Fields (set on restore)
-
-| Field | Type | Set On |
-|---|---|---|
-| `resurrection_reason` | `string` | Resurrect |
-| `resurrected_by` | `string` | Resurrect |
-| `resurrected_at` | `ISO string` | Resurrect |
-
----
-
-### Collection: `continuity_restore_events`
-
-Immutable event log. A new document is created for every continuity restore action.
-
-| Field | Type | Description |
-|---|---|---|
-| `event_id` | `string` | Unique event identifier |
-| `job_id` | `string` | Reference to the parent job |
-| `resurrection_reason` | `string` | Reason provided by operator |
-| `resurrected_by` | `string` | Operator identifier |
-| `previous_state` | `string` | State before restore (`failed` or `rejected`) |
-| `created_at` | `ISO string` | Event creation timestamp |
-
----
-
-## 2. Webhook Endpoints
-
-### A. Create Job
-
-**`POST /webhook/job-intake`**
-
-Creates a new job and returns a `job_id` + `status_url` for polling.
-
-#### Request Body
-```json
-{
-  "user_id": "<firebase_auth_uid>",
-  "prompt": "Your task description here"
-}
-```
-
-#### Response `200 OK`
-```json
-{
-  "job_id": "<id>",
-  "status": "queued",
-  "status_url": "https://subhamnxq.app.n8n.cloud/webhook/job?job_id=<id>",
-  "message": "Job created successfully"
-}
-```
-
-#### Notes
-- On success, immediately store `job_id` and `status_url` in local UI state.
-- Create a local optimistic row with `status = "queued"`.
-- Begin Firestore subscription on `jobs/{job_id}` or start polling `status_url`.
-- The workflow internally transitions through `assigned` → `in_progress` as routing metadata is set.
-
----
-
-### B. Get Job by ID
-
-**`GET /webhook/job?job_id=<id>`**
-
-Fetches a single job snapshot. Use as the polling target if not using Firestore realtime.
-
-#### Query Parameters
-| Param | Required | Description |
-|---|---|---|
-| `job_id` | ✅ | The job identifier |
-
-#### Response `200 OK`
-```json
-{
-  "job_id": "<id>",
-  "status": "<current_status>",
-  "prompt": "...",
-  "artifact": "...",
-  "updated_at": "<iso>"
-}
-```
-
-#### Polling Strategy
-- Poll every **2–5 seconds** while `status` is in `[queued, assigned, in_progress, completed]`.
-- **Stop polling** when status reaches a terminal state: `graded`, `approved`, `rejected`, `failed`.
-
----
-
-### C. Get All Jobs for a User
-
-**`GET /webhook/jobs?user_id=<uid>`**
-
-Lists all jobs belonging to a specific user. Called on Dashboard / Jobs page load.
-
-#### Query Parameters
-| Param | Required | Description |
-|---|---|---|
-| `user_id` | ✅ | Firebase Auth UID — **throws if missing** |
-
-#### Response `200 OK`
-```json
-[
-  {
-    "job_id": "<id>",
-    "status": "approved",
-    "prompt": "...",
-    "updated_at": "<iso>"
-  },
-  ...
-]
-```
-
-#### Notes
-- Render results grouped/filtered by status.
-- Missing `user_id` → workflow throws: `"Missing user_id in query"`.
-
----
-
-### D. Approve Job
-
-**`POST /webhook/job-approve`**
-
-Human governance action. Approves a graded job.
-
-#### Guards (enforced by backend)
-- `job_id` must exist.
-- Job `status` must be `"graded"` — otherwise throws: `"Approval allowed only after grading"`.
-
-#### Request Body
-```json
-{
-  "job_id": "<job_id>"
-}
-```
-
-#### Response `200 OK`
-```json
-{
-  "job_id": "<job_id>",
-  "status": "approved",
-  "approved_at": "<iso>",
-  "approved_by": "operator"
-}
-```
-
-#### Firestore Update
-Sets: `status`, `approved_at`, `approved_by`
-
----
-
-### E. Reject Job
-
-**`POST /webhook/job-reject`**
-
-Human governance action with mandatory reason. Rejects a graded job.
-
-> **Important:** Uses status `"rejected"` — NOT `"failed"`. These are distinct states.
-
-#### Guards (enforced by backend)
-- `job_id` required — otherwise throws: `"Missing job_id in body"`.
-- Job `status` must be `"graded"` — otherwise throws same grading guard as approve.
-
-#### Request Body
-```json
-{
-  "job_id": "<job_id>",
-  "reason": "Why rejected..."
-}
-```
-
-#### Response `200 OK`
-```json
-{
-  "job_id": "<job_id>",
-  "status": "rejected",
-  "rejected_at": "<iso>",
-  "rejected_by": "operator",
-  "failure_reason": "Why rejected..."
-}
-```
-
-#### Firestore Update
-Sets: `status`, `rejected_at`, `rejected_by`, `failure_reason`
-
----
-
-### F. Resurrect Job
-
-**`POST /webhook/resurrect`**
-
-Brings a `failed` or `rejected` job back into an active lifecycle. Also creates an immutable event record in `continuity_restore_events`.
-
-#### Guards (enforced by backend)
-- Continuity Restore only allowed from `failed` or `rejected` — otherwise throws: `"Continuity Restore allowed only from failed or rejected state"`.
-
-#### Request Body
-```json
-{
-  "job_id": "<job_id>",
-  "reason": "Manual continuity restore",
-  "resurrected_by": "governor"
-}
-```
-
-#### Response `200 OK`
-```json
-{
-  "job_id": "<job_id>",
-  "status": "resurrected",
-  "previous_state": "failed",
-  "resurrected_at": "<iso>"
-}
-```
-
-#### Firestore Updates
-- **`jobs` doc:** sets `status`, `resurrection_reason`, `resurrected_by`, `resurrected_at`, `updated_at`
-- **`continuity_restore_events`:** new document with `event_id`, `job_id`, `previous_state`, `resurrection_reason`, `resurrected_by`, `created_at`
-
----
-
-## 3. Grading Layer Output
-
-The grader (OpenAI) returns structured JSON attached to the job after `status` becomes `graded`:
-
+After `status = "graded"`, the job contains:
 ```json
 {
   "score": 85,
   "pass_fail": "pass",
-  "risk_flags": ["flag_a", "flag_b"],
-  "reasoning_summary": "Up to 3 sentences explaining the grade."
+  "risk_flags": ["flag_a"],
+  "reasoning_summary": "Quality assessment..."
 }
 ```
-
-| Field | Type | Description |
-|---|---|---|
-| `score` | `number` (0–100) | Numerical quality score |
-| `pass_fail` | `"pass"` \| `"fail"` | `pass` if score ≥ 70 |
-| `risk_flags` | `string[]` | Array of identified risk labels |
-| `reasoning_summary` | `string` | ≤ 3 sentence explanation |
-
----
-
-## 4. Error Reference
-
-The backend throws these specific errors. Map them to frontend toasts/messages:
-
-| Scenario | Backend Error | Suggested UI Message |
-|---|---|---|
-| `GET /jobs` without `user_id` | `"Missing user_id in query"` | "Please log in to view jobs." |
-| Approve/Reject without `job_id` | `"Missing job_id in body"` | "Job ID is required." |
-| Approve/Reject before grading | `"Approval allowed only after grading"` | "This job isn't graded yet—wait for grading to finish." |
-| Restore from wrong state | `"Continuity Restore allowed only from failed or rejected state"` | "Cannot restore unless job is failed or rejected." |
-
-> After any action (approve/reject/resurrect), always refresh the job snapshot from Firestore or via `GET /job?job_id=...`.
-
----
-
-## 5. Recommended Client Watcher Pattern
-
-Always treat `jobs.status` as the **single source of truth**.
-
-### Option A — Firestore Realtime (Preferred)
-```typescript
-// Subscribe to single job
-onSnapshot(doc(db, "jobs", job_id), (snap) => {
-  const job = snap.data();
-  updateJobUI(job);
-});
-
-// Subscribe to continuity restore events for a job
-onSnapshot(
-  query(collection(db, "resurrection_events"), where("job_id", "==", job_id)),
-  (snap) => renderContinuityRestoreTimeline(snap.docs.map(d => d.data()))
-);
-```
-
-### Option B — Polling via `status_url`
-```typescript
-const poll = setInterval(async () => {
-  const job = await fetch(status_url).then(r => r.json());
-  updateJobUI(job);
-  const terminal = ["graded", "approved", "rejected", "failed"];
-  if (terminal.includes(job.status)) clearInterval(poll);
-}, 3000);
-```
-
----
-
-## 6. Security Notes (Phase 1)
-
-- The n8n webhook currently uses `callerPolicy: "any"` (open). This will be tightened in a later phase via Firebase Functions proxy or shared-secret header.
-- **Frontend RBAC:** Only show governance controls (Approve / Reject / Restore) to users with roles ≥ `operator`.
-- **Firestore Security Rules (minimum):**
-  - Users may read only jobs matching their `user_id` or `organization_id`.
-  - Only `operator` role may write `approved_*`, `rejected_*`, `resurrected_*` fields.
-  - `resurrection_events` (continuity restore events) documents are create-only (no updates/deletes) and only writable by the backend/governor.

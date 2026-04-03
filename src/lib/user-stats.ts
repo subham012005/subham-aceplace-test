@@ -9,7 +9,7 @@ import {
 } from "firebase/firestore";
 
 /**
- * Increments the total n8n request count for a specific user.
+ * Increments the total request count for a specific user.
  * Creates the document if it doesn't exist.
  */
 export async function incrementUserRequestCount(userId: string) {
@@ -21,12 +21,12 @@ export async function incrementUserRequestCount(userId: string) {
         const snap = await getDoc(statsRef);
         if (snap.exists()) {
             await updateDoc(statsRef, {
-                total_n8n_requests: increment(1),
+                total_requests: increment(1),
                 last_request_at: new Date().toISOString()
             });
         } else {
             await setDoc(statsRef, {
-                total_n8n_requests: 1,
+                total_requests: 1,
                 last_request_at: new Date().toISOString()
             }, { merge: true });
         }
@@ -36,18 +36,11 @@ export async function incrementUserRequestCount(userId: string) {
 }
 
 /**
- * Subscribes to the user's stats document to get real-time updates of request counts.
+ * Subscribes to the user's stats document — DISABLED (Security Migration)
+ * Use useRuntimeStats hook instead for secure dashboard metrics.
  */
 export function subscribeToUserStats(userId: string, callback: (stats: any) => void) {
-    const statsRef = doc(db, "users", userId, "stats", "dash");
-
-    return onSnapshot(statsRef, (doc) => {
-        if (doc.exists()) {
-            callback(doc.data());
-        } else {
-            callback({ total_n8n_requests: 0 });
-        }
-    }, (error) => {
-        console.error("Error subscribing to user stats:", error);
-    });
+    // Return early with defaults to avoid permission errors
+    callback({ total_requests: 0 });
+    return () => {}; // return empty unsubscribe
 }

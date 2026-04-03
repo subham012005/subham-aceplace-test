@@ -14,7 +14,7 @@ export default function TaskComposerPage() {
     return (
         <div className="max-w-4xl mx-auto space-y-8 animate-in slide-in-from-bottom duration-500 pb-12 pt-12">
             <div className="flex items-center gap-4 border-b border-white/10 pb-6">
-                <img src="/nxq-symbol.png" alt="NXQ Symbol" className="h-12 w-auto object-contain" />
+                <img src="/ace-symbol.png" alt="ACEPLACE Symbol" className="h-12 w-auto object-contain" />
                 <div>
                     <h1 className="text-3xl font-black text-white tracking-tighter uppercase italic flex items-center gap-3">
                         TASK <span className="text-cyan-500">COMPOSER</span>

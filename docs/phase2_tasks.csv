@@ -1,0 +1,58 @@
+Task ID,Sprint,Description,File Path,Status,Priority,Notes
+T-001,1,TypeScript type interfaces for runtime,src/lib/runtime/types.ts,Done,P0,25+ interfaces — envelopes steps leases identities protocol messages
+T-002,1,Constants enums and step configs,src/lib/runtime/constants.ts,Done,P0,Step configs status transitions tier defs display configs
+T-003,1,SHA-256 hashing utilities,src/lib/runtime/hash.ts,Done,P0,Step hash identity fingerprint UUID generators
+T-004,1,Firestore schema setup (indexes/rules),firestore.indexes.json,Done,P1,2026-03-21,Composite indexes created — covered by T-034; envelopes execution_steps leases agent_identities protocol_messages job_traces
+T-005,2,Identity Kernel — agent fingerprint verification,src/lib/runtime/kernels/identity.ts,Done,P0,Verify register build identity context
+T-006,2,Authority Kernel — lease management,src/lib/runtime/kernels/authority.ts,Done,P0,Acquire release validate expire stale leases
+T-007,2,Persistence Kernel — Firestore CRUD,src/lib/runtime/kernels/persistence.ts,Done,P0,Envelope step checkpoint trace CRUD operations
+T-008,2,Communications Kernel — protocol messaging,src/lib/runtime/kernels/communications.ts,Done,P0,Send broadcast get messages verb validation
+T-009,2,Execution Kernel — step graph runner,src/lib/runtime/kernels/execution.ts,Done,P0,Hash verification checkpoint resume human_review gates
+T-010,3,Envelope Builder,src/lib/runtime/envelope-builder.ts,Done,P0,Build canonical envelopes with step graph and hashes
+T-011,3,Runtime Engine Orchestrator,src/lib/runtime/engine.ts,Done,P0,Full dispatch flow — identity authority envelope execution
+T-012,3,Dispatch API Route,src/app/api/runtime/dispatch/route.ts,Done,P0,POST /api/runtime/dispatch
+T-013,3,Envelope Detail API Route,src/app/api/runtime/envelope/[id]/route.ts,Done,P0,GET /api/runtime/envelope/[id]
+T-014,3,Envelope Steps API Route,src/app/api/runtime/envelope/[id]/steps/route.ts,Done,P0,GET /api/runtime/envelope/[id]/steps
+T-015,3,Lease Acquire API Route,src/app/api/runtime/lease/acquire/route.ts,Done,P0,POST /api/runtime/lease/acquire
+T-016,3,Lease Release API Route,src/app/api/runtime/lease/release/route.ts,Done,P0,POST /api/runtime/lease/release
+T-017,3,Checkpoint API Route,src/app/api/runtime/checkpoint/[id]/route.ts,Done,P0,GET/POST /api/runtime/checkpoint/[id]
+T-018,3,Identity Verify API Route,src/app/api/runtime/identity/verify/route.ts,Done,P0,POST /api/runtime/identity/verify
+T-019,4,useEnvelope Hook,src/hooks/useEnvelope.ts,Done,P0,Real-time envelope + steps subscription
+T-020,4,useEnvelopes Hook,src/hooks/useEnvelopes.ts,Done,P0,All user envelopes with status counts
+T-021,4,useLeases Hook,src/hooks/useLeases.ts,Done,P0,Active lease tracking
+T-022,4,useIdentity Hook,src/hooks/useIdentity.ts,Done,P0,Agent identity subscription
+T-023,4,useRuntimeStats Hook,src/hooks/useRuntimeStats.ts,Done,P0,Aggregate runtime metrics
+T-024,5,EnvelopeInspector Component,src/components/EnvelopeInspector.tsx,Done,P0,Full envelope viewer with step graph
+T-025,5,StepGraph Component,src/components/StepGraph.tsx,Done,P0,Visual step timeline
+T-026,5,EnvelopeStepCard Component,src/components/EnvelopeStepCard.tsx,Done,P0,Expandable step card with I/O
+T-027,5,LeaseManager Component,src/components/LeaseManager.tsx,Done,P0,Live lease countdown with revocation
+T-028,5,IdentityPanel Component,src/components/IdentityPanel.tsx,Done,P0,Agent identity display
+T-029,5,RuntimeGovernance Component,src/components/RuntimeGovernance.tsx,Done,P0,Step-level approve/reject gates
+T-030,5,RuntimeStats Component,src/components/RuntimeStats.tsx,Done,P0,Dashboard stat cards
+T-031,6,Dashboard integration,src/app/dashboard/page.tsx,Done,P1,2026-03-21,RuntimeStats + LeaseManager + IdentityPanel wired into dashboard with ErrorBoundary wrapping
+T-032,6,Intake → dispatch wiring,src/app/api/jobs/intake/route.ts,Done,P1,2026-03-21,Feature flag NEXT_PUBLIC_USE_DETERMINISTIC_RUNTIME routes to /api/runtime/dispatch
+T-033,6,Error boundary + fallback UI,src/components/ErrorBoundary.tsx,Done,P2,2026-03-21,Class-based error boundary with HUD-styled fallback and reset button
+T-034,6,Firestore indexes,firestore.indexes.json,Done,P1,2026-03-21,Composite indexes for envelopes execution_steps leases agent_identities protocol_messages job_traces
+T-035,6,End-to-end test,N/A,In Progress,P1,,Full dispatch → execute → complete flow
+T-036,6,Agent identity seed script,scripts/seed-identities.ts,Done,P2,2026-03-21,Seeds COO Researcher Worker Grader into agent_identities with SHA-256 fingerprints
+T-037,6,Lease cleanup cron,src/app/api/cron/lease-cleanup/route.ts,Done,P3,2026-04-01,Implemented in Phase 2 cron with dead-step recovery logic
+T-038,6,Protocol message viewer,src/components/ProtocolViewer.tsx,Done,P3,2026-03-21,Collapsible HUD-styled debug viewer for #us# protocol messages
+T-039,6,Performance metrics,src/app/api/cron/telemetry-rollup/route.ts,Done,P3,2026-04-01,Aggregation logic implemented in telemetry-rollup cron
+T-040,6,Documentation update,docs/README.md,Done,P2,2026-03-22,Phase 2 documentation and task tracking updated
+T-041,6,useJobs envelope reference fields,src/hooks/useJobs.ts,Done,P2,2026-03-22,Add envelope_id to Job interface
+T-042,6,API client runtime methods,src/lib/api-client.ts,Done,P2,2026-03-22,Add getEnvelope getExecutionTrace sendUSMessage to NXQApiClient
+T-043,6,TaskComposer runtime dispatch toggle,src/components/TaskComposer.tsx,Done,P2,2026-03-22,Add ACEPLACE RUNTIME toggle in TaskComposer
+T-044,6,TaskDetail EnvelopeInspector integration,src/components/TaskDetail.tsx,Done,P2,2026-03-22,Integrated EnvelopeInspector and #us# protocol UI
+T-045,6,JobDetail envelope execution view,src/app/dashboard/jobs/[jobId]/page.tsx,Done,P2,2026-03-22,Integrated EnvelopeInspector and stall detection in standalone job page
+AE-001,N/A,Agent Engine - requirements.txt,agent-engine/requirements.txt,Done,P0,Python dependencies installed
+AE-002,N/A,Agent Engine - config.py,agent-engine/config.py,Done,P0,LLM model configs and temperatures
+AE-003,N/A,Agent Engine - Firestore service,agent-engine/services/firestore.py,Done,P0,Firebase Admin SDK operations
+AE-004,N/A,Agent Engine - Pipeline state,agent-engine/graph/state.py,Done,P0,LangGraph state TypedDict
+AE-005,N/A,Agent Engine - COO node,agent-engine/graph/nodes/coo.py,Done,P0,claude-sonnet-4-6 temp 0.2
+AE-006,N/A,Agent Engine - Researcher node,agent-engine/graph/nodes/researcher.py,Done,P0,claude-sonnet-4-6 temp 0.3
+AE-007,N/A,Agent Engine - Worker node,agent-engine/graph/nodes/worker.py,Done,P0,gpt-4o temp 0.4
+AE-008,N/A,Agent Engine - Grader node,agent-engine/graph/nodes/grader.py,Done,P0,claude-haiku-4-5-20251001 temp 0.1
+AE-009,N/A,Agent Engine - Pipeline graph,agent-engine/graph/pipeline.py,Done,P0,LangGraph DAG with conditional edges
+AE-010,N/A,Agent Engine - FastAPI server,agent-engine/main.py,Done,P0,/execute /health /config endpoints
+DB-001,N/A,Runtime DB helper,src/lib/runtime/db.ts,Done,P0,Non-null Firestore reference helper
+N8N-001,N/A,Remove n8n dependency,src/app/api/jobs/intake/route.ts,Done,P0,Replaced n8n webhook with local agent engine

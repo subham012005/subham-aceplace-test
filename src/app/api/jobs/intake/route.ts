@@ -1,49 +1,50 @@
 import { NextResponse } from "next/server";
+import { workflowEngine } from "@/lib/workflow-engine";
+import { dispatch } from "@/lib/runtime/engine";
 
 /**
- * Standardized Job Intake Proxy
- * Purely forwards the request to n8n for processing.
+ * Job Intake — Local Workflow Engine + Agent Pipeline Trigger
+ * Creates a new job in Firestore, then fires the LangGraph pipeline.
+ *
+ * When NEXT_PUBLIC_USE_DETERMINISTIC_RUNTIME=true, the job is also
+ * dispatched through the deterministic runtime engine (Phase 2).
  */
 export async function POST(req: Request) {
     try {
         const body = await req.json();
 
-        const baseUrl = process.env.NEXT_PUBLIC_N8N_WEBHOOK_BASE_URL;
-        if (!baseUrl) {
-            return NextResponse.json({ error: "N8N_BASE_URL_NOT_CONFIGURED" }, { status: 500 });
-        }
-
-        const n8nUrl = `${baseUrl}job-intake`;
-
-        const response = await fetch(n8nUrl, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${process.env.N8N_ACCESS_TOKEN}`
-            },
-            body: JSON.stringify(body),
+        const result = await workflowEngine.createJob({
+            user_id: body.user_id,
+            requested_agent_id: body.requested_agent_id,
+            job_type: body.job_type,
+            prompt: body.prompt,
+            job_id: body.job_id,
+            force_crash: body.force_crash,
         });
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            return NextResponse.json({ error: "n8n intake failed", details: errorText }, { status: response.status });
-        }
-
-        const text = await response.text();
-        let result = {};
+        // Always dispatch through the deterministic runtime engine (Phase 2) DIRECTLY.
+        // This avoids internal fetch overhead and potential auth mismatches.
         try {
-            result = text ? JSON.parse(text) : { success: true, message: "Workflow triggered" };
-        } catch (e) {
-            result = { success: true, message: text || "Workflow triggered" };
+            const dispatchResult = await dispatch({
+                prompt: body.prompt,
+                userId: body.user_id,
+                jobId: result.job_id,
+                agentId: body.requested_agent_id || "agent_coo",
+                orgId: "default"
+            });
+            console.log(`[INTAKE] Successfully dispatched envelope: ${dispatchResult.envelope_id}`);
+        } catch (err: any) {
+            console.error("[INTAKE] Runtime dispatch trigger failed:", err.message);
         }
 
-        return NextResponse.json(result, { status: response.status });
+        return NextResponse.json(result, { status: 200 });
 
     } catch (error: any) {
-        console.error("Job intake proxy error:", error);
+        console.error("Job intake error:", error);
         return NextResponse.json({
-            error: "PROXY_ERROR",
-            message: error.message || "Failed to forward request to n8n"
+            error: "INTAKE_ERROR",
+            message: error.message || "Failed to create job"
         }, { status: 500 });
     }
 }
+

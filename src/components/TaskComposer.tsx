@@ -1,16 +1,16 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
     Send,
     Terminal,
     AlertCircle,
     CheckCircle2,
-    Loader2,
     Zap
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { nxqApi } from "@/lib/api-client";
+import { aceApi } from "@/lib/api-client";
 import { SciFiFrame } from "@/components/SciFiFrame";
 
 interface TaskComposerProps {
@@ -19,6 +19,7 @@ interface TaskComposerProps {
 }
 
 export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
+    const router = useRouter();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -35,8 +36,6 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
         setError(null);
         setSuccess(false);
 
-        const generatedJobId = `job_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-
         try {
             const { auth } = await import("@/lib/firebase");
             const userId = auth.currentUser?.uid;
@@ -45,7 +44,12 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
                 throw new Error("Authorization required for agent dispatch.");
             }
 
-            await nxqApi.createJob({
+            const generatedJobId = `job_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+            // Always create a job record so the dashboard job view works.
+            // The intake route itself triggers deterministic runtime dispatch
+            // using the same job_id, so the deterministic runtime is always ON.
+            await aceApi.createJob({
                 user_id: userId,
                 requested_agent_id: "agent_coo",
                 job_id: generatedJobId,
@@ -64,9 +68,15 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
             setSuccess(true);
             setTask("");
 
-        } catch (err: any) {
-            console.error("Orchestration failed:", err);
-            setError(err.message || "Dimensional link failed. Check n8n status.");
+            // Redirect to job detail page
+            setTimeout(() => {
+                router.push(`jobs/${generatedJobId}`);
+            }, 1000); // Small delay to show success state
+
+        } catch (err: unknown) {
+            const error = err as Error;
+            console.error("Orchestration failed:", error);
+            setError(error.message || "Dimensional link failed. Check workflow engine status.");
         } finally {
             setIsSubmitting(false);
         }
@@ -74,13 +84,13 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
 
     return (
         <form onSubmit={handleSubmit} className={cn("space-y-6", className)}>
-            <SciFiFrame 
-                title="Tactical Command Orchestrator" 
+            <SciFiFrame
+                title="Tactical Command Orchestrator"
                 variant="glass"
                 className="overflow-hidden"
             >
                 {/* Advanced HUD Header */}
-                <div className="flex items-center justify-between px-4 py-2 border-b border-white/5 bg-cyan-500/5 mb-4 -mx-4 -mt-2">
+                    <div className="flex items-center justify-between px-4 py-2 border-b border-white/5 bg-cyan-500/5 mb-4 -mx-4 -mt-2">
                     <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2">
                             <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse shadow-[0_0_8px_#06b6d4]" />
@@ -89,10 +99,16 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
                         <div className="h-3 w-[1px] bg-white/10" />
                         <span className="text-[8px] font-bold text-slate-500 tracking-widest uppercase">Latency: 24ms</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <span className="text-[8px] font-bold text-cyan-500/60 tracking-widest uppercase">Encryption:</span>
-                        <span className="text-[9px] font-black text-cyan-400 tracking-tighter">RSA_OMEGA_4096</span>
-                    </div>
+                        <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2">
+                                <span className="text-[8px] font-bold text-cyan-500/60 tracking-widest uppercase">Encryption:</span>
+                                <span className="text-[9px] font-black text-cyan-400 tracking-tighter">RSA_OMEGA_4096</span>
+                            </div>
+                            <div className="h-3 w-[1px] bg-white/10" />
+                            <span className="text-[8px] font-bold tracking-widest uppercase text-amber-400">
+                                Deterministic Runtime ON
+                            </span>
+                        </div>
                 </div>
 
                 <div className="space-y-6 py-2">
@@ -102,11 +118,11 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
                                 <Terminal className="w-3 h-3" />
                                 Direct Command Sequence
                             </label>
-                            
+
                             <div className="flex items-center gap-3">
                                 <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Buffer Status</span>
                                 <div className="w-24 h-1 bg-white/5 border border-white/5 rounded-full overflow-hidden">
-                                    <div 
+                                    <div
                                         className={cn(
                                             "h-full transition-all duration-500",
                                             charPercentage > 90 ? "bg-rose-500" : "bg-cyan-500 shadow-[0_0_8px_#06b6d4]"
@@ -170,11 +186,11 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
                         >
                             {/* Animated Background Gradients */}
                             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover/btn:translate-x-full transition-transform duration-1000 ease-out" />
-                            
+
                             {success && (
                                 <div className="absolute inset-0 bg-white animate-out fade-out duration-700 pointer-events-none z-50" />
                             )}
-                            
+
                             {isSubmitting ? (
                                 <>
                                     <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
@@ -192,16 +208,16 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
                                 </>
                             )}
                         </button>
-                        
+
                         <div className="mt-4 flex items-center justify-between px-2">
                             <div className="flex gap-1">
                                 {Array.from({ length: 4 }).map((_, i) => (
-                                    <div 
-                                        key={i} 
+                                    <div
+                                        key={i}
                                         className={cn(
                                             "w-3 h-1 rounded-full transition-colors duration-500",
                                             task.length > 0 ? "bg-cyan-500/40" : "bg-white/5"
-                                        )} 
+                                        )}
                                         style={{ transitionDelay: `${i * 100}ms` }}
                                     />
                                 ))}

@@ -1,56 +1,150 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# NXQ Workstation
 
-## Getting Started
+> **Phase 2 — Deterministic Multi-Agent Runtime**
 
-First, run the development server:
+NXQ Workstation is a **multi-agent AI task execution platform** powered by a deterministic, envelope-driven runtime. Tasks are submitted, decomposed into typed execution steps, executed by specialized AI agents (COO → Researcher → Worker → Grader), and tracked in real-time through a governance-enabled dashboard.
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| **Frontend** | Next.js 16, React 19, TypeScript |
+| **Styling** | Tailwind CSS v4, GSAP animations |
+| **Database** | Google Firestore (real-time) |
+| **Auth** | Firebase Auth |
+| **Agent Engine** | Python 3.10 + FastAPI |
+| **UI Components** | shadcn/ui, Radix UI, Lucide React |
+
+---
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [QUICK_START.md](./docs/QUICK_START.md) | Setup, environment variables, seeding, running |
+| [ARCHITECTURE.md](./docs/ARCHITECTURE.md) | System design, execution paths, state machine |
+| [RUNTIME_INTERNALS.md](./docs/RUNTIME_INTERNALS.md) | Deep dive into runtime kernels, parallel runner, protocol |
+| [API_REFERENCE.md](./docs/API_REFERENCE.md) | All REST API endpoints with request/response schemas |
+| [FIRESTORE_SCHEMA.md](./docs/FIRESTORE_SCHEMA.md) | Firestore collections, field definitions, indexes |
+| [PHASE_2_IMPLEMENTATION_PLAN.md](./docs/PHASE_2_IMPLEMENTATION_PLAN.md) | Original specification and task tracker |
+
+---
+
+## Quick Setup
 
 ```bash
+# 1. Install dependencies
+npm install
+
+# 2. Create .env.local (see docs/QUICK_START.md for all variables)
+# Minimum required: Firebase config + ACELOGIC_DEV_LICENSE_FALLBACK=true
+
+# 3. Seed agent identities (first time)
+node scripts/seed-identities-standalone.js
+
+# 4. Start
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) and sign in.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+For the Python agent engine (LLM execution):
+```bash
+cd agent-engine
+python -m venv .venv && .venv\Scripts\activate  # Windows
+pip install -r requirements.txt
+uvicorn main:app --host 0.0.0.0 --port 8001
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Environment Setup
+## Project Structure
 
-Create a `.env.local` file in the root directory with the following environment variables:
+```
+nxq-workstation/
+├── src/
+│   ├── app/                        # Next.js App Router pages + API routes
+│   │   ├── api/
+│   │   │   ├── runtime/            # Dispatch, handoff, envelope, lease, identity
+│   │   │   ├── acelogic/           # ACELOGIC license/capability control plane
+│   │   │   ├── explorer/           # Read-only query APIs
+│   │   │   ├── jobs/               # Legacy job governance actions
+│   │   │   └── cron/               # Scheduled maintenance (lease cleanup, telemetry)
+│   │   ├── dashboard/              # Dashboard pages
+│   │   └── login/                  # Auth page
+│   ├── components/                 # React UI components
+│   ├── context/                    # AuthContext, SettingsContext
+│   ├── hooks/                      # Firestore real-time subscription hooks
+│   └── lib/
+│       ├── runtime/                # Deterministic runtime engine (TypeScript)
+│       │   ├── kernels/            # Identity, Authority, Persistence, Communications
+│       │   └── telemetry/          # Metric emission + aggregation
+│       ├── acelogic/               # License resolution + capability checks
+│       ├── explorer/               # Explorer service layer
+│       ├── firebase.ts             # Client Firebase SDK init
+│       └── firebase-admin.ts       # Server Firebase Admin init
+├── agent-engine/                   # Python FastAPI LLM execution service
+│   ├── main.py                     # Entry point (routes)
+│   ├── config.py                   # Agent model configuration
+│   ├── graph/                      # Runtime loop + step handler nodes
+│   └── services/                   # Firestore client
+├── docs/                           # Documentation
+├── scripts/                        # Data seeding + admin utilities
+├── public/                         # Static assets
+├── firestore.indexes.json          # Firestore composite index definitions
+└── .env.local                      # Environment variables (not committed)
+```
 
-- `NEXT_PUBLIC_FIREBASE_API_KEY`: Firebase API key for client-side authentication and database access.
-- `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`: Firebase authentication domain.
-- `NEXT_PUBLIC_FIREBASE_PROJECT_ID`: Firebase project ID.
-- `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`: Firebase storage bucket URL.
-- `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`: Firebase messaging sender ID.
-- `NEXT_PUBLIC_FIREBASE_APP_ID`: Firebase app ID.
-- `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID`: Firebase measurement ID for analytics (optional).
-- `N8N_SERVER_URL`: URL for the N8N server.
-- `N8N_ACCESS_TOKEN`: Access token for N8N API authentication.
-- `NEXT_PUBLIC_N8N_WEBHOOK_URL`: Base URL for N8N webhooks.
-- `NEXT_PUBLIC_N8N_WEBHOOK_BASE_URL`: Base URL for N8N webhook endpoints.
-- `FIREBASE_CLIENT_EMAIL`: Firebase service account client email for server-side operations.
-- `FIREBASE_PRIVATE_KEY`: Firebase service account private key for server-side authentication.
+---
 
-**Note:** Do not commit `.env.local` to version control as it contains sensitive information. Use `.env.example` for templates if needed.
+## How it Works
 
-## Learn More
+1. **Submit** — User submits a task via the Dashboard Task Composer
+2. **Envelope** — The runtime creates a Canonical Execution Envelope in Firestore with an embedded step graph
+3. **Identity** — Each participating agent's SHA-256 fingerprint is verified
+4. **Lease** — An authority lease is acquired (prevents fork conflicts)
+5. **Execute** — Steps run deterministically: COO plans → Researcher assigns → Worker produces → Grader evaluates
+6. **Govern** — Human operators approve or reject via the Governance Panel
+7. **Observe** — The Envelope Inspector shows real-time step progress, protocol messages, and artifacts
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Key Concepts
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **Execution Envelope** — The single source of truth. Contains all state: steps, leases, identity, artifacts.
+- **ACELOGIC** — License and capability guard. Controls what operations each agent can perform.
+- **#us# Protocol** — Typed machine grammar for agent-to-agent communication. Only 5 verbs allowed.
+- **Fork Detection** — Lease-based mechanism that prevents duplicate execution (quarantines conflicts).
+- **Explorer** — Read-only audit interface over all execution data.
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Environment Variables
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `NEXT_PUBLIC_FIREBASE_*` | ✅ | Firebase client config (6 vars) |
+| `FIREBASE_CLIENT_EMAIL` | ✅ | Service account email |
+| `FIREBASE_PRIVATE_KEY` | ✅ | Service account private key |
+| `ACELOGIC_DEV_LICENSE_FALLBACK` | Dev only | Skip license Firestore lookup |
+| `ACELOGIC_DEV_LICENSE_TIER` | Dev only | License tier for fallback (default: `1`) |
+| `NEXT_PUBLIC_USE_DETERMINISTIC_RUNTIME` | ❌ | Enable runtime path (default: `true`) |
+| `AGENT_ENGINE_URL` | ❌ | Python engine URL (default: `http://localhost:8001`) |
+| `CRON_SECRET` | Prod | Bearer token for cron routes |
+| `ACELOGIC_API_URL` | ❌ | Remote ACELOGIC instance (optional) |
+
+Full details in [docs/QUICK_START.md](./docs/QUICK_START.md).
+
+---
+
+## Troubleshooting
+
+| Problem | Cause | Fix |
+|---------|-------|-----|
+| "Admin not initialized" | Malformed `FIREBASE_PRIVATE_KEY` | Ensure `\n` is escaped in `.env.local` |
+| License/guard errors | Missing license doc | Run `node scripts/seed-license.js` or set `ACELOGIC_DEV_LICENSE_FALLBACK=true` |
+| "Index required" in Firestore | Missing composite index | Follow error link or deploy `firestore.indexes.json` |
+| Steps stuck at "pending" | Agent engine not running | Start the Python agent engine on port 8001 |
+| "QUARANTINED" envelope | Fork conflict detected | Requires manual investigation and envelope reset |

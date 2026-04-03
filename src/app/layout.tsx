@@ -13,17 +13,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "NXQ WORKSTATION",
-  description: "Advanced Agentic AI Orchestration Interface",
+  title: "ACEPLACE WORKSTATION",
+  description: "Deterministic Multi-Agent Runtime & Governance",
   icons: {
-    icon: "/nxq-favicon.png",
-    apple: "/nxq-favicon.png",
+    icon: "/ace-favicon.png",
+    apple: "/ace-favicon.png",
   },
 };
 
 import { AuthProvider } from "@/context/AuthContext";
 import { SettingsProvider } from "@/context/SettingsContext";
-import TargetCursor from "@/components/TargetCursor";
 
 export default function RootLayout({
   children,
@@ -34,10 +33,10 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        suppressHydrationWarning
       >
         <AuthProvider>
           <SettingsProvider>
-            <TargetCursor />
             {children}
           </SettingsProvider>
         </AuthProvider>

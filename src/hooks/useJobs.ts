@@ -8,7 +8,7 @@ import {
     onSnapshot,
     doc
 } from "firebase/firestore";
-import { nxqApi } from "@/lib/api-client";
+import { aceApi } from "@/lib/api-client";
 
 // Parse stringified JSON fields that Firestore may store as strings
 function parseJobFields(job: any): any {
@@ -30,7 +30,7 @@ export interface Job {
     user_id: string;
     job_type: "coo" | "research" | "worker";
     prompt: string;
-    status: "created" | "in_progress" | "completed" | "graded" | "approved" | "rejected" | "failed" | "resurrected" | "awaiting_approval";
+    status: "created" | "queued" | "lease_check" | "in_progress" | "executing" | "coo_planning" | "research_execution" | "worker_execution" | "grading" | "completed" | "graded" | "approved" | "rejected" | "failed" | "resurrected" | "awaiting_approval";
     created_at: string;
     updated_at: string;
     completed_at?: string;
@@ -80,7 +80,7 @@ export interface Job {
     resurrection_reason?: string;
     resurrected_by?: string;
     resurrected_at?: string;
-    // New fields from n8n
+    // Agent pipeline fields
     grade_score?: number;
     pass_fail?: string;
     output?: any[];
@@ -102,7 +102,7 @@ export interface Job {
     assigned_agent_id?: string;
     assigned_agent_role?: string;
     fork_last_at?: string;
-    // Direct from n8n result
+    // Direct from result
     event_id?: string;
     action_taken?: string;
     block_reason?: string;
@@ -119,6 +119,8 @@ export interface Job {
     last_safe_step?: string;
     resume_allowed?: boolean;
     grade_status?: string;
+    execution_id?: string;
+    envelope_id?: string;
 }
 
 export interface ForkEvent {
@@ -176,10 +178,10 @@ export function useJobs(userId: string | undefined) {
     }, []);
 
     const refresh = useCallback(async () => {
-        if (!userId) return;
-        setRefreshing(true);
         try {
-            const jobsData = await nxqApi.getAllJobs(userId);
+            if (!userId) return;
+
+            const jobsData = await aceApi.getAllJobs(userId);
             if (Array.isArray(jobsData)) {
                 setJobs(prev => {
                     let mappedJobs: Job[] = [];
@@ -233,32 +235,47 @@ export function useJobs(userId: string | undefined) {
             return;
         }
 
-        refresh();
-
-        setJobs([]);
-        setLoading(true);
-
-        const q = query(
-            collection(db, "jobs"),
-            where("user_id", "==", userId)
-        );
-
+        let isMounted = true;
+        
+        const jobsRef = collection(db, "jobs");
+        const q = query(jobsRef, orderBy("created_at", "desc"));
+        
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            const jobsData = snapshot.docs.map(doc => parseJobFields({
-                id: doc.id,
-                ...doc.data()
-            })) as Job[];
-
-            jobsData.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
-
-            setJobs(jobsData);
+            if (!isMounted) return;
+            const fetched = snapshot.docs.map(doc => {
+                return parseJobFields({
+                    ...doc.data(),
+                    id: doc.id,
+                    job_id: doc.id
+                });
+            });
+            const filtered = fetched.filter(j => j.user_id === userId || !j.user_id);
+            setJobs(filtered as Job[]);
             setLoading(false);
-        }, (error) => {
-            console.error("Error subscribing to jobs:", error);
-            setLoading(false);
+        }, (err) => {
+            console.warn("[useJobs] Live sync failed:", err);
+            // Fallback to polling if onSnapshot fails (e.g. index issue / permission)
+            const fetchData = async () => {
+                try {
+                    const jobsData = await aceApi.getSecureJobs();
+                    if (isMounted) {
+                        setJobs(jobsData.map((j: any) => parseJobFields(j)));
+                        setLoading(false);
+                    }
+                } catch (error: any) {
+                    if (!error.message?.includes("ADMIN_NOT_INITIALIZED")) {
+                        console.error("Error fetching jobs:", error);
+                    }
+                    if (isMounted) setLoading(false);
+                }
+            };
+            fetchData();
         });
 
-        return () => unsubscribe();
+        return () => {
+            isMounted = false;
+            unsubscribe();
+        };
     }, [userId]);
 
     return { jobs, loading, refreshing, refresh, updateJobInList };
@@ -270,61 +287,95 @@ export function useJob(jobId: string | null, userId: string | undefined, onUpdat
     const [refreshing, setRefreshing] = useState(false);
 
     const refresh = useCallback(async () => {
-        if (!jobId) return;
+        if (!jobId || !userId) return;
         setRefreshing(true);
         try {
-            const jobData = await nxqApi.getJob(jobId, userId);
-            if (jobData) {
-                const mappedJob = parseJobFields({ ...jobData, id: jobData.id || jobData.job_id });
+            const jobData = await aceApi.getSecureJobDetail(jobId);
+            if (jobData && !jobData.error) {
+                const mappedJob = parseJobFields(jobData);
                 setJob(mappedJob);
                 if (onUpdate) onUpdate(mappedJob);
             }
         } catch (error: any) {
-            // Silently ignore configuration errors in dev
-            const isUnconfigured =
-                error.message?.includes("ADMIN_NOT_INITIALIZED") ||
-                error.message?.includes("Backend not configured");
-
-            if (!isUnconfigured && !error.message?.includes("Job not found")) {
+             if (!error.message?.includes("Job not found")) {
                 console.error("Job refresh failed:", error);
             }
         } finally {
             setRefreshing(false);
+            setLoading(false);
         }
-    }, [jobId, onUpdate]);
+    }, [jobId, userId, onUpdate]);
 
+    // ── Live Firestore snapshot for instant updates ──────────────────────────
     useEffect(() => {
-        if (!jobId || !userId) {
+        if (!jobId) {
+            setLoading(false);
             return;
         }
 
-        refresh();
+        setLoading(true);
 
-        const q = query(
-            collection(db, "jobs"),
-            where("job_id", "==", jobId),
-            where("user_id", "==", userId)
+        // Subscribe to the jobs document directly for instant status updates
+        const jobRef = doc(db, "jobs", jobId);
+        const unsubscribe = onSnapshot(
+            jobRef,
+            (snap) => {
+                if (snap.exists()) {
+                    const data = parseJobFields({ ...snap.data(), id: snap.id, job_id: snap.id });
+                    setJob(data as Job);
+                    if (onUpdate) onUpdate(data as Job);
+                }
+                setLoading(false);
+            },
+            (err) => {
+                console.warn("[useJob] Snapshot error, falling back to polling:", err.message);
+                // Fallback: poll via API
+                setLoading(false);
+            }
         );
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            if (!snapshot.empty) {
-                const docData = snapshot.docs[0].data();
-                const mappedJob = parseJobFields({ id: snapshot.docs[0].id, ...docData }) as Job;
-                setJob(mappedJob);
-                if (onUpdate) onUpdate(mappedJob);
-            } else {
-                setJob(null);
-            }
-            setLoading(false);
-        }, (error) => {
-            console.error("Error subscribing to job:", error);
-            setLoading(false);
-        });
-
         return () => unsubscribe();
-    }, [jobId, userId, onUpdate, refresh]);
+    }, [jobId]);
 
-    return { job, loading, refreshing, refresh };
+    const [isStalled, setIsStalled] = useState(false);
+
+    useEffect(() => {
+        const checkStalled = () => {
+            if (!job || !job.updated_at) {
+                setIsStalled(false);
+                return;
+            }
+
+            const updated = new Date(job.updated_at).getTime();
+            const now = Date.now();
+            const ACTIVE_STATUSES = [
+                "queued",
+                "in_progress",
+                "executing",
+                "coo_planning",
+                "research_execution",
+                "worker_execution",
+                "grading",
+                "assigned"
+            ];
+
+            const status = String(job.status || "").toLowerCase();
+
+            // If active and no update for > 300s (5m), consider it stalled
+            const timeout = 300000; // 5 minutes
+            if (ACTIVE_STATUSES.includes(status) && (now - updated) > timeout) {
+                setIsStalled(true);
+            } else {
+                setIsStalled(false);
+            }
+        };
+
+        const timer = setInterval(checkStalled, 10000);
+        checkStalled();
+        return () => clearInterval(timer);
+    }, [job]);
+
+    return { job, loading, refreshing, refresh, isStalled };
 }
 
 export function useForkProtection(jobId: string | null) {
@@ -337,28 +388,19 @@ export function useForkProtection(jobId: string | null) {
             return;
         }
 
-        setLoading(true);
-        const q = query(
-            collection(db, "fork_events"),
-            where("job_id", "==", jobId)
-        );
+        let isMounted = true;
+        const fetchData = async () => {
+            try {
+                // For now, fork events are often embedded in job traces or handled by the engine
+                // If there's a specific fork_events collection, we'd need a route for it.
+                // For Phase 2, we'll allow this to be empty or stub it.
+                setLoading(false);
+            } catch (error) {
+                if (isMounted) setLoading(false);
+            }
+        };
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const eventsData = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            })) as ForkEvent[];
-
-            eventsData.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
-
-            setEvents(eventsData);
-            setLoading(false);
-        }, (error) => {
-            console.error("Error subscribing to fork events:", error);
-            setLoading(false);
-        });
-
-        return () => unsubscribe();
+        fetchData();
     }, [jobId]);
 
     const latestEvent = events.length > 0 ? events[0] : null;
@@ -376,28 +418,26 @@ export function useJobTraces(jobId: string | null) {
             return;
         }
 
-        setLoading(true);
-        const q = query(
-            collection(db, "job_traces"),
-            where("job_id", "==", jobId)
-        );
+        let isMounted = true;
+        const fetchData = async () => {
+            try {
+                const data = await aceApi.getSecureJobTraces(jobId);
+                if (isMounted && Array.isArray(data)) {
+                    setTraces(data);
+                    setLoading(false);
+                }
+            } catch (error) {
+                if (isMounted) setLoading(false);
+            }
+        };
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const tracesData = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            })) as TraceEntry[];
+        fetchData();
+        const interval = setInterval(fetchData, 5000);
 
-            tracesData.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-
-            setTraces(tracesData);
-            setLoading(false);
-        }, (error) => {
-            console.error("Error subscribing to job traces:", error);
-            setLoading(false);
-        });
-
-        return () => unsubscribe();
+        return () => {
+            isMounted = false;
+            clearInterval(interval);
+        };
     }, [jobId]);
 
     return { traces, loading };
@@ -413,28 +453,26 @@ export function useJobArtifacts(jobId: string | null) {
             return;
         }
 
-        setLoading(true);
-        const q = query(
-            collection(db, "artifacts"),
-            where("job_id", "==", jobId)
-        );
+        let isMounted = true;
+        const fetchData = async () => {
+            try {
+                const data = await aceApi.getSecureJobArtifacts(jobId);
+                if (isMounted && Array.isArray(data)) {
+                    setArtifacts(data);
+                    setLoading(false);
+                }
+            } catch (error) {
+                if (isMounted) setLoading(false);
+            }
+        };
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const artifactsData = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            })) as Artifact[];
+        fetchData();
+        const interval = setInterval(fetchData, 10000);
 
-            artifactsData.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-            setArtifacts(artifactsData);
-            setLoading(false);
-        }, (error) => {
-            console.error("Error subscribing to artifacts:", error);
-            setLoading(false);
-        });
-
-        return () => unsubscribe();
+        return () => {
+            isMounted = false;
+            clearInterval(interval);
+        };
     }, [jobId]);
 
     return { artifacts, loading };

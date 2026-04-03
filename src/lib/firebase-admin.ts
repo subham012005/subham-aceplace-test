@@ -42,6 +42,7 @@ function initializeAdmin() {
                 clientEmail,
                 privateKey: formattedPrivateKey,
             }),
+            projectId,
         });
         console.log("[ADMIN] Firebase Admin SDK initialized successfully.");
         return true;
@@ -53,8 +54,21 @@ function initializeAdmin() {
 
 const isBackendReady = initializeAdmin();
 
+if (!isBackendReady) {
+    console.error("[ADMIN] Firebase Admin SDK NOT initialized.");
+} else {
+    console.log("[ADMIN] Firebase Admin SDK is ready.");
+}
+
 // Export proxies that return a special state if not initialized
 const adminDb = isBackendReady ? admin.firestore() : null;
+
+// Apply settings only once (prevents errors during HMR)
+if (adminDb && !(global as any)._firestoreSettingsApplied) {
+    adminDb.settings({ ignoreUndefinedProperties: true });
+    (global as any)._firestoreSettingsApplied = true;
+}
+
 const adminAuth = isBackendReady ? admin.auth() : null;
 
 export { adminDb, adminAuth, admin, isBackendReady };

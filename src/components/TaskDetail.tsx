@@ -7,19 +7,22 @@ import {
     CheckCircle2,
     AlertCircle,
     Clock,
-    ExternalLink,
-    MessageSquare,
     RefreshCw,
     ShieldAlert,
-    Fingerprint,
     BoxSelect,
-    Network
+    Network,
+    Layers,
+    Fingerprint as FingerprintIcon,
+    ShieldCheck as ShieldCheckIcon
 } from "lucide-react";
 import { HUDFrame } from "./HUDFrame";
 import { MarkdownReport } from "./MarkdownReport";
+import { KernelStatusBadge } from "./KernelStatusBadge";
+import { StepGraph } from "./StepGraph";
+import { EnvelopeInspector } from "./EnvelopeInspector";
 import { Job, useJob, useForkProtection } from "@/hooks/useJobs";
+import { useEnvelope } from "@/hooks/useEnvelope";
 import { useJobActions } from "@/hooks/useJobActions";
-import { nxqApi } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
 interface TaskDetailProps {
@@ -30,9 +33,10 @@ interface TaskDetailProps {
 }
 
 export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskDetailProps) {
-    const { job, refreshing, refresh } = useJob(initialJob.job_id, userId, onUpdate);
-    const [displayJob, setDisplayJob] = useState<Job>(initialJob);
-    const [activeTab, setActiveTab] = useState<"execution" | "grading" | "governance" | "resurrection">("execution");
+    const { job, refreshing, refresh, isStalled } = useJob(initialJob.job_id, userId, onUpdate);
+    const { envelope, steps } = useEnvelope(job?.execution_id || null);
+    const displayJob = job || initialJob;
+    const [activeTab, setActiveTab] = useState<"execution" | "grading" | "governance" | "resurrection" | "nexus">("execution");
     const { approveJob, rejectJob, resurrectJob, simulateFork, isProcessing, error, clearError } = useJobActions();
     const [rejectReason, setRejectReason] = useState("");
     const [showRejectInput, setShowRejectInput] = useState(false);
@@ -47,31 +51,18 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
         try {
             console.log("[FORK] Triggering simulation for:", displayJob.job_id);
 
-            // Optimistic update: show that a fork event is coming
-            setDisplayJob(prev => ({
-                ...prev,
-                fork_attempted: true,
-                action_taken: "analysing..."
-            }));
-
             await simulateFork({
                 job_id: displayJob.job_id,
                 identity_id: displayJob.identity_id || "ID-UNKNOWN",
                 attempted_by: "operator_simulation",
                 reason: "Manual fork protection verification"
             });
-        } catch (e: any) {
+        } catch (e: unknown) {
             console.error("Fork simulation failed:", e);
             // Revert state on actual error if needed, though refresh will handle it
             refresh();
         }
     };
-
-    useEffect(() => {
-        if (job) {
-            setDisplayJob(job);
-        }
-    }, [job]);
 
     // Clear any previous action errors when switching tabs
     useEffect(() => {
@@ -81,9 +72,9 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
     const handleApprove = async () => {
         try {
             await approveJob(displayJob.job_id, () => {
-                setDisplayJob(prev => ({ ...prev, status: "approved" }));
+                refresh();
             });
-        } catch (e) {
+        } catch {
             refresh();
         }
     };
@@ -95,11 +86,11 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
         }
         try {
             await rejectJob(displayJob.job_id, rejectReason, () => {
-                setDisplayJob(prev => ({ ...prev, status: "rejected" }));
                 setShowRejectInput(false);
                 setRejectReason("");
+                refresh();
             });
-        } catch (e) {
+        } catch {
             refresh();
         }
     };
@@ -110,11 +101,11 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
         }
         try {
             await resurrectJob(displayJob.job_id, resurrectReason, () => {
-                setDisplayJob(prev => ({ ...prev, status: "resurrected" }));
                 setShowResurrectInput(false);
                 setResurrectReason("");
+                refresh();
             });
-        } catch (e) {
+        } catch {
             refresh();
         }
     };
@@ -134,27 +125,27 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
     };
 
     const getGraderData = () => {
-        // Preference for n8n new structured fields within runtime_context
+        // Preference for structured fields within runtime_context
         const rcGrader = displayJob.runtime_context?.grading_result;
         if (rcGrader || displayJob.grading_summary || displayJob.compliance_score !== undefined) {
             let flags: string[] = [];
             if (rcGrader?.risk_flags) {
                 const flagsIn = Array.isArray(rcGrader.risk_flags) ? rcGrader.risk_flags : String(rcGrader.risk_flags).split(",");
-                flags = flagsIn.map((f: any) => {
-                    const extracted = typeof f === 'object' ? (f.detail || f.id || JSON.stringify(f)) : String(f);
+                flags = flagsIn.map((f: unknown) => {
+                    const extracted = typeof f === 'object' ? (f as any).detail || (f as any).id || JSON.stringify(f) : String(f);
                     return typeof extracted === 'object' ? JSON.stringify(extracted).trim() : String(extracted).trim();
                 });
             } else if (displayJob.risk_flags) {
                 flags = String(displayJob.risk_flags).split(",").map(f => String(f).trim());
             }
 
-            const scoreRaw = rcGrader?.compliance_score ?? 
-                            rcGrader?.score ?? 
-                            displayJob.grading_result?.compliance_score ??
-                            displayJob.grading_result?.score ??
-                            displayJob.compliance_score ?? 
-                            displayJob.grade_score ?? 0;
-            
+            const scoreRaw = rcGrader?.compliance_score ??
+                rcGrader?.score ??
+                displayJob.grading_result?.compliance_score ??
+                displayJob.grading_result?.score ??
+                displayJob.compliance_score ??
+                displayJob.grade_score ?? 0;
+
             let normalizedScore = typeof scoreRaw === 'object' ? (scoreRaw.value || 0) : Number(scoreRaw);
             if (normalizedScore > 10) normalizedScore = normalizedScore / 10;
 
@@ -178,8 +169,8 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
             return {
                 score: score,
                 pass_fail: isTrulyPass ? "pass" : "fail",
-                risk_flags: (displayJob.grader_params.risk_flags || []).map((f: any) => {
-                    const extracted = typeof f === 'object' ? (f.detail || f.id || JSON.stringify(f)) : String(f);
+                risk_flags: (displayJob.grader_params.risk_flags || []).map((f: unknown) => {
+                    const extracted = typeof f === 'object' ? (f as any).detail || (f as any).id || JSON.stringify(f) : String(f);
                     return typeof extracted === 'object' ? JSON.stringify(extracted).trim() : String(extracted).trim();
                 }),
                 reasoning_summary: typeof displayJob.grader_params.reasoning_summary === 'object'
@@ -188,7 +179,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
             };
         }
 
-        // Fallback to top-level n8n fields
+        // Fallback to top-level fields
         if (displayJob.grade_score !== undefined || displayJob.pass_fail) {
             let reasoning = "N/A";
             let flags: string[] = [];
@@ -202,7 +193,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                         reasoning = typeof textObj.reasoning_summary === 'object' ? JSON.stringify(textObj.reasoning_summary) : String(textObj.reasoning_summary || reasoning);
                         if (textObj.risk_flags) {
                             const rawFlags = Array.isArray(textObj.risk_flags) ? textObj.risk_flags : String(textObj.risk_flags).split(",");
-                            flags = rawFlags.map((f: any) => String(f).trim()).filter((f: string) => f !== "" && f.toLowerCase() !== "none");
+                            flags = rawFlags.map((f: unknown) => String(f).trim()).filter((f: string) => f !== "" && f.toLowerCase() !== "none");
                         }
                     }
                 }
@@ -211,13 +202,13 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
             // Map risk_flags if available at top level
             if (displayJob.risk_flags && flags.length === 0) {
                 const rawFlags = Array.isArray(displayJob.risk_flags) ? displayJob.risk_flags : String(displayJob.risk_flags).split(",");
-                flags = rawFlags.map((f: any) => String(f).trim()).filter((f: string) => f !== "" && f.toLowerCase() !== "none");
+                flags = rawFlags.map((f: unknown) => String(f).trim()).filter((f: string) => f !== "" && f.toLowerCase() !== "none");
             }
 
             const scoreRaw = Number(displayJob.grade_score) || Number(displayJob.grading_result?.score) || 0;
             let score = typeof scoreRaw === 'object' ? ((scoreRaw as any).value || 0) : Number(scoreRaw);
             if (score > 10) score = score / 10;
-            
+
             const pass_fail_raw = displayJob.pass_fail || displayJob.grading_result?.pass_fail;
             const isTrulyPass = String(pass_fail_raw).toLowerCase() === 'pass' && score > 3;
 
@@ -307,8 +298,9 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                 <div className="flex border-b border-white/5 bg-black/20">
                     {[
                         { id: "execution", label: "Execution Trace", icon: Cpu },
-                        { id: "grading", label: "Analytical Grade", icon: ShieldCheck },
-                        { id: "governance", label: "Governance Control", icon: ShieldCheck },
+                        { id: "nexus", label: "Nexus Intelligence", icon: Layers },
+                        { id: "grading", label: "Analytical Grade", icon: ShieldCheckIcon },
+                        { id: "governance", label: "Governance Control", icon: ShieldCheckIcon },
                         { id: "resurrection", label: "Continuity Restore", icon: RotateCw },
                     ].map((tab) => (
                         <button
@@ -355,6 +347,15 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                     "{displayJob.prompt}"
                                 </p>
                             </HUDFrame>
+
+                            {/* Phase 2 Envelope Inspector */}
+                            {displayJob.execution_id && (
+                                <div className="animate-in fade-in slide-in-from-top-2 duration-500">
+                                    <EnvelopeInspector
+                                        executionId={displayJob.execution_id}
+                                    />
+                                </div>
+                            )}
 
                             {(displayJob.runtime_context?.plan || displayJob.runtime_context?.research_result || displayJob.runtime_context?.worker_result) && (
                                 <div className="space-y-4">
@@ -436,7 +437,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-1">
                                             <p className="text-[8px] uppercase font-black tracking-widest text-slate-500 flex items-center gap-1">
-                                                <Fingerprint className="w-2 h-2" /> Identity ID
+                                                <FingerprintIcon className="w-2 h-2" /> Identity ID
                                             </p>
                                             <p className="text-xs font-mono text-white">{typeof displayJob.identity_id === 'object' ? JSON.stringify(displayJob.identity_id) : String(displayJob.identity_id || "LEGACY_IDENTITY")}</p>
                                         </div>
@@ -524,6 +525,59 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                         </div>
                     )}
 
+                    {activeTab === "nexus" && (
+                        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                            <HUDFrame title="Kernel Integrity Status" variant="glass">
+                                <div className="grid grid-cols-2 gap-3 py-2">
+                                    <KernelStatusBadge
+                                        kernel="identity"
+                                        status={envelope?.identity_context.verified ? "verified" : "active"}
+                                    />
+                                    <KernelStatusBadge
+                                        kernel="authority"
+                                        status={envelope?.authority_context?.lease_id ? "granted" : "idle"}
+                                    />
+                                    <KernelStatusBadge
+                                        kernel="execution"
+                                        status={envelope?.execution_context?.status === "running" ? "active" : "idle"}
+                                    />
+                                    <KernelStatusBadge
+                                        kernel="persistence"
+                                        status="verified"
+                                    />
+                                </div>
+                            </HUDFrame>
+
+                            <HUDFrame title="Deterministic Plan Trace" variant="dark">
+                                <div className="p-4 bg-black/40 border border-white/5 scifi-clip">
+                                    <StepGraph steps={steps} currentStepId={envelope?.current_step_id} />
+                                </div>
+                            </HUDFrame>
+
+                            <HUDFrame title="Covenant Context" variant="glass">
+                                <div className="space-y-4 py-2">
+                                    <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                                        <span className="text-[8px] uppercase font-black tracking-widest text-slate-500">Execution ID</span>
+                                        <span className="text-[10px] font-mono text-cyan-500 tracking-tighter truncate max-w-[200px]">{job?.execution_id || "LEGACY_CONTEXT"}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                                        <span className="text-[8px] uppercase font-black tracking-widest text-slate-500">Lease Authority</span>
+                                        <span className={cn(
+                                            "text-[10px] font-black uppercase tracking-widest",
+                                            envelope?.authority_context?.lease_id ? "text-emerald-500" : "text-amber-500"
+                                        )}>
+                                            {envelope?.authority_context?.lease_id ? "GRANTED" : "UNAUTHORIZED"}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[8px] uppercase font-black tracking-widest text-slate-500">Protocol Shard</span>
+                                        <span className="text-[10px] font-mono text-slate-400">#us#.shard.01</span>
+                                    </div>
+                                </div>
+                            </HUDFrame>
+                        </div>
+                    )}
+
                     {activeTab === "grading" && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                             {graderData ? (
@@ -557,8 +611,8 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                                         strokeLinecap="round"
                                                         className={cn(
                                                             "transition-all duration-1000 ease-out",
-                                                            graderData.pass_fail === 'pass' ? "text-emerald-500 ai-breathing-green" : 
-                                                            graderData.pass_fail === 'fail' ? "text-rose-500 ai-breathing-red" : "text-amber-500"
+                                                            graderData.pass_fail === 'pass' ? "text-emerald-500 ai-breathing-green" :
+                                                                graderData.pass_fail === 'fail' ? "text-rose-500 ai-breathing-red" : "text-amber-500"
                                                         )}
                                                         style={{ filter: `drop-shadow(0 0 8px currentColor)` }}
                                                     />
@@ -631,13 +685,13 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                                         {(() => {
                                                             const result = displayJob.runtime_context?.final_result || displayJob.runtime_context?.worker_result || displayJob.artifact;
                                                             if (!result) return "Awaiting final worker output for grading completion.";
-                                                            
+
                                                             try {
                                                                 let parsedResult = result;
                                                                 if (typeof result === 'string') {
                                                                     try { parsedResult = JSON.parse(result); } catch (e) { }
                                                                 }
-                                                                
+
                                                                 if (typeof parsedResult === 'object' && parsedResult !== null && parsedResult.final_summary) {
                                                                     return parsedResult.final_summary;
                                                                 }
@@ -673,7 +727,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                     <div className="grid grid-cols-2 gap-4 mt-2">
                                         <div className="space-y-1">
                                             <p className="text-[8px] uppercase font-black tracking-widest text-slate-500">Policy Version</p>
-                                            <p className="text-xs font-mono text-cyan-400">{typeof displayJob.policy_version === 'object' ? JSON.stringify(displayJob.policy_version) : String(displayJob.policy_version || "n8n_v1_legacy")}</p>
+                                            <p className="text-xs font-mono text-cyan-400">{typeof displayJob.policy_version === 'object' ? JSON.stringify(displayJob.policy_version) : String(displayJob.policy_version || "v1_legacy")}</p>
                                         </div>
                                         <div className="space-y-1">
                                             <p className="text-[8px] uppercase font-black tracking-widest text-slate-500">Gate Level</p>
@@ -775,65 +829,79 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                     {activeTab === "resurrection" && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                             <HUDFrame title="Continuity Operations">
-                                <div className="space-y-4 py-2">
-                                    <p className="text-[10px] text-slate-400 uppercase font-bold leading-relaxed">
-                                        Jobs in <span className="text-rose-500">failed</span> or <span className="text-rose-500">rejected</span> states can be resurrected into the active lifecycle. This creates an immutable lineage event. (Continuity Restore)
-                                    </p>
+                                {(() => {
+                                    const status = String(displayJob.status || "").toLowerCase();
+                                    const isFailedOrRejected = status === "failed" || status === "rejected";
+                                    const isStalledJob = isStalled && !["completed", "approved", "rejected", "failed"].includes(status);
 
-                                    {(displayJob.status === "failed" || displayJob.status === "rejected") && (
-                                        <div className="space-y-4">
-                                            {!showResurrectInput ? (
-                                                <button
-                                                    disabled={isProcessing}
-                                                    onClick={() => setShowResurrectInput(true)}
-                                                    className="w-full bg-cyan-500 hover:bg-cyan-400 text-black py-5 scifi-clip font-black text-xs uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-3 shadow-[0_0_40px_rgba(6,182,212,0.2)] cursor-target"
-                                                >
-                                                    <RotateCw className={cn("w-5 h-5", isProcessing && "animate-spin")} />
-                                                    Execute Continuity Restore Protocol
-                                                </button>
-                                            ) : (
-                                                <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
-                                                    <div className="space-y-2">
-                                                        <label className="text-[8px] uppercase font-black tracking-widest text-cyan-500">Continuity Restore Authorization Terminal</label>
-                                                        <textarea
-                                                            value={resurrectReason}
-                                                            onChange={(e) => setResurrectReason(e.target.value)}
-                                                            placeholder="Enter authorization reason for lineage restoration..."
-                                                            className="w-full bg-black/40 border border-cyan-500/20 scifi-clip p-4 text-sm font-mono text-cyan-400 focus:outline-none focus:border-cyan-500/50 resize-none h-32"
-                                                        />
-                                                    </div>
-                                                    <div className="flex gap-4">
-                                                        <button
-                                                            disabled={isProcessing || !resurrectReason}
-                                                            onClick={handleResurrect}
-                                                            className="flex-1 bg-cyan-500 text-black py-4 scifi-clip font-black text-xs uppercase tracking-[0.2em] transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-target"
-                                                        >
-                                                            Confirm Continuity Restore
-                                                        </button>
+                                    return (
+                                        <>
+                                            <p className="text-[10px] text-slate-400 uppercase font-bold leading-relaxed">
+                                                Jobs in <span className="text-rose-500">failed</span>, <span className="text-rose-500">rejected</span>, or <span className="text-amber-500">stalled</span> states can be resurrected into the active lifecycle. This creates an immutable lineage event. (Continuity Restore)
+                                            </p>
+
+                                            {(isFailedOrRejected || isStalledJob) && (
+                                                <div className="space-y-4">
+                                                    {!showResurrectInput ? (
                                                         <button
                                                             disabled={isProcessing}
-                                                            onClick={() => {
-                                                                setShowResurrectInput(false);
-                                                                setResurrectReason("");
-                                                            }}
-                                                            className="flex-1 bg-slate-800 text-slate-400 py-4 scifi-clip font-black text-xs uppercase tracking-[0.2em] transition-all cursor-target"
+                                                            onClick={() => setShowResurrectInput(true)}
+                                                            className="w-full bg-cyan-500 hover:bg-cyan-400 text-black py-5 scifi-clip font-black text-xs uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-3 shadow-[0_0_40px_rgba(6,182,212,0.2)] cursor-target"
                                                         >
-                                                            Abort
+                                                            <RotateCw className={cn("w-5 h-5", isProcessing && "animate-spin")} />
+                                                            {isStalledJob ? "Execute Stall Recovery Protocol" : "Execute Continuity Restore Protocol"}
                                                         </button>
-                                                    </div>
+                                                    ) : (
+                                                        <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
+                                                            <div className="space-y-2">
+                                                                <label className="text-[8px] uppercase font-black tracking-widest text-cyan-500">Continuity Restore Authorization Terminal</label>
+                                                                <textarea
+                                                                    value={resurrectReason}
+                                                                    onChange={(e) => setResurrectReason(e.target.value)}
+                                                                    placeholder="Enter authorization reason for lineage restoration..."
+                                                                    className="w-full bg-black/40 border border-cyan-500/20 scifi-clip p-4 text-sm font-mono text-cyan-400 focus:outline-none focus:border-cyan-500/50 resize-none h-32"
+                                                                />
+                                                            </div>
+                                                            <div className="flex gap-4">
+                                                                <button
+                                                                    disabled={isProcessing || !resurrectReason}
+                                                                    onClick={handleResurrect}
+                                                                    className="flex-1 bg-cyan-500 text-black py-4 scifi-clip font-black text-xs uppercase tracking-[0.2em] transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-target"
+                                                                >
+                                                                    Confirm Continuity Restore
+                                                                </button>
+                                                                <button
+                                                                    disabled={isProcessing}
+                                                                    onClick={() => {
+                                                                        setShowResurrectInput(false);
+                                                                        setResurrectReason("");
+                                                                    }}
+                                                                    className="flex-1 bg-slate-800 text-slate-400 py-4 scifi-clip font-black text-xs uppercase tracking-[0.2em] transition-all cursor-target"
+                                                                >
+                                                                    Abort
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            )}
-                                        </div>
-                                    ) || (
-                                            <div className="bg-white/5 border border-white/5 p-8 flex flex-col items-center justify-center text-center scifi-clip">
-                                                <AlertCircle className="w-8 h-8 text-slate-700 mb-4" />
-                                                <p className="text-[10px] uppercase font-black tracking-widest text-slate-500 italic">Continuity Restore Unavailable</p>
-                                                <p className="text-[8px] uppercase font-bold text-slate-600 mt-2 italic">
-                                                    Dimensional lineage is intact. Standard terminal state not reached.
-                                                </p>
-                                            </div>
-                                        )}
-                                </div>
+                                            ) || (
+                                                    <div className="bg-white/5 border border-white/5 p-8 flex flex-col items-center justify-center text-center scifi-clip">
+                                                        <AlertCircle className="w-8 h-8 text-slate-700 mb-4" />
+                                                        <p className="text-[10px] uppercase font-black tracking-widest text-slate-500 italic">Continuity Restore Unavailable</p>
+                                                        {isStalledJob ? (
+                                                            <p className="text-[8px] uppercase font-bold text-cyan-500 mt-2 animate-pulse">
+                                                                Stall detected. Lineage restoration is available in the terminal.
+                                                            </p>
+                                                        ) : (
+                                                            <p className="text-[8px] uppercase font-bold text-slate-600 mt-2 italic">
+                                                                Dimensional lineage is intact. Standard terminal state not reached.
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                )}
+                                        </>
+                                    );
+                                })()}
                             </HUDFrame>
 
                             {displayJob.resurrected_at && (
@@ -864,7 +932,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                         Live Telemetry Link Active
                     </div>
                     <div className="text-[8px] uppercase font-bold text-slate-600 tracking-tighter italic">
-                        NXQ-CORE V1.0.5-DELTA
+                        ACEPLACE-CORE V1.0.5-DELTA
                     </div>
                 </div>
             </div>

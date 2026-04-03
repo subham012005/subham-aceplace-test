@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
+import { workflowEngine } from "@/lib/workflow-engine";
 
+/**
+ * Dashboard Stats — Local Workflow Engine
+ * Queries Firestore directly for job/agent statistics.
+ */
 export async function GET(req: Request) {
     try {
         const { searchParams } = new URL(req.url);
@@ -9,30 +14,12 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "Missing user_id" }, { status: 400 });
         }
 
-        const baseUrl = process.env.NEXT_PUBLIC_N8N_WEBHOOK_BASE_URL;
-        if (!baseUrl) {
-            return NextResponse.json({ error: "NEXT_PUBLIC_N8N_WEBHOOK_BASE_URL is not defined in environment." }, { status: 500 });
-        }
-        const n8nStatsUrl = `${baseUrl}dashboard-stats?user_id=${userId}`;
-        console.log(`[PROXY] Fetching stats from: ${n8nStatsUrl}`);
+        const stats = await workflowEngine.getDashboardStats(userId);
+        return NextResponse.json(stats);
 
-        const response = await fetch(n8nStatsUrl, {
-            method: "GET",
-            headers: {
-                "Authorization": `Bearer ${process.env.N8N_ACCESS_TOKEN}`
-            },
-            cache: 'no-store' // Ensure we get fresh stats
-        });
-
-        if (!response.ok) {
-            console.warn("n8n stats endpoint returned error, using fallback data");
-            return NextResponse.json(getFallbackData());
-        }
-
-        const data = await response.json();
-        return NextResponse.json(data);
-    } catch (error) {
+    } catch (error: any) {
         console.error("Stats fetch error:", error);
+        // Return fallback data on error
         return NextResponse.json(getFallbackData());
     }
 }

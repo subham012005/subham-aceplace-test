@@ -51,9 +51,11 @@ export default function LoginPage() {
             <div className="w-full max-w-md relative z-10">
                 {/* Header branding */}
                 <div className="flex flex-col items-center mb-8">
+                    <div className="flex flex-col items-center gap-6 mb-12">
+                        <img src="/ace-symbol.png" alt="ACEPLACE Symbol" className="h-16 w-auto object-contain" />
+                        <span className="text-4xl font-black text-white italic tracking-tighter">ACEPLACE</span>
+                    </div>
                     <div className="flex items-center gap-4 mb-2">
-                        <img src="/nxq-symbol.png" alt="NXQ Symbol" className="h-16 w-auto object-contain" />
-                        <span className="text-4xl font-black text-white italic tracking-tighter">NXQ</span>
                         <div className="h-8 w-[1px] bg-white/10 mx-2" />
                         <span className="text-xl font-bold text-white tracking-[0.3em] uppercase">Security</span>
                     </div>
@@ -90,8 +92,8 @@ export default function LoginPage() {
                                         required
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
-                                        placeholder="user@nxq.system"
-                                        className="w-full bg-black/40 border border-white/5 focus:border-cyan-500/50 outline-none p-3 pl-10 text-sm font-mono transition-all text-white placeholder:text-slate-700"
+                                        placeholder="user@aceplace.system"
+                                        className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all"
                                     />
                                 </div>
                             </div>
