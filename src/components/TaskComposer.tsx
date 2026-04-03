@@ -7,11 +7,10 @@ import {
     Terminal,
     AlertCircle,
     CheckCircle2,
-    Loader2,
     Zap
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { nxqApi } from "@/lib/api-client";
+import { aceApi } from "@/lib/api-client";
 import { SciFiFrame } from "@/components/SciFiFrame";
 
 interface TaskComposerProps {
@@ -25,9 +24,6 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [task, setTask] = useState("");
-    const [useDeterministicRuntime, setUseDeterministicRuntime] = useState(
-        process.env.NEXT_PUBLIC_USE_DETERMINISTIC_RUNTIME === "true"
-    );
 
     const maxChars = 2000;
     const charPercentage = Math.min((task.length / maxChars) * 100, 100);
@@ -40,8 +36,6 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
         setError(null);
         setSuccess(false);
 
-        const generatedJobId = `job_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-
         try {
             const { auth } = await import("@/lib/firebase");
             const userId = auth.currentUser?.uid;
@@ -50,14 +44,18 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
                 throw new Error("Authorization required for agent dispatch.");
             }
 
-            await nxqApi.createJob({
+            const generatedJobId = `job_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+            // Always create a job record so the dashboard job view works.
+            // The intake route itself triggers deterministic runtime dispatch
+            // using the same job_id, so the deterministic runtime is always ON.
+            await aceApi.createJob({
                 user_id: userId,
                 requested_agent_id: "agent_coo",
                 job_id: generatedJobId,
                 job_type: "agent_coo",
                 prompt: task,
-                use_deterministic: useDeterministicRuntime
-            } as any);
+            });
 
             // Trigger Firestore logging in parallel
             import("@/lib/user-stats").then(({ incrementUserRequestCount }) => {
@@ -75,9 +73,10 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
                 router.push(`jobs/${generatedJobId}`);
             }, 1000); // Small delay to show success state
 
-        } catch (err: any) {
-            console.error("Orchestration failed:", err);
-            setError(err.message || "Dimensional link failed. Check workflow engine status.");
+        } catch (err: unknown) {
+            const error = err as Error;
+            console.error("Orchestration failed:", error);
+            setError(error.message || "Dimensional link failed. Check workflow engine status.");
         } finally {
             setIsSubmitting(false);
         }
@@ -91,7 +90,7 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
                 className="overflow-hidden"
             >
                 {/* Advanced HUD Header */}
-                <div className="flex items-center justify-between px-4 py-2 border-b border-white/5 bg-cyan-500/5 mb-4 -mx-4 -mt-2">
+                    <div className="flex items-center justify-between px-4 py-2 border-b border-white/5 bg-cyan-500/5 mb-4 -mx-4 -mt-2">
                     <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2">
                             <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse shadow-[0_0_8px_#06b6d4]" />
@@ -100,33 +99,16 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
                         <div className="h-3 w-[1px] bg-white/10" />
                         <span className="text-[8px] font-bold text-slate-500 tracking-widest uppercase">Latency: 24ms</span>
                     </div>
-                    <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2">
-                            <span className="text-[8px] font-bold text-cyan-500/60 tracking-widest uppercase">Encryption:</span>
-                            <span className="text-[9px] font-black text-cyan-400 tracking-tighter">RSA_OMEGA_4096</span>
-                        </div>
-                        <div className="h-3 w-[1px] bg-white/10" />
-                        <label className="flex items-center gap-2 cursor-pointer group/toggle">
-                            <span className={cn(
-                                "text-[8px] font-bold tracking-widest uppercase transition-colors",
-                                useDeterministicRuntime ? "text-amber-400" : "text-slate-500 group-hover/toggle:text-slate-400"
-                            )}>
-                                Deterministic Runtime {useDeterministicRuntime ? "ON" : "OFF"}
-                            </span>
-                            <div
-                                onClick={() => setUseDeterministicRuntime(!useDeterministicRuntime)}
-                                className={cn(
-                                    "w-7 h-3.5 rounded-full p-0.5 transition-colors relative border",
-                                    useDeterministicRuntime ? "bg-amber-500/20 border-amber-500/50" : "bg-slate-900 border-white/10"
-                                )}
-                            >
-                                <div className={cn(
-                                    "w-2 h-2 rounded-full transition-all shadow-sm",
-                                    useDeterministicRuntime ? "translate-x-3.5 bg-amber-400" : "translate-x-0 bg-slate-600"
-                                )} />
+                        <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2">
+                                <span className="text-[8px] font-bold text-cyan-500/60 tracking-widest uppercase">Encryption:</span>
+                                <span className="text-[9px] font-black text-cyan-400 tracking-tighter">RSA_OMEGA_4096</span>
                             </div>
-                        </label>
-                    </div>
+                            <div className="h-3 w-[1px] bg-white/10" />
+                            <span className="text-[8px] font-bold tracking-widest uppercase text-amber-400">
+                                Deterministic Runtime ON
+                            </span>
+                        </div>
                 </div>
 
                 <div className="space-y-6 py-2">

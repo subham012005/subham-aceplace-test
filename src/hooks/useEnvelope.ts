@@ -1,14 +1,7 @@
-/**
- * useEnvelope Hook — Phase 2
- * Subscribe to a single execution_envelopes document in real-time.
- * Steps are embedded inside envelope.steps[] — no external collection.
- */
-
 "use client";
 
 import { useState, useEffect } from "react";
-import { db } from "@/lib/firebase";
-import { doc, onSnapshot } from "firebase/firestore";
+import { aceApi } from "@/lib/api-client";
 import type { ExecutionEnvelope, EnvelopeStep } from "@/lib/runtime/types";
 
 export interface UseEnvelopeReturn {
@@ -18,6 +11,11 @@ export interface UseEnvelopeReturn {
   error: string | null;
 }
 
+/**
+ * useEnvelope Hook — Phase 2 (Hardened)
+ * 
+ * Subscribes to a single execution_envelopes document via the secure /api/runtime/envelope/[id] endpoint.
+ */
 export function useEnvelope(envelopeId: string | null): UseEnvelopeReturn {
   const [envelope, setEnvelope] = useState<ExecutionEnvelope | null>(null);
   const [loading, setLoading] = useState(true);
@@ -29,27 +27,36 @@ export function useEnvelope(envelopeId: string | null): UseEnvelopeReturn {
       return;
     }
 
-    setLoading(true);
-
-    // Phase 2: read from execution_envelopes, steps are embedded in envelope.steps[]
-    const unsubscribe = onSnapshot(
-      doc(db, "execution_envelopes", envelopeId),
-      (snapshot) => {
-        if (snapshot.exists()) {
-          setEnvelope({ ...snapshot.data(), envelope_id: snapshot.id } as ExecutionEnvelope);
-        } else {
-          setEnvelope(null);
+    let isMounted = true;
+    const fetchEnvelope = async () => {
+      try {
+        const data = await aceApi.getEnvelope(envelopeId);
+        if (isMounted) {
+          // The API returns { envelope, messages }, so we need to extract `envelope`
+          setEnvelope(data.envelope ? data.envelope : data);
+          setError(null);
         }
-        setLoading(false);
-      },
-      (err) => {
-        console.error("[useEnvelope] Error:", err);
-        setError(err.message);
-        setLoading(false);
+      } catch (err: any) {
+        console.error("[useEnvelope] Fetch failed:", err);
+        if (isMounted) {
+          setError(err.message || "Failed to load envelope context.");
+          // Ensure loading stops on error
+          setLoading(false);
+        }
+      } finally {
+        if (isMounted && !error) {
+          setLoading(false);
+        }
       }
-    );
+    };
 
-    return () => unsubscribe();
+    fetchEnvelope();
+    const interval = setInterval(fetchEnvelope, 5000); // Poll every 5 seconds for detail view
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, [envelopeId]);
 
   // Steps come directly from envelope.steps[] — no separate query needed

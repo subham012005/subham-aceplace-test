@@ -191,8 +191,12 @@ export const workflowEngine = {
                 throw new Error("UNAUTHORIZED");
             }
 
-            if (String(jobData.status).toUpperCase() !== "AWAITING_APPROVAL") {
-                throw new Error(`INVALID_STATE: Approval allowed only when status is AWAITING_APPROVAL, got ${jobData.status}`);
+            // Accept any status that can reasonably have grading data:
+            // The Firestore job doc often lags behind the envelope — it may still say
+            // "executing" or "completed" even though the grader has finished.
+            const validStates = ["AWAITING_APPROVAL", "GRADED", "GRADING", "EXECUTING", "COMPLETED", "IN_PROGRESS"];
+            if (!validStates.includes(String(jobData.status).toUpperCase())) {
+                throw new Error(`INVALID_STATE: Approval allowed only when status is AWAITING_APPROVAL or GRADED, got ${jobData.status}`);
             }
 
             await doc.ref.update({
@@ -201,6 +205,14 @@ export const workflowEngine = {
                 approved_by: "operator",
                 updated_at: now,
             });
+
+            const envelopeId = jobData.execution_id || jobData.envelope_id;
+            if (envelopeId) {
+                await db.collection("execution_envelopes").doc(envelopeId).update({
+                    status: "approved",
+                    updated_at: now
+                }).catch(e => console.error("Envelope update failed:", e));
+            }
 
             // Log trace
             await db.collection("job_traces").add({
@@ -220,8 +232,12 @@ export const workflowEngine = {
             throw new Error("UNAUTHORIZED");
         }
 
-        if (String(jobData.status).toUpperCase() !== "AWAITING_APPROVAL") {
-            throw new Error(`INVALID_STATE: Approval allowed only when status is AWAITING_APPROVAL, got ${jobData.status}`);
+        // Accept any status that can reasonably have grading data:
+        // The Firestore job doc often lags behind the envelope — it may still say
+        // "executing" or "completed" even though the grader has finished.
+        const validStates = ["AWAITING_APPROVAL", "GRADED", "GRADING", "EXECUTING", "COMPLETED", "IN_PROGRESS"];
+        if (!validStates.includes(String(jobData.status).toUpperCase())) {
+            throw new Error(`INVALID_STATE: Approval allowed only when status is AWAITING_APPROVAL or GRADED, got ${jobData.status}`);
         }
 
         await jobRef.update({
@@ -230,6 +246,14 @@ export const workflowEngine = {
             approved_by: "operator",
             updated_at: now,
         });
+
+        const envelopeId2 = jobData.execution_id || jobData.envelope_id;
+        if (envelopeId2) {
+            await db.collection("execution_envelopes").doc(envelopeId2).update({
+                status: "approved",
+                updated_at: now
+            }).catch(e => console.error("Envelope update failed:", e));
+        }
 
         await db.collection("job_traces").add({
             job_id: input.job_id,
@@ -265,8 +289,10 @@ export const workflowEngine = {
                 throw new Error("UNAUTHORIZED");
             }
 
-            if (String(jobData.status).toUpperCase() !== "AWAITING_APPROVAL") {
-                throw new Error(`INVALID_STATE: Rejection allowed only when status is AWAITING_APPROVAL, got ${jobData.status}`);
+            // Accept any status that can reasonably have grading data
+            const validStates = ["AWAITING_APPROVAL", "GRADED", "GRADING", "EXECUTING", "COMPLETED", "IN_PROGRESS"];
+            if (!validStates.includes(String(jobData.status).toUpperCase())) {
+                throw new Error(`INVALID_STATE: Rejection allowed only when status is AWAITING_APPROVAL or GRADED, got ${jobData.status}`);
             }
 
             await jobRef.update({
@@ -276,6 +302,14 @@ export const workflowEngine = {
                 failure_reason: reason,
                 updated_at: now,
             });
+
+            const envelopeId = jobData.execution_id || jobData.envelope_id;
+            if (envelopeId) {
+                await db.collection("execution_envelopes").doc(envelopeId).update({
+                    status: "rejected",
+                    updated_at: now
+                }).catch(e => console.error("Envelope update failed:", e));
+            }
 
             await db.collection("job_traces").add({
                 job_id: input.job_id,
@@ -295,8 +329,10 @@ export const workflowEngine = {
             throw new Error("UNAUTHORIZED");
         }
 
-        if (String(jobData.status).toUpperCase() !== "AWAITING_APPROVAL") {
-            throw new Error(`INVALID_STATE: Rejection allowed only when status is AWAITING_APPROVAL, got ${jobData.status}`);
+        // Accept any status that can reasonably have grading data
+        const validStates = ["AWAITING_APPROVAL", "GRADED", "GRADING", "EXECUTING", "COMPLETED", "IN_PROGRESS"];
+        if (!validStates.includes(String(jobData.status).toUpperCase())) {
+            throw new Error(`INVALID_STATE: Rejection allowed only when status is AWAITING_APPROVAL or GRADED, got ${jobData.status}`);
         }
 
         await doc.ref.update({
@@ -306,6 +342,14 @@ export const workflowEngine = {
             failure_reason: reason,
             updated_at: now,
         });
+
+        const envelopeId2 = jobData.execution_id || jobData.envelope_id;
+        if (envelopeId2) {
+            await db.collection("execution_envelopes").doc(envelopeId2).update({
+                status: "rejected",
+                updated_at: now
+            }).catch(e => console.error("Envelope update failed:", e));
+        }
 
         await db.collection("job_traces").add({
             job_id: input.job_id,
@@ -379,12 +423,22 @@ export const workflowEngine = {
             created_at: now,
         });
 
-        return { 
-            success: true, 
+        return {
+            success: true,
             status: "resumed",
             restore_type: restoreType,
             resurrection_count: currentCount + 1,
-            prompt: jobData.prompt // return prompt to trigger /execute
+            prompt: jobData.prompt,
+            /** Phase 2 envelope id on the job doc (null after full restart of a rejected job). */
+            execution_id: isRejected ? null : (jobData.execution_id as string | undefined) || null,
+            assigned_instance_id:
+                (jobData.assigned_instance_id as string | undefined) || null,
+            job_id: input.job_id,
+            user_id: jobData.user_id as string,
+            requested_agent_id:
+                (jobData.requested_agent_id as string | undefined) ||
+                (jobData.assigned_agent_id as string | undefined) ||
+                null,
         };
     },
 
@@ -558,7 +612,7 @@ export const workflowEngine = {
         if (!s(input.mission)) throw new Error("missing_mission");
 
         const mission = s(input.mission);
-        const policy = s(input.policy || "NXQ_DEFAULT_POLICY");
+        const policy = s(input.policy || "ACEPLACE_DEFAULT_POLICY");
         const identity_version = s(input.identity_version || "v1");
         const public_key = s(input.public_key || "");
 

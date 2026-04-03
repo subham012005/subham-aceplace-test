@@ -8,7 +8,6 @@
 import React, { useState } from "react";
 import { ShieldCheck, CheckCircle2, X, AlertCircle } from "lucide-react";
 import { HUDFrame } from "./HUDFrame";
-import { cn } from "@/lib/utils";
 import type { EnvelopeStep } from "@/lib/runtime/types";
 
 interface RuntimeGovernanceProps {

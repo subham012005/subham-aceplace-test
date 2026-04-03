@@ -10,48 +10,67 @@ import { CheckCircle2, AlertCircle, Clock, Cpu, Search, GraduationCap, ShieldChe
 import { cn } from "@/lib/utils";
 import { STEP_TYPE_CONFIG, STEP_STATUS_DISPLAY } from "@/lib/runtime/constants";
 import type { EnvelopeStep, StepType } from "@/lib/runtime/types";
+import type { Artifact } from "@/hooks/useJobs";
 
 const STEP_ICONS: Partial<Record<StepType, React.ElementType>> = {
   plan: Cpu,
   assign: Search,
-  artifact_produce: Play,
-  evaluation: GraduationCap,
+  produce_artifact: Play,
+  evaluate: GraduationCap,
 };
 
 interface EnvelopeStepCardProps {
   step: EnvelopeStep;
   isActive?: boolean;
+  artifacts?: Artifact[];
 }
 
-export function EnvelopeStepCard({ step, isActive }: EnvelopeStepCardProps) {
+export function EnvelopeStepCard({ step, isActive, artifacts = [] }: EnvelopeStepCardProps) {
   const [expanded, setExpanded] = useState(false);
 
   const config = STEP_TYPE_CONFIG[step.step_type];
   const statusDisplay = STEP_STATUS_DISPLAY[step.status];
   const Icon = STEP_ICONS[step.step_type] || Cpu;
 
-  const statusIcon = {
+  const statusIcon: Record<string, React.ElementType> = {
     pending: Clock,
     ready: Cpu,
     executing: Cpu,
+    awaiting_human: ShieldCheck,
     completed: CheckCircle2,
     failed: AlertCircle,
-  }[step.status] || Clock;
+    blocked: AlertCircle,
+    skipped: Clock,
+  };
 
-  const StatusIcon = statusIcon;
+  const StatusIcon = statusIcon[step.status] ?? Clock;
+
+  const resolveArtifact = (val: any) => {
+    if (typeof val !== 'string' || !val.startsWith('art_')) return val;
+    const found = artifacts.find(a => a.id === val || a.artifact_id === val);
+    if (found) return `[ARTIFACT] ${found.title || found.artifact_id}`;
+    return val;
+  };
 
   return (
     <div
       className={cn(
-        "border transition-all duration-300",
+        "border transition-all duration-300 relative overflow-hidden",
         isActive && "ring-1 ring-cyan-500/30",
-        step.status === "executing" && "border-cyan-500/50 bg-cyan-500/5 animate-pulse",
-        step.status === "completed" && "border-emerald-500/30 bg-emerald-500/5",
-        step.status === "failed" && "border-red-500/30 bg-red-500/5",
-        step.status === "pending" && "border-white/10 bg-white/[0.02]",
+        step.status === "executing" && "border-cyan-500/50 bg-cyan-500/5 animate-pulse shadow-[0_0_15px_rgba(6,182,212,0.1)]",
+        step.status === "completed" && "border-emerald-500/30 bg-emerald-500/[0.03]",
+        step.status === "failed" && "border-red-500/30 bg-red-500/[0.03]",
+        step.status === "pending" && "border-white/10 bg-white/[0.01]",
         step.status === "ready" && "border-cyan-500/20 bg-cyan-500/[0.02]",
       )}
     >
+      {/* status indicator bar */}
+      <div className={cn(
+          "absolute top-0 left-0 w-1 h-full opacity-50",
+          step.status === "executing" ? "bg-cyan-500" : 
+          step.status === "completed" ? "bg-emerald-500" : 
+          step.status === "failed" ? "bg-red-500" : "bg-white/5"
+      )} />
       {/* Header */}
       <button
         onClick={() => setExpanded(!expanded)}
@@ -135,9 +154,20 @@ export function EnvelopeStepCard({ step, isActive }: EnvelopeStepCardProps) {
           {/* Output Data */}
           {((step as any).output || step.output_ref) && (
             <div className="space-y-1">
-              <span className="text-[7px] font-black uppercase tracking-widest text-emerald-500/50">Output Data</span>
-              <pre className="text-[10px] font-mono text-emerald-400/70 bg-black/40 border border-emerald-500/10 p-3 max-h-48 overflow-auto whitespace-pre-wrap">
-              {JSON.stringify((step as any).output || step.output_ref, null, 2)}
+              <span className="text-[7px] font-black uppercase tracking-widest text-emerald-500/50">Output Intelligence</span>
+              <pre className="text-[10px] font-mono text-emerald-400/90 bg-black/40 border border-emerald-500/10 p-3 max-h-48 overflow-auto whitespace-pre-wrap">
+              {(() => {
+                const out = (step as any).output || step.output_ref;
+                if (typeof out === 'string') return resolveArtifact(out);
+                if (typeof out === 'object') {
+                   const resolved = { ...out };
+                    Object.keys(resolved).forEach(k => {
+                        resolved[k] = resolveArtifact(resolved[k]);
+                    });
+                    return JSON.stringify(resolved, null, 2);
+                }
+                return String(out);
+              })()}
               </pre>
             </div>
           )}

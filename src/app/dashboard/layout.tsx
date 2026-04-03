@@ -31,9 +31,9 @@ export default function DashboardLayout({
             {/* Mobile Header */}
             <header className="lg:hidden h-16 border-b border-white/10 bg-black/20 backdrop-blur-xl flex items-center justify-between px-4 z-40 shrink-0">
                 <div className="flex items-center gap-3">
-                    <img src="/nxq-symbol.png" alt="NXQ Symbol" className="h-10 w-auto object-contain" />
+                    <img src="/ace-symbol.png" alt="ACEPLACE Symbol" className="h-10 w-auto object-contain" />
                     <div className="flex flex-col">
-                        <span className="font-black text-lg tracking-tighter text-white uppercase italic leading-none">NXQ</span>
+                        <span className="font-black text-lg tracking-tighter text-white uppercase italic leading-none">ACEPLACE</span>
                         <span className="text-[8px] uppercase text-cyan-500 shadow-sm tracking-[0.2em] font-black font-mono">Workstation</span>
                     </div>
                 </div>

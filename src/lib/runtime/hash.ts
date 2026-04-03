@@ -1,5 +1,5 @@
 /**
- * NXQ Runtime — SHA-256 Hashing Utilities
+ * ACEPLACE Runtime — SHA-256 Hashing Utilities
  * 
  * Used for step integrity verification and identity fingerprinting.
  * Uses native crypto API — no external dependencies.

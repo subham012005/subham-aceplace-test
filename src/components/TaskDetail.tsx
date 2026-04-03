@@ -7,15 +7,12 @@ import {
     CheckCircle2,
     AlertCircle,
     Clock,
-    ExternalLink,
-    MessageSquare,
     RefreshCw,
     ShieldAlert,
     BoxSelect,
     Network,
     Layers,
     Fingerprint as FingerprintIcon,
-    Key as KeyIcon,
     ShieldCheck as ShieldCheckIcon
 } from "lucide-react";
 import { HUDFrame } from "./HUDFrame";
@@ -26,7 +23,6 @@ import { EnvelopeInspector } from "./EnvelopeInspector";
 import { Job, useJob, useForkProtection } from "@/hooks/useJobs";
 import { useEnvelope } from "@/hooks/useEnvelope";
 import { useJobActions } from "@/hooks/useJobActions";
-import { nxqApi } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
 interface TaskDetailProps {
@@ -38,8 +34,8 @@ interface TaskDetailProps {
 
 export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskDetailProps) {
     const { job, refreshing, refresh, isStalled } = useJob(initialJob.job_id, userId, onUpdate);
-    const { envelope, steps, loading: envelopeLoading } = useEnvelope(job?.execution_id || null);
-    const [displayJob, setDisplayJob] = useState<Job>(initialJob);
+    const { envelope, steps } = useEnvelope(job?.execution_id || null);
+    const displayJob = job || initialJob;
     const [activeTab, setActiveTab] = useState<"execution" | "grading" | "governance" | "resurrection" | "nexus">("execution");
     const { approveJob, rejectJob, resurrectJob, simulateFork, isProcessing, error, clearError } = useJobActions();
     const [rejectReason, setRejectReason] = useState("");
@@ -55,31 +51,18 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
         try {
             console.log("[FORK] Triggering simulation for:", displayJob.job_id);
 
-            // Optimistic update: show that a fork event is coming
-            setDisplayJob(prev => ({
-                ...prev,
-                fork_attempted: true,
-                action_taken: "analysing..."
-            }));
-
             await simulateFork({
                 job_id: displayJob.job_id,
                 identity_id: displayJob.identity_id || "ID-UNKNOWN",
                 attempted_by: "operator_simulation",
                 reason: "Manual fork protection verification"
             });
-        } catch (e: any) {
+        } catch (e: unknown) {
             console.error("Fork simulation failed:", e);
             // Revert state on actual error if needed, though refresh will handle it
             refresh();
         }
     };
-
-    useEffect(() => {
-        if (job) {
-            setDisplayJob(job);
-        }
-    }, [job]);
 
     // Clear any previous action errors when switching tabs
     useEffect(() => {
@@ -89,9 +72,9 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
     const handleApprove = async () => {
         try {
             await approveJob(displayJob.job_id, () => {
-                setDisplayJob(prev => ({ ...prev, status: "approved" }));
+                refresh();
             });
-        } catch (e) {
+        } catch {
             refresh();
         }
     };
@@ -103,11 +86,11 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
         }
         try {
             await rejectJob(displayJob.job_id, rejectReason, () => {
-                setDisplayJob(prev => ({ ...prev, status: "rejected" }));
                 setShowRejectInput(false);
                 setRejectReason("");
+                refresh();
             });
-        } catch (e) {
+        } catch {
             refresh();
         }
     };
@@ -118,11 +101,11 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
         }
         try {
             await resurrectJob(displayJob.job_id, resurrectReason, () => {
-                setDisplayJob(prev => ({ ...prev, status: "resurrected" }));
                 setShowResurrectInput(false);
                 setResurrectReason("");
+                refresh();
             });
-        } catch (e) {
+        } catch {
             refresh();
         }
     };
@@ -148,8 +131,8 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
             let flags: string[] = [];
             if (rcGrader?.risk_flags) {
                 const flagsIn = Array.isArray(rcGrader.risk_flags) ? rcGrader.risk_flags : String(rcGrader.risk_flags).split(",");
-                flags = flagsIn.map((f: any) => {
-                    const extracted = typeof f === 'object' ? (f.detail || f.id || JSON.stringify(f)) : String(f);
+                flags = flagsIn.map((f: unknown) => {
+                    const extracted = typeof f === 'object' ? (f as any).detail || (f as any).id || JSON.stringify(f) : String(f);
                     return typeof extracted === 'object' ? JSON.stringify(extracted).trim() : String(extracted).trim();
                 });
             } else if (displayJob.risk_flags) {
@@ -186,8 +169,8 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
             return {
                 score: score,
                 pass_fail: isTrulyPass ? "pass" : "fail",
-                risk_flags: (displayJob.grader_params.risk_flags || []).map((f: any) => {
-                    const extracted = typeof f === 'object' ? (f.detail || f.id || JSON.stringify(f)) : String(f);
+                risk_flags: (displayJob.grader_params.risk_flags || []).map((f: unknown) => {
+                    const extracted = typeof f === 'object' ? (f as any).detail || (f as any).id || JSON.stringify(f) : String(f);
                     return typeof extracted === 'object' ? JSON.stringify(extracted).trim() : String(extracted).trim();
                 }),
                 reasoning_summary: typeof displayJob.grader_params.reasoning_summary === 'object'
@@ -210,7 +193,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                         reasoning = typeof textObj.reasoning_summary === 'object' ? JSON.stringify(textObj.reasoning_summary) : String(textObj.reasoning_summary || reasoning);
                         if (textObj.risk_flags) {
                             const rawFlags = Array.isArray(textObj.risk_flags) ? textObj.risk_flags : String(textObj.risk_flags).split(",");
-                            flags = rawFlags.map((f: any) => String(f).trim()).filter((f: string) => f !== "" && f.toLowerCase() !== "none");
+                            flags = rawFlags.map((f: unknown) => String(f).trim()).filter((f: string) => f !== "" && f.toLowerCase() !== "none");
                         }
                     }
                 }
@@ -219,7 +202,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
             // Map risk_flags if available at top level
             if (displayJob.risk_flags && flags.length === 0) {
                 const rawFlags = Array.isArray(displayJob.risk_flags) ? displayJob.risk_flags : String(displayJob.risk_flags).split(",");
-                flags = rawFlags.map((f: any) => String(f).trim()).filter((f: string) => f !== "" && f.toLowerCase() !== "none");
+                flags = rawFlags.map((f: unknown) => String(f).trim()).filter((f: string) => f !== "" && f.toLowerCase() !== "none");
             }
 
             const scoreRaw = Number(displayJob.grade_score) || Number(displayJob.grading_result?.score) || 0;
@@ -949,7 +932,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                         Live Telemetry Link Active
                     </div>
                     <div className="text-[8px] uppercase font-bold text-slate-600 tracking-tighter italic">
-                        NXQ-CORE V1.0.5-DELTA
+                        ACEPLACE-CORE V1.0.5-DELTA
                     </div>
                 </div>
             </div>

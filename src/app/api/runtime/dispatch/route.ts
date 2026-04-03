@@ -1,38 +1,57 @@
 /**
  * POST /api/runtime/dispatch — Accept task, build envelope, start execution.
- * T-012 | Sprint 3
+ *
+ * 🔐 Security:
+ *  - prompt is validated and length-capped (8 000 chars)
+ *  - user_id is format-validated (Firebase UID pattern)
+ *  - Security headers on all responses
+ *  - Stack traces never returned to client
  */
 
-import { NextResponse } from "next/server";
 import { dispatch } from "@/lib/runtime/engine";
-import type { DispatchRequest } from "@/lib/runtime/types";
+import {
+  sanitisePrompt,
+  sanitiseUserId,
+  safeErrorResponse,
+  secureJson,
+  verifyUserApiKey,
+} from "@/lib/api-security";
 
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as any; // Using any to allow optional job_id
+    // 🔐 1. Authenticate via Master Secret (API Key)
+    const { userId, error } = await verifyUserApiKey(req);
+    if (error) return error;
 
-    if (!body.prompt || !body.user_id) {
-      return NextResponse.json(
-        { error: "DISPATCH_VALIDATION", message: "prompt and user_id are required" },
-        { status: 400 }
+    // 🔐 2. Validate that userId is valid (not empty or null)
+    if (!userId || userId.trim().length === 0) {
+      return safeErrorResponse(
+        new Error("INVALID_AUTH: No valid user ID from authentication"),
+        "DISPATCH",
+        400
       );
     }
 
-    const jobId = body.job_id || `job_${Date.now()}`;
+    const body = (await req.json()) as Record<string, unknown>;
 
-    const result = await dispatch({
-      prompt: body.prompt,
-      userId: body.user_id,
-      jobId,
-      agentId: body.agent_id,
-    });
+    // 🔐 3. Validate + sanitise every user-supplied field
+    const prompt = sanitisePrompt(body.prompt);
 
-    return NextResponse.json(result, { status: 200 });
-  } catch (error: any) {
-    console.error("[DISPATCH] Error:", error);
-    return NextResponse.json(
-      { error: "DISPATCH_ERROR", message: error.message || "Failed to dispatch task" },
-      { status: 500 }
-    );
+    // Optional fields — only pass through if present and string
+    const agentId =
+      typeof body.agent_id === "string" && body.agent_id.trim()
+        ? body.agent_id.trim().slice(0, 128)
+        : undefined;
+
+    const jobId =
+      typeof body.job_id === "string" && body.job_id.trim()
+        ? body.job_id.trim().slice(0, 128)
+        : `job_${Date.now()}`;
+
+    const result = await dispatch({ prompt, userId, jobId, agentId });
+
+    return secureJson(result, { status: 200 });
+  } catch (error) {
+    return safeErrorResponse(error, "DISPATCH", 500);
   }
 }

@@ -19,7 +19,20 @@ import {
   storeUSMessage,
 } from "./us-message-engine";
 import { acelogicExecutionGuard } from "./acelogic-guard";
+import { batchPrimeExecutionGuards } from "./batch-execution-guard";
+import { leaseHeartbeatManager } from "./lease-heartbeat";
+import { emitRuntimeMetric } from "./telemetry/emitRuntimeMetric";
 import type { EnvelopeStep, ExecutionEnvelope, StepStatus } from "./types";
+
+async function emitSafe(
+  p: Parameters<typeof emitRuntimeMetric>[0]
+): Promise<void> {
+  try {
+    await emitRuntimeMetric(p);
+  } catch {
+    /* telemetry must not block execution */
+  }
+}
 
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
@@ -202,6 +215,14 @@ async function executeClaimedStep(params: {
   }
 
   await acquirePerAgentLease(envelope_id, agentId, instanceId);
+  await emitSafe({
+    event_type: "LEASE_ACQUIRED",
+    envelope_id,
+    step_id: step.step_id,
+    agent_id: agentId,
+    org_id: envelope.org_id,
+  });
+
   const refreshed = (await ref.get()).data() as ExecutionEnvelope;
   validatePerAgentLease(refreshed, agentId, instanceId);
 
@@ -211,37 +232,74 @@ async function executeClaimedStep(params: {
       : refreshed.identity_context.identity_fingerprint;
   const leaseRow = refreshed.authority_leases?.[agentId];
 
-  const message = createUSMessage({
-    message_type: mapStepTypeToUSMessage(step.step_type),
-    execution: { envelope_id, step_id: step.step_id },
-    identity: { agent_id: agentId, identity_fingerprint: fingerprint },
-    authority: { lease_id: leaseRow?.lease_id },
-    payload: {
-      role: step.role,
-      work_unit:
-        typeof step.input_ref === "object" && step.input_ref && "work_unit" in step.input_ref
-          ? (step.input_ref.work_unit as Record<string, unknown>)
-          : null,
-    },
-  });
-
-  const messageId = await storeUSMessage(message);
-  let follow: Awaited<ReturnType<typeof handleUSMessage>> = await handleUSMessage(message);
-  let depth = 0;
-  while (follow && depth < 5) {
-    await storeUSMessage(follow);
-    follow = await handleUSMessage(follow);
-    depth++;
-  }
-
-  await finalizeEnvelopeStep({
+  const hbKey = `${envelope_id}:${step.step_id}:${agentId}`;
+  leaseHeartbeatManager.start(hbKey, {
     envelope_id,
-    step_id: step.step_id,
-    status: "completed",
-    output_ref: { message_id: messageId },
+    agent_id: agentId,
+    instance_id: instanceId,
   });
 
-  await releasePerAgentLease(envelope_id, agentId).catch(() => undefined);
+  try {
+    const startTime = Date.now();
+    await emitSafe({
+      event_type: "STEP_STARTED",
+      envelope_id,
+      step_id: step.step_id,
+      agent_id: agentId,
+      org_id: envelope.org_id,
+    });
+
+    const message = createUSMessage({
+      message_type: mapStepTypeToUSMessage(step.step_type),
+      execution: { envelope_id, step_id: step.step_id },
+      identity: { agent_id: agentId, identity_fingerprint: fingerprint },
+      authority: { lease_id: leaseRow?.lease_id },
+      payload: {
+        role: step.role,
+        work_unit:
+          typeof step.input_ref === "object" && step.input_ref && "work_unit" in step.input_ref
+            ? (step.input_ref.work_unit as Record<string, unknown>)
+            : null,
+      },
+    });
+
+    const messageId = await storeUSMessage(message);
+    let follow: Awaited<ReturnType<typeof handleUSMessage>> = await handleUSMessage(message);
+    let depth = 0;
+    while (follow && depth < 5) {
+      await storeUSMessage(follow);
+      follow = await handleUSMessage(follow);
+      depth++;
+    }
+
+    const duration = Date.now() - startTime;
+    await finalizeEnvelopeStep({
+      envelope_id,
+      step_id: step.step_id,
+      status: "completed",
+      output_ref: { message_id: messageId },
+    });
+
+    await emitSafe({
+      event_type: "STEP_COMPLETED",
+      envelope_id,
+      step_id: step.step_id,
+      agent_id: agentId,
+      org_id: envelope.org_id,
+      value: duration,
+      metadata: { duration_ms: duration },
+    });
+  } finally {
+    leaseHeartbeatManager.stop(hbKey);
+    await releasePerAgentLease(envelope_id, agentId).catch(() => undefined);
+    await emitSafe({
+      event_type: "LEASE_RELEASED",
+      envelope_id,
+      step_id: step.step_id,
+      agent_id: agentId,
+      org_id: envelope.org_id,
+    });
+  }
 }
 
 /**
@@ -288,7 +346,14 @@ export async function runEnvelopeParallel(params: {
     if (!snap.exists) throw new Error("ENVELOPE_NOT_FOUND");
     const envelope = snap.data() as ExecutionEnvelope;
 
-    const terminal = ["approved", "rejected", "failed", "quarantined", "awaiting_human"];
+    const terminal = [
+      "approved",
+      "completed",
+      "rejected",
+      "failed",
+      "quarantined",
+      "awaiting_human",
+    ];
     if (terminal.includes(envelope.status)) return;
 
     const humanApprovalStep = (envelope.steps || []).find(
@@ -318,7 +383,21 @@ export async function runEnvelopeParallel(params: {
       if (!hasRunning && !hasPending) {
         const anyFailed = (envelope.steps || []).some((s) => s.status === "failed");
         try {
-          await transition(envelope_id, anyFailed ? "failed" : "approved");
+          await transition(envelope_id, anyFailed ? "failed" : "completed");
+          if (!anyFailed) {
+            await emitSafe({
+              event_type: "ENVELOPE_COMPLETED",
+              envelope_id,
+              agent_id: envelope.coordinator_agent_id || envelope.identity_context.agent_id,
+              org_id: envelope.org_id,
+            });
+          } else {
+            await emitSafe({
+              event_type: "ENVELOPE_FAILED",
+              envelope_id,
+              org_id: envelope.org_id,
+            });
+          }
         } catch {
           /* */
         }
@@ -348,6 +427,24 @@ export async function runEnvelopeParallel(params: {
       continue;
     }
 
+    const envForPrime = (await ref.get()).data() as ExecutionEnvelope;
+    await batchPrimeExecutionGuards(
+      claimed.map((s) => ({
+        agent_id: s.assigned_agent_id!,
+        identity_fingerprint:
+          envForPrime.multi_agent && envForPrime.identity_contexts?.[s.assigned_agent_id!]
+            ? envForPrime.identity_contexts[s.assigned_agent_id!].identity_fingerprint
+            : envForPrime.identity_context.identity_fingerprint,
+        instance_id: resolveInstanceId(
+          envForPrime,
+          s.assigned_agent_id!,
+          instance_id
+        ),
+        org_id: envForPrime.org_id,
+        license_id: envForPrime.license_id || "dev_license",
+      }))
+    );
+
     const results = await Promise.allSettled(
       claimed.map((step) =>
         executeClaimedStep({
@@ -363,6 +460,7 @@ export async function runEnvelopeParallel(params: {
       const step = claimed[i];
       if (result.status === "fulfilled") continue;
       const err = result.reason;
+      console.error(`[RUNTIME] Step ${step.step_id} execution failed:`, err);
       const maxR = step.max_retries ?? 2;
       const curR = step.retry_count ?? 0;
       const nextRetry = curR + 1;
@@ -374,12 +472,31 @@ export async function runEnvelopeParallel(params: {
           status: "ready",
           retry_count: nextRetry,
         });
+        const envRetry = (await ref.get()).data() as ExecutionEnvelope | undefined;
+        await emitSafe({
+          event_type: "STEP_RETRY_SCHEDULED",
+          envelope_id,
+          step_id: step.step_id,
+          agent_id: step.assigned_agent_id || null,
+          org_id: envRetry?.org_id,
+        });
       } else {
         await finalizeEnvelopeStep({
           envelope_id,
           step_id: step.step_id,
           status: "failed",
           retry_count: nextRetry,
+        });
+        const envSnap = await ref.get();
+        const orgId = envSnap.exists
+          ? (envSnap.data() as ExecutionEnvelope).org_id
+          : undefined;
+        await emitSafe({
+          event_type: "STEP_FAILED",
+          envelope_id,
+          step_id: step.step_id,
+          agent_id: step.assigned_agent_id || null,
+          org_id: orgId,
         });
         try {
           await transition(envelope_id, "failed", {

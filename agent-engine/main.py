@@ -181,9 +181,12 @@ async def get_config():
 
 if __name__ == "__main__":
     import uvicorn
+    # 🧪 Hardened for Python 3.14+ (Disabling reload=True to avoid asyncio signal conflicts)
     uvicorn.run(
         "main:app",
         host=AGENT_ENGINE_HOST,
         port=AGENT_ENGINE_PORT,
-        reload=True,
+        reload=False,
+        workers=1,
+        loop="asyncio",
     )

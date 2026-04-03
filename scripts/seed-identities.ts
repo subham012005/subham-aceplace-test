@@ -6,6 +6,8 @@
  *        or: npx tsx scripts/seed-identities.ts
  */
 
+import { config } from "dotenv";
+config({ path: ".env.local" });
 import { initializeApp, getApps, cert } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { createHash } from "crypto";
@@ -110,10 +112,19 @@ export async function seed() {
   const timestamp = now();
 
   for (const agent of AGENTS) {
-    const fingerprint = computeFingerprint(agent.agent_id, agent.acelogic_id);
+    const canonical_identity_json = JSON.stringify({
+      agent_id: agent.agent_id,
+      acelogic_id: agent.acelogic_id,
+      owner_org_id: agent.owner_org_id,
+    });
+    
+    // Use the same hashing as in the runtime kernel
+    const identity_fingerprint = createHash("sha256").update(canonical_identity_json, "utf-8").digest("hex");
+
     const record = {
       ...agent,
-      fingerprint,
+      canonical_identity_json,
+      identity_fingerprint,
       anchors: {
         covenant_hash: sha256Hex(`${agent.agent_id}:covenant`),
         cvr_polygon: null,
@@ -131,11 +142,12 @@ export async function seed() {
       last_verified_at: null,
     };
 
-    await db.collection("agent_identities").doc(agent.agent_id).set(record, { merge: true });
-    console.log(`✅ Seeded: ${agent.agent_id} | fingerprint: ${fingerprint.slice(0, 30)}...`);
+    const collectionName = "agents"; // Phase 2 canonical collection
+    await db.collection(collectionName).doc(agent.agent_id).set(record, { merge: true });
+    console.log(`✅ Seeded: ${agent.agent_id} in '${collectionName}' | fingerprint: ${identity_fingerprint.slice(0, 30)}...`);
   }
 
-  console.log("\n🚀 Identity seed complete. 4 agents registered in Firestore.");
+  console.log("\n🚀 Identity seed complete. 4 agents registered in Firestore 'agents' collection.");
 }
 
 // Auto-run if called directly

@@ -33,11 +33,11 @@ T-031,6,Dashboard integration,src/app/dashboard/page.tsx,Done,P1,2026-03-21,Runt
 T-032,6,Intake → dispatch wiring,src/app/api/jobs/intake/route.ts,Done,P1,2026-03-21,Feature flag NEXT_PUBLIC_USE_DETERMINISTIC_RUNTIME routes to /api/runtime/dispatch
 T-033,6,Error boundary + fallback UI,src/components/ErrorBoundary.tsx,Done,P2,2026-03-21,Class-based error boundary with HUD-styled fallback and reset button
 T-034,6,Firestore indexes,firestore.indexes.json,Done,P1,2026-03-21,Composite indexes for envelopes execution_steps leases agent_identities protocol_messages job_traces
-T-035,6,End-to-end test,N/A,Not Started,P1,,Full dispatch → execute → complete flow
+T-035,6,End-to-end test,N/A,In Progress,P1,,Full dispatch → execute → complete flow
 T-036,6,Agent identity seed script,scripts/seed-identities.ts,Done,P2,2026-03-21,Seeds COO Researcher Worker Grader into agent_identities with SHA-256 fingerprints
-T-037,6,Lease cleanup cron,N/A,Not Started,P3,,Auto-expire stale leases
+T-037,6,Lease cleanup cron,src/app/api/cron/lease-cleanup/route.ts,Done,P3,2026-04-01,Implemented in Phase 2 cron with dead-step recovery logic
 T-038,6,Protocol message viewer,src/components/ProtocolViewer.tsx,Done,P3,2026-03-21,Collapsible HUD-styled debug viewer for #us# protocol messages
-T-039,6,Performance metrics,N/A,Not Started,P3,Average step duration etc
+T-039,6,Performance metrics,src/app/api/cron/telemetry-rollup/route.ts,Done,P3,2026-04-01,Aggregation logic implemented in telemetry-rollup cron
 T-040,6,Documentation update,docs/README.md,Done,P2,2026-03-22,Phase 2 documentation and task tracking updated
 T-041,6,useJobs envelope reference fields,src/hooks/useJobs.ts,Done,P2,2026-03-22,Add envelope_id to Job interface
 T-042,6,API client runtime methods,src/lib/api-client.ts,Done,P2,2026-03-22,Add getEnvelope getExecutionTrace sendUSMessage to NXQApiClient

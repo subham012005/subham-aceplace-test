@@ -43,6 +43,12 @@ export async function transition(
     }
 
     tx.update(ref, { status: newStatus, updated_at: now });
+
+    // Sync legacy jobs collection if job_id is present
+    if (envelope.job_id) {
+      const jobRef = db.collection(COLLECTIONS.JOBS).doc(envelope.job_id);
+      tx.set(jobRef, { status: newStatus, updated_at: now }, { merge: true });
+    }
   });
 
   // Log the transition

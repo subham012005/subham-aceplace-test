@@ -8,9 +8,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { db } from "@/lib/firebase";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
-import type { ExecutionEnvelope, AuthorityLease } from "@/lib/runtime/types";
+import { aceApi } from "@/lib/api-client";
+import type { AuthorityLease } from "@/lib/runtime/types";
 
 export interface ActiveLease {
   envelope_id: string;
@@ -23,46 +22,46 @@ export interface UseLeaseReturn {
   error: string | null;
 }
 
+/**
+ * useLeases Hook — Phase 2 (Hardened)
+ * 
+ * Fetches active leases from the secure /api/runtime/leases/active endpoint.
+ * Uses polling to maintain fresh state without direct Firestore permissions.
+ */
 export function useLeases(): UseLeaseReturn {
   const [activeLeases, setActiveLeases] = useState<ActiveLease[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setLoading(true);
+    let isMounted = true;
 
-    // Phase 2: leases live inside execution_envelopes.authority_lease
-    // Query envelopes that are currently executing (which implies a lease)
-    const q = query(
-      collection(db, "execution_envelopes"),
-      where("status", "in", ["leased", "executing"])
-    );
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const now = new Date();
-        const active: ActiveLease[] = [];
-
-        snapshot.docs.forEach((doc) => {
-          const envelope = doc.data() as ExecutionEnvelope;
-          const lease = envelope.authority_lease;
-          if (lease && new Date(lease.expires_at) > now) {
-            active.push({ envelope_id: doc.id, authority_lease: lease });
-          }
-        });
-
-        setActiveLeases(active);
-        setLoading(false);
-      },
-      (err) => {
-        console.error("[useLeases] Error:", err);
-        setError(err.message);
-        setLoading(false);
+    const fetchLeases = async () => {
+      try {
+        const data = await aceApi.getActiveLeases();
+        if (isMounted) {
+          setActiveLeases(data.activeLeases || []);
+          setError(null);
+        }
+      } catch (err: any) {
+        console.error("[useLeases] Fetch failed:", err);
+        if (isMounted) {
+          setError(err.message);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
-    );
+    };
 
-    return () => unsubscribe();
+    fetchLeases();
+    const interval = setInterval(fetchLeases, 8000); // Poll every 8 seconds
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
   return { activeLeases, loading, error };

@@ -48,7 +48,7 @@ export async function expandWorkerSteps(params: {
     const plan = params.decomposition_plan;
     const workerSteps: EnvelopeStep[] = plan.work_units.map((wu, i) => ({
       step_id: `worker_${wu.work_unit_id}`,
-      step_type: "artifact_produce",
+      step_type: "produce_artifact",
       role: "Worker",
       status: "pending",
       depends_on: [plan.parent_step_id],
@@ -61,6 +61,19 @@ export async function expandWorkerSteps(params: {
       updated_at: new Date().toISOString(),
     }));
 
+    // 🤖 ALIGNMENT: Inject identities for new agents into the envelope
+    const nextIdentities = { ...(envelope.identity_contexts || {}) };
+    for (const step of workerSteps) {
+      const aid = step.assigned_agent_id;
+      if (aid && !nextIdentities[aid]) {
+        nextIdentities[aid] = {
+          agent_id: aid,
+          identity_fingerprint: "deferred_verification",
+          verified: false,
+        };
+      }
+    }
+
     const updatedSteps = (envelope.steps || [])
       .filter((s) => s.role !== "Worker")
       .map((s) =>
@@ -71,6 +84,7 @@ export async function expandWorkerSteps(params: {
 
     tx.update(ref, {
       steps: [...updatedSteps, ...workerSteps],
+      identity_contexts: nextIdentities,
       decomposition_plan: plan,
       updated_at: new Date().toISOString(),
     });

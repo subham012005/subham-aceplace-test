@@ -20,10 +20,12 @@ from config import FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_
 
 _db = None
 
-COLLECTION_ENVELOPES = "execution_envelopes"
+COLLECTION_ENVELOPES  = "execution_envelopes"
 COLLECTION_ARTIFACTS  = "artifacts"
 COLLECTION_TRACES     = "execution_traces"
 COLLECTION_MESSAGES   = "protocol_messages"
+COLLECTION_AGENT_LOGS = "agent_logs"
+COLLECTION_JOBS       = "jobs"
 
 # Five allowed #us# verbs — all others are rejected
 ALLOWED_VERBS = {
@@ -128,8 +130,16 @@ def get_next_ready_step(envelope: dict) -> Optional[dict]:
     return None
 
 
-def advance_next_pending_step(envelope_id: str, completed_step_id: str):
-    """After a step completes, mark the next 'pending' step as 'ready'."""
+def advance_next_pending_step(
+    envelope_id: str,
+    completed_step_id: str,
+    artifact_id: str = "",
+):
+    """
+    After a step completes, mark the next 'pending' step as 'ready'.
+    CRITICAL: sets input_ref = artifact_id so the next agent can read the
+    previous step's output (COO plan → Researcher, research → Worker, etc.)
+    """
     envelope = get_envelope(envelope_id)
     if not envelope:
         return
@@ -141,7 +151,11 @@ def advance_next_pending_step(envelope_id: str, completed_step_id: str):
         return
     for i in range(completed_idx + 1, len(steps)):
         if steps[i].get("status") == "pending":
-            update_envelope_step(envelope_id, steps[i]["step_id"], {"status": "ready"})
+            update_data = {"status": "ready"}
+            if artifact_id:
+                update_data["input_ref"] = artifact_id
+            update_envelope_step(envelope_id, steps[i]["step_id"], update_data)
+            print(f"[FIRESTORE] Advanced step {steps[i]['step_id']} → ready (input_ref: {artifact_id})")
             break
 
 
@@ -289,6 +303,89 @@ def create_artifact(
         "created_at": now,
     })
     return artifact_id
+
+
+def get_artifact(artifact_id: str) -> Optional[dict]:
+    """Load artifact from artifacts/{artifact_id}. Returns None if missing."""
+    if not artifact_id:
+        return None
+    db = get_db()
+    doc = db.collection(COLLECTION_ARTIFACTS).document(str(artifact_id)).get()
+    return doc.to_dict() if doc.exists else None
+
+
+# ─── Agent Action Logging ─────────────────────────────────────────────────────
+
+def log_agent_action(
+    envelope_id: str,
+    step_id: str,
+    agent_role: str,           # "coo" | "researcher" | "worker" | "grader"
+    agent_id: str,
+    event: str,                # "START" | "COMPLETE" | "ERROR"
+    model: str = "",
+    input_summary: str = "",
+    output_summary: str = "",
+    artifact_id: str = "",
+    error: str = "",
+    duration_ms: int = 0,
+) -> str:
+    """
+    Write a structured agent log entry to agent_logs/{log_id}.
+    This powers the real-time Agent Activity panel in the UI.
+    """
+    db = get_db()
+    now = datetime.now(timezone.utc).isoformat()
+    log_id = f"log_{agent_role}_{event.lower()}_{int(time.time() * 1_000_000)}"
+
+    db.collection(COLLECTION_AGENT_LOGS).document(log_id).set({
+        "log_id": log_id,
+        "envelope_id": envelope_id,
+        "step_id": step_id,
+        "agent_role": agent_role,
+        "agent_id": agent_id,
+        "event": event,         # START | COMPLETE | ERROR
+        "model": model,
+        "input_summary": input_summary[:500] if input_summary else "",
+        "output_summary": output_summary[:1000] if output_summary else "",
+        "artifact_id": artifact_id,
+        "error": error[:500] if error else "",
+        "duration_ms": duration_ms,
+        "timestamp": now,
+    })
+    return log_id
+
+
+def sync_job_with_envelope(
+    job_id: str,
+    status: str,
+    envelope_id: str = "",
+    extra: Optional[dict] = None,
+) -> None:
+    """
+    Sync a jobs/{job_id} document with current envelope execution state.
+    Called by the runtime loop after each step transition.
+    Automatically sinks the steps from the envelope if exists.
+    """
+    if not job_id:
+        return
+    db = get_db()
+    payload = {
+        "status": status,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    if envelope_id:
+        payload["envelope_id"] = envelope_id
+        
+        # Sync steps from envelope directly to jobs
+        envelope = get_envelope(envelope_id)
+        if envelope and "steps" in envelope:
+            payload["steps"] = envelope["steps"]
+            if "execution_context" in envelope:
+                payload["execution_context"] = envelope["execution_context"]
+
+    if extra:
+        payload.update(extra)
+    db.collection(COLLECTION_JOBS).document(job_id).set(payload, merge=True)
 
 
 # ─── Trace Logging ────────────────────────────────────────────────────────────

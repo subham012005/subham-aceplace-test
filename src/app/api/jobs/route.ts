@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
+import { secureJson, verifyUserApiKey, safeErrorResponse } from "@/lib/api-security";
 
 /**
  * Secure Firestore Fetch for All Jobs by User
@@ -8,43 +8,37 @@ import { adminDb } from "@/lib/firebase-admin";
  */
 export async function GET(req: Request) {
     try {
-        const { searchParams } = new URL(req.url);
-        const userId = searchParams.get("user_id");
+        const { userId, error } = await verifyUserApiKey(req);
+        if (error) return error;
 
         if (!adminDb) {
-            return NextResponse.json({
-                error: "Backend not configured",
-                message: "Firebase Admin is not initialized. Please configure FIREBASE_PRIVATE_KEY in .env.local",
-                code: "ADMIN_NOT_INITIALIZED"
-            }, { status: 503 });
+            throw new Error("ADMIN_NOT_INITIALIZED");
         }
 
         const jobsRef = adminDb.collection("jobs");
-        let query;
+        let snapshot;
 
         if (userId === "all") {
-            console.log(`[ADMIN] Fetching ALL jobs (Global View)`);
-            query = jobsRef.orderBy("created_at", "desc").limit(200);
+            // Internal/Admin view
+            snapshot = await jobsRef.limit(200).get();
         } else {
-            console.log(`[ADMIN] Fetching jobs for user: ${userId}`);
-            query = jobsRef.where("user_id", "==", userId);
+            snapshot = await jobsRef.where("user_id", "==", userId).limit(200).get();
         }
-
-        const snapshot = await query.get();
 
         const jobs = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
-        }));
+        })) as any[];
 
-        // Sort by updated_at desc in memory
-        jobs.sort((a: any, b: any) =>
-            new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime()
-        );
+        // 🔐 3. Sort in-memory (Resolves 9 FAILED_PRECONDITION missing index error)
+        jobs.sort((a, b) => {
+            const timeA = new Date(a.updated_at || a.created_at || 0).getTime();
+            const timeB = new Date(b.updated_at || b.created_at || 0).getTime();
+            return timeB - timeA;
+        });
 
-        return NextResponse.json(jobs);
+        return secureJson(jobs);
     } catch (error: any) {
-        console.error("Get jobs admin error:", error);
-        return NextResponse.json({ error: error.message || "Failed to fetch jobs from secure layer." }, { status: 500 });
+        return safeErrorResponse(error, "GET_JOBS_SECURE", 500);
     }
 }

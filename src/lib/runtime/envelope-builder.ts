@@ -26,7 +26,8 @@ export function buildEnvelope(params: {
   userId?: string;
   prompt?: string;
   identityContext: IdentityContext;
-  stepPipeline?: StepType[];
+  identity_contexts?: Record<string, IdentityContext>;
+  stepPipeline?: string[];        // canonical step types from Python engine
 }): ExecutionEnvelope {
   const now = new Date().toISOString();
   const envelopeId = `env_${randomUUID().replace(/-/g, "").slice(0, 20)}`;
@@ -37,9 +38,11 @@ export function buildEnvelope(params: {
     const config = STEP_TYPE_CONFIG[stepType];
     return {
       step_id: `step_${envelopeId}_${index}`,
-      step_type: stepType,
+      step_type: stepType as StepType,
       status: index === 0 ? "ready" : "pending",
-      assigned_agent_id: config.agent_role,
+      assigned_agent_id: config?.agent_role ?? stepType,
+      retry_count: 0,
+      max_retries: 2,
     } as EnvelopeStep;
   });
 
@@ -57,10 +60,14 @@ export function buildEnvelope(params: {
     // Identity context from agent store
     identity_context: params.identityContext,
 
-    // Empty artifact refs — populated as steps complete
-    artifact_refs: [],
+    // Multi-agent identity contexts
+    multi_agent: true,
+    identity_contexts: params.identity_contexts ?? {
+      [params.identityContext.agent_id]: params.identityContext,
+    },
 
-    // Trace head — null until first trace written
+    // Metadata for completion
+    artifact_refs: [],
     trace_head_hash: null,
 
     created_at: now,

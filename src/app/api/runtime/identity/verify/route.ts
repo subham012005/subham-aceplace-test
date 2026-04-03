@@ -4,6 +4,7 @@
 
 import { NextResponse } from "next/server";
 import { verifyIdentity } from "@/lib/runtime/kernels/identity";
+import { verifyUserApiKey, safeErrorResponse } from "@/lib/api-security";
 
 interface IdentityVerifyRequest {
   agent_id: string;
@@ -14,6 +15,10 @@ interface IdentityVerifyRequest {
 
 export async function POST(req: Request) {
   try {
+    // 🔐 1. Authenticate via Master Secret (API Key)
+    const { userId, error } = await verifyUserApiKey(req);
+    if (error) return error;
+
     const body = (await req.json()) as IdentityVerifyRequest;
 
     const agentId = body.agent_id;
@@ -29,9 +34,33 @@ export async function POST(req: Request) {
 
     const db = (await import("@/lib/runtime/db")).getDb();
     const { COLLECTIONS } = await import("@/lib/runtime/constants");
+    const { computeFingerprint } = await import("@/lib/runtime/kernels/identity");
     
+    // Phase 2: If envelopeId is missing, perform a GLOBAL registration check.
+    if (!envelopeId) {
+      const agentDoc = await db.collection(COLLECTIONS.AGENTS).doc(agentId).get();
+      if (!agentDoc.exists) {
+         return NextResponse.json(
+          { error: "NOT_FOUND", message: "Agent not registered. Cannot verify identity." },
+          { status: 404 }
+        );
+      }
+      const agentData = agentDoc.data() as any;
+      const recomputed = computeFingerprint(agentData.canonical_identity_json);
+      const verified = recomputed === fingerprint;
+      
+      console.log(`[IDENTITY_VERIFY] Global Check: agent=${agentId}, recomputed=${recomputed}, received=${fingerprint}, match=${verified}`);
+      
+      return NextResponse.json({ 
+        verified, 
+        agent_id: agentId, 
+        reason: verified ? undefined : "IDENTITY_FINGERPRINT_MISMATCH",
+        verified_at: new Date().toISOString() 
+      }, { status: verified ? 200 : 403 });
+    }
+
     // Phase 2: verifyIdentity requires the full ExecutionEnvelope context
-    const envelopeDoc = await db.collection(COLLECTIONS.EXECUTION_ENVELOPES).doc(envelopeId || agentId).get();
+    const envelopeDoc = await db.collection(COLLECTIONS.EXECUTION_ENVELOPES).doc(envelopeId).get();
     if (!envelopeDoc.exists) {
       return NextResponse.json(
         { error: "NOT_FOUND", message: "Envelope not found. Cannot verify identity." },
@@ -40,7 +69,7 @@ export async function POST(req: Request) {
     }
 
     const envelope = envelopeDoc.data() as any;
-    const result = await verifyIdentity(envelopeId || agentId, agentId, envelope);
+    const result = await verifyIdentity(envelopeId, agentId, envelope);
 
     return NextResponse.json(result, { status: result.verified ? 200 : 403 });
   } catch (error: any) {

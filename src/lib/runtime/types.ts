@@ -1,5 +1,5 @@
 /**
- * NXQ Runtime — Phase 2 TypeScript Type Definitions
+ * ACEPLACE Runtime — Phase 2 TypeScript Type Definitions
  *
  * Canonical ExecutionEnvelope is the ONLY source of truth.
  * Steps are EMBEDDED inside the envelope (not external).
@@ -46,8 +46,10 @@ export interface AgentAuthorityLease {
 export type StepType =
   | "plan"
   | "assign"
-  | "artifact_produce"
-  | "evaluation"
+  | "artifact_produce"      // ← Python canonical (artifact_produce step)
+  | "evaluation"            // ← Python canonical (grader step)
+  | "produce_artifact"      // ← Legacy alias
+  | "evaluate"              // ← Legacy alias
   | "human_approval"
   | "complete";
 
@@ -97,7 +99,7 @@ export interface IdentityContext {
   fingerprint?: string;
   verified: boolean;
   verified_at?: string;
-  /** Multi-agent / NOVA handoff */
+  /** Multi-agent / ACEPLACE handoff */
   instance_id?: string;
   gate_level?: number;
   jurisdiction?: string;
@@ -114,6 +116,7 @@ export type EnvelopeStatus =
   | "executing"
   | "awaiting_human"
   | "approved"
+  | "completed"
   | "rejected"
   | "failed"
   | "quarantined";
@@ -301,6 +304,7 @@ export interface AgentIdentity {
   acelogic_id?: string;
   tier?: number;
   mission?: string;
+  user_id?: string;   // Owner of the identity (optional for system agents)
 }
 
 // ─── Runtime Validation Results ───────────────────────────────────────────────
@@ -316,6 +320,14 @@ export interface LeaseAcquireResult {
   acquired: boolean;
   authority_lease: AuthorityLease | null;
   reason?: "fork_detected" | "already_held" | "ok";
+}
+
+// ─── Secrets Management ───────────────────────────────────────────────────────
+
+export interface AgentSecrets {
+  agent_id: string;
+  secrets: Record<string, string>;
+  updated_at: string;
 }
 
 // ─── Dispatch API ─────────────────────────────────────────────────────────────

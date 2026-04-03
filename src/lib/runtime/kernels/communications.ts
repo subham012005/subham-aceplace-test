@@ -1,6 +1,10 @@
 /**
  * Communications Kernel — Phase 2
  *
+ * Persists to `protocol_messages` (legacy path).
+ * Multi-agent parallel execution uses `execution_messages` via `us-message-engine.ts`
+ * — both are valid; explorer lists `execution_messages` for the canonical #us# trail.
+ *
  * Enforces strict #us# protocol. ONLY these 5 verbs are allowed:
  *   #us#.task.plan
  *   #us#.task.assign
@@ -78,9 +82,18 @@ export async function getEnvelopeMessages(envelopeId: string): Promise<ProtocolM
   const snapshot = await getDb()
     .collection(COLLECTIONS.PROTOCOL_MESSAGES)
     .where("execution.envelope_id", "==", envelopeId)
-    .orderBy("timestamp", "asc")
     .get();
-  return snapshot.docs.map((doc) => doc.data() as ProtocolMessage);
+
+  const messages = snapshot.docs.map((doc) => doc.data() as ProtocolMessage);
+
+  // 🔐 Sort in-memory to avoid FAILED_PRECONDITION (missing index) error
+  messages.sort((a, b) => {
+    const timeA = new Date(a.timestamp || 0).getTime();
+    const timeB = new Date(b.timestamp || 0).getTime();
+    return timeA - timeB;
+  });
+
+  return messages;
 }
 
 /**

@@ -38,17 +38,22 @@ export async function acquireLease(
   const now = new Date();
 
   return db.runTransaction(async (tx) => {
+    console.log(`[AUTHORITY] Starting transaction for envelope: ${envelopeId}`);
     const snap = await tx.get(envelopeRef);
     if (!snap.exists) {
+      console.error(`[AUTHORITY] Envelope ${envelopeId} not found in Firestore.`);
       throw new Error(`Envelope ${envelopeId} not found`);
     }
 
     const envelope = snap.data() as ExecutionEnvelope;
     const existing = envelope.authority_lease;
 
+    console.log(`[AUTHORITY] Envelope status: ${envelope.status}, Existing lease:`, existing);
+
     // Check for fork: active lease held by DIFFERENT instance
     if (existing && new Date(existing.expires_at) > now) {
       if (existing.holder_instance_id !== instanceId) {
+        console.warn(`[AUTHORITY] FORK DETECTED for ${envelopeId}. Current holder: ${existing.holder_instance_id}, New instance: ${instanceId}`);
         // FORK DETECTED — quarantine immediately
         tx.update(envelopeRef, {
           status: "quarantined",
@@ -63,6 +68,7 @@ export async function acquireLease(
           reason: "fork_detected",
         } as LeaseAcquireResult;
       }
+      console.log(`[AUTHORITY] Lease already held by instance: ${instanceId}`);
       // Same instance — lease already held, return existing
       return {
         acquired: true,
@@ -79,6 +85,8 @@ export async function acquireLease(
       expires_at: expiresAt,
     };
 
+    console.log(`[AUTHORITY] Acquiring new lease for ${envelopeId}, instance: ${instanceId}, expires at: ${expiresAt}`);
+
     tx.update(envelopeRef, {
       authority_lease: newLease,
       status: "leased",
@@ -89,6 +97,8 @@ export async function acquireLease(
       expires_at: expiresAt,
       duration_seconds: duration,
     });
+
+    console.log(`[AUTHORITY] Lease acquired successfully for ${envelopeId}`);
 
     return {
       acquired: true,

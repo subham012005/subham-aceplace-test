@@ -146,9 +146,9 @@ A universal, source-neutral execution format that allows ACEPLACE to accept task
 ### 3.2 Licensing Tiers
 | Tier | Name | Capabilities |
 |---|---|---|
-| **Tier 0** | Personal | Basic identity + mission validation (Gates 1-3) |
-| **Tier 1** | Professional | Lease enforcement, multi-step graphs, checkpointing (Gates 1-6) |
-| **Tier 2** | Enterprise | Multi-agent orchestration, fork detection |
+| **Free** | Personal | Basic identity + mission validation (Gates 1-3) |
+| **Builder** | Professional | Lease enforcement, multi-step graphs, checkpointing (Gates 1-6) |
+| **Growth** | Enterprise | Multi-agent orchestration, fork detection |
 
 ### 3.3 Machine Grammar #us# Protocol (v1.0)
 Structured communication protocol for agent-to-agent and agent-to-system messages:
@@ -314,7 +314,7 @@ created → identity_verified → lease_acquired → running → awaiting_human 
 | `public_key` | string | Agent public key |
 | `jurisdiction` | string | Operating jurisdiction |
 | `mission` | string | Agent mission statement |
-| `tier` | number | License tier (0/1/2) |
+| `tier` | string | License tier (free/builder/growth) |
 | `created_at` | ISO string | Registration date |
 | `last_verified_at` | ISO string | Last verification time |
 

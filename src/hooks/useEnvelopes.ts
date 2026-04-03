@@ -6,8 +6,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { db } from "@/lib/firebase";
-import { collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
+import { aceApi } from "@/lib/api-client";
 import type { ExecutionEnvelope } from "@/lib/runtime/types";
 
 export interface UseEnvelopesReturn {
@@ -23,6 +22,11 @@ export interface UseEnvelopesReturn {
   };
 }
 
+/**
+ * useEnvelopes Hook — Phase 2 (Hardened)
+ * 
+ * Subscribes to execution_envelopes via the secure /api/runtime/envelopes endpoint.
+ */
 export function useEnvelopes(userId: string | null): UseEnvelopesReturn {
   const [envelopes, setEnvelopes] = useState<ExecutionEnvelope[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,40 +38,40 @@ export function useEnvelopes(userId: string | null): UseEnvelopesReturn {
       return;
     }
 
-    setLoading(true);
-
-    // Phase 2: read from execution_envelopes collection
-    const q = query(
-      collection(db, "execution_envelopes"),
-      where("user_id", "==", userId),
-      orderBy("created_at", "desc")
-    );
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const data = snapshot.docs.map((doc) => ({
-          ...doc.data(),
-          envelope_id: doc.id,
-        })) as ExecutionEnvelope[];
-        setEnvelopes(data);
-        setLoading(false);
-      },
-      (err) => {
-        console.error("[useEnvelopes] Error:", err);
-        setError(err.message);
-        setLoading(false);
+    let isMounted = true;
+    const fetchEnvelopes = async () => {
+      try {
+        const data = await aceApi.getUserEnvelopes(userId);
+        if (isMounted) {
+          setEnvelopes(data.items || []);
+          setError(null);
+        }
+      } catch (err: any) {
+        console.error("[useEnvelopes] Fetch failed:", err);
+        if (isMounted) {
+          setError(err.message);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
-    );
+    };
 
-    return () => unsubscribe();
+    fetchEnvelopes();
+    const interval = setInterval(fetchEnvelopes, 10000); // Poll every 10 seconds
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, [userId]);
 
-  // Phase 2: status lives directly on envelope.status (not execution_context.status)
   const counts = {
     total: envelopes.length,
     executing: envelopes.filter((e) => e.status === "executing").length,
-    approved: envelopes.filter((e) => e.status === "approved").length,
+    approved: envelopes.filter((e) => e.status === "approved" || e.status === "completed")
+      .length,
     failed: envelopes.filter((e) => e.status === "failed").length,
     awaiting_human: envelopes.filter((e) => e.status === "awaiting_human").length,
   };

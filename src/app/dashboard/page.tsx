@@ -35,12 +35,14 @@ import { TaskDetail } from "@/components/TaskDetail";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { useSettings } from "@/context/SettingsContext";
-import { nxqApi } from "@/lib/api-client";
-import { NovaWaveform } from "@/components/NovaWaveform";
+import { aceApi } from "@/lib/api-client";
+import { AceWaveform } from "@/components/AceWaveform";
 import { RuntimeStats } from "@/components/RuntimeStats";
 import { LeaseManager } from "@/components/LeaseManager";
 import { IdentityPanel } from "@/components/IdentityPanel";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { useEnvelopes } from "@/hooks/useEnvelopes";
+import type { ExecutionEnvelope } from "@/lib/runtime/types";
 
 interface ActivityLog {
     id: string;
@@ -104,6 +106,20 @@ export default function DashboardPage() {
         updateJobInList
     } = useJobs(userUid);
 
+    // Envelope data — canonical source of truth for execution status
+    const { envelopes } = useEnvelopes(userUid ?? null);
+
+    // Build a fast job_id → envelope lookup map
+    const jobEnvelopeMap = React.useMemo(() => {
+        const map = new Map<string, ExecutionEnvelope>();
+        envelopes.forEach(env => {
+            if (env.job_id) map.set(env.job_id, env);
+            // Also index by envelope_id in case job.envelope_id is set
+            if (env.envelope_id) map.set(env.envelope_id, env);
+        });
+        return map;
+    }, [envelopes]);
+
     const [selectedJob, setSelectedJob] = React.useState<Job | null>(null);
     const [isComposerOpen, setIsComposerOpen] = React.useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
@@ -127,11 +143,107 @@ export default function DashboardPage() {
         setLogs(prev => [`[${timestamp}] ${message}`, ...prev].slice(0, 50));
     }, []);
 
+    const deriveHomeStatus = React.useCallback((job: Job): string => {
+        // ── 0. Manual governance states are absolute ─────────────────
+        if (job.approved_at) return 'approved';
+        if (job.rejected_at) return 'rejected';
+
+        const rawJobStatus = String(job.status || '').toLowerCase();
+        
+        // Ensure "graded" state takes precedence so UI doesn't falsely display "rejected" 
+        // when the operator hasn't enacted a governance decision yet.
+        if (rawJobStatus === 'graded' || rawJobStatus === 'awaiting_approval') {
+            return 'graded';
+        }
+
+        // ── 1. Look up the linked envelope ──────────────────────────────────
+        const envelope =
+            jobEnvelopeMap.get(job.job_id) ||
+            jobEnvelopeMap.get(job.id) ||
+            (job.envelope_id ? jobEnvelopeMap.get(job.envelope_id) : undefined);
+
+        if (envelope) {
+            const envStatus = envelope.status;
+
+            // ── 1a. Envelope terminal / governance states ─────────────────
+            if (envStatus === 'approved') return 'approved';
+            if (envStatus === 'rejected') {
+                // If we have grading data but no manual rejected_at, it's still 'graded'
+                const hasGradeData = !!(
+                    job.grading_result || 
+                    job.runtime_context?.grading_result || 
+                    job.grader_params || 
+                    job.compliance_score || 
+                    job.grade_score
+                );
+                if (hasGradeData && !job.rejected_at) {
+                    return 'graded';
+                }
+                return 'rejected';
+            }
+            if (envStatus === 'failed' || envStatus === 'quarantined') return 'failed';
+            if (envStatus === 'completed') return 'completed';
+            // awaiting_human = grading is done, waiting for operator decision
+            if (envStatus === 'awaiting_human') return 'graded';
+
+            // ── 1b. Derive sub-stage from completed steps ─────────────────
+            if (envStatus === 'executing' || envStatus === 'planned' || envStatus === 'leased') {
+                const steps = envelope.steps || [];
+                const hasEvalDone = steps.some(s =>
+                    (s.step_type === 'evaluation' || s.step_type === 'evaluate') &&
+                    s.status === 'completed'
+                );
+                if (hasEvalDone) return 'graded';
+                
+                const hasArtifactDone = steps.some(s =>
+                    (s.step_type === 'artifact_produce' || s.step_type === 'produce_artifact') &&
+                    s.status === 'completed'
+                );
+                if (hasArtifactDone) return 'worker_execution';
+
+                const hasAssignDone = steps.some(s =>
+                    s.step_type === 'assign' && s.status === 'completed'
+                );
+                if (hasAssignDone) return 'research_execution';
+
+                const hasPlanDone = steps.some(s =>
+                    s.step_type === 'plan' && s.status === 'completed'
+                );
+                if (hasPlanDone) return 'coo_planning';
+            }
+        }
+
+        // ── 2. Fallback: job.status + grading heuristics ────────────────────
+        let rawStatus = String(job.status || 'queued').toLowerCase();
+        if (rawStatus === 'awaiting_approval') rawStatus = 'graded';
+
+        const hasGradingData = !!(
+            job.grade_score !== undefined ||
+            job.grading_result !== undefined ||
+            job.grading_summary !== undefined ||
+            job.runtime_context?.grading_result !== undefined
+        );
+
+        const terminalStates = ['approved', 'rejected', 'failed', 'completed', 'quarantined'];
+
+        if (hasGradingData && !terminalStates.includes(rawStatus)) return 'graded';
+
+        if (rawStatus === 'executing') {
+            if (hasGradingData)                         return 'graded';
+            if (job.runtime_context?.worker_result)      return 'worker_execution';
+            if (job.runtime_context?.research_result)    return 'research_execution';
+            if (job.runtime_context?.plan)               return 'coo_planning';
+        }
+
+        return rawStatus;
+    }, [jobEnvelopeMap]);
+
     const realStats = React.useMemo(() => {
         if (!jobs) {
             return {
                 totalTokens: 0,
                 totalCost: 0,
+                totalRequests: 0,
                 totalAgents: 0,
                 activeAgents: 0,
                 resurrectionEvents: 0,
@@ -141,44 +253,60 @@ export default function DashboardPage() {
             };
         }
 
+        let totalEstTokens = 0;
+        let activeAgentCount = 0;
+
+        jobs.forEach(j => {
+            const rawStatus = deriveHomeStatus(j);
+            if (["queued", "assigned", "executing", "in_progress", "coo_planning", "research_execution", "worker_execution", "grading", "lease_check"].includes(rawStatus)) {
+                activeAgentCount++;
+            }
+            
+            // Estimate tokens if none are natively persisted (Phase 2 Deterministic Runtime doesn't pass tokens down)
+            const steps = (j as any).steps || [];
+            totalEstTokens += steps.filter((s:any) => s.status === 'completed').length * 2400; // Approx 2400 context/completion tokens per agent phase.
+        });
+
         const resurrections = jobs.filter(j => j.status === "resurrected" || j.resurrection_reason).length;
         const gradedJobs = jobs.filter(j => typeof j.grade_score === 'number');
         const avgPass = gradedJobs.length > 0
             ? Math.round(gradedJobs.reduce((acc, j) => acc + (j.grade_score || 0), 0) / gradedJobs.length)
             : 100;
 
-        const activeAgentCount = jobs.filter(j => ["queued", "assigned", "in_progress"].includes(j.status)).length;
-        const completedCount = jobs.filter(j => ["completed", "graded", "approved"].includes(j.status)).length;
-        const failedCount = jobs.filter(j => ["rejected", "failed"].includes(j.status)).length;
+        const completedCount = jobs.filter(j => ["completed", "graded", "approved"].includes(deriveHomeStatus(j))).length;
+        const failedCount = jobs.filter(j => ["rejected", "failed"].includes(deriveHomeStatus(j))).length;
         
-        const tokens = jobs.reduce((acc, j) => {
-            const jTokens = j.token_usage ?? j.runtime_context?.token_usage?.total_tokens ?? 0;
-            return acc + (Number(jTokens) || 0);
+        let tokens = jobs.reduce((acc, j) => {
+            const tu = j.token_usage as any;
+            const jTokens = tu?.total_tokens ?? (typeof tu === 'number' ? tu : null) ?? j.runtime_context?.token_usage?.total_tokens;
+            return acc + (jTokens ? Number(jTokens) : 0);
         }, 0);
+        
+        if (tokens === 0) tokens = totalEstTokens;
 
-        const cost = jobs.reduce((acc, j) => {
-            const explicitCost = j.runtime_context?.token_usage?.cost ?? j.cost;
+        let cost = jobs.reduce((acc, j) => {
+            const tu = j.token_usage as any;
+            const explicitCost = tu?.cost ?? j.runtime_context?.token_usage?.cost ?? j.cost;
             if (explicitCost !== undefined && explicitCost !== null) {
                 return acc + (Number(explicitCost) || 0);
             }
-            
-            // Fallback: $0.002 per 1k tokens (consistent with [jobId]/page.tsx)
-            const jTokens = Number(j.runtime_context?.token_usage?.total_tokens ?? j.token_usage ?? 0);
-            const estimatedCost = (jTokens / 1000) * 0.002;
-            return acc + estimatedCost;
+            return acc;
         }, 0);
+        
+        if (cost === 0) cost = (tokens / 1000) * 0.002;
 
         return {
             totalTokens: tokens,
             totalCost: cost,
-            totalAgents: jobs.length,
+            totalRequests: jobs.length,
+            totalAgents: 4, // Master node count (COO, Researcher, Worker, Grader)
             activeAgents: activeAgentCount,
             resurrectionEvents: resurrections,
             tasksCompleted: completedCount.toString(),
             failedTasks: failedCount.toString(),
             continuityAlert: failedCount > 0
         };
-    }, [jobs]);
+    }, [jobs, deriveHomeStatus]);
 
     const fetchStats = React.useCallback(async () => {
         if (!userUid) return;
@@ -291,7 +419,7 @@ export default function DashboardPage() {
 
     // Filter active jobs for the Mission Queue
     const activeJobs = jobs.filter(j => 
-        ["queued", "assigned", "in_progress", "awaiting_approval", "resurrected", "created"].includes(j.status)
+        ["queued", "assigned", "in_progress", "executing", "awaiting_approval", "resurrected", "created"].includes(j.status)
     );
     const completedJobs = jobs.filter(j => 
         ["completed", "graded", "approved", "rejected", "failed"].includes(j.status)
@@ -311,7 +439,7 @@ export default function DashboardPage() {
                 // Mark as fetching immediately
                 fetchingJobIdsRef.current.add(id);
 
-                nxqApi.getJob(id).then((fullJob: any) => {
+                aceApi.getJob(id).then((fullJob: any) => {
                     if (fullJob) {
                         // Parse stringified fields (runtime_context) before updating
                         const parsed = { ...fullJob, id: fullJob.id || fullJob.job_id };
@@ -339,6 +467,12 @@ export default function DashboardPage() {
     const statusColorMap: Record<string, string> = {
         queued: "text-blue-500 border-blue-500/30 bg-blue-500/5",
         assigned: "text-yellow-500 border-yellow-500/30 bg-yellow-500/5",
+        lease_check: "text-indigo-400 border-indigo-400/30 bg-indigo-400/5",
+        executing: "text-cyan-500 border-cyan-500/30 bg-cyan-500/5",
+        coo_planning: "text-blue-400 border-blue-400/30 bg-blue-400/5",
+        research_execution: "text-cyan-400 border-cyan-400/30 bg-cyan-400/5",
+        worker_execution: "text-purple-400 border-purple-400/30 bg-purple-400/5",
+        grading: "text-pink-400 border-pink-400/30 bg-pink-400/5",
         in_progress: "text-yellow-500 border-yellow-500/30 bg-yellow-500/5",
         completed: "text-emerald-500 border-emerald-500/30 bg-emerald-500/5",
         approved: "text-emerald-500 border-emerald-500/30 bg-emerald-500/5",
@@ -347,13 +481,19 @@ export default function DashboardPage() {
         rejected: "text-rose-500 border-rose-500/30 bg-rose-500/5",
         failed: "text-rose-500 border-rose-500/30 bg-rose-500/5",
         resurrected: "text-cyan-500 border-cyan-500/30 bg-cyan-500/5",
-        awaiting_approval: "text-amber-500 border-amber-500/30 bg-amber-500/5",
+        awaiting_approval: "text-orange-500 border-orange-500/30 bg-orange-500/5",
+    };
+
+    const formatStatus = (s: string) => {
+        if (!s) return '';
+        if (s === 'awaiting_approval') return 'graded';
+        return s.replace(/_/g, ' ');
     };
 
     const isStatsSyncing = statsLoading && !data;
 
     const statsConfig = [
-        { label: "Total Requests", value: totalRequestCount.toString(), icon: Hash, sub: "Operation Count" },
+        { label: "Total Requests", value: isJobsSyncing ? "--" : realStats.totalRequests.toString(), icon: Hash, sub: "Operation Count" },
         { label: "Total Tokens", value: isJobsSyncing ? "--" : realStats.totalTokens.toLocaleString(), icon: Cpu, sub: "Compute Used" },
         { label: "Total Agents", value: isJobsSyncing ? "--" : realStats.totalAgents.toString(), icon: Users, sub: "Control Nodes" },
         { label: "Continuity Restore", value: isJobsSyncing ? "--" : realStats.resurrectionEvents.toString(), icon: RotateCw, sub: "Events" },
@@ -378,8 +518,8 @@ export default function DashboardPage() {
             <div className="hidden lg:flex flex-col sm:flex-row items-center justify-between border-b border-white/10 pb-4 mb-2 shrink-0 gap-4">
                 <div className="flex items-center gap-4 md:gap-6 w-full sm:w-auto overflow-hidden">
                     <div className="flex items-center gap-3 shrink-0">
-                        <img src="/nxq-symbol.png" alt="NXQ Symbol" className="h-12 w-auto object-contain" />
-                        <span className="text-xl md:text-2xl font-black text-white italic tracking-tighter glitch-text">NXQ</span>
+                        <img src="/ace-symbol.png" alt="ACEPLACE Symbol" className="h-12 w-auto object-contain" />
+                        <span className="text-xl md:text-2xl font-black text-white italic tracking-tighter glitch-text">ACEPLACE</span>
                         <span className="text-lg md:text-xl font-bold text-white tracking-widest uppercase glitch-text">WORKSTATION</span>
                     </div>
                     <span className="hidden lg:block text-[10px] text-cyan-500/50 font-black tracking-[0.3em] uppercase border-l border-white/10 pl-6 border-cyan-500/20 whitespace-nowrap">AgentSpace Control Panel</span>
@@ -417,7 +557,7 @@ export default function DashboardPage() {
                                 {user?.email?.split('@')[0].toUpperCase() || "ADMINISTRATOR"}
                             </p>
                             <p className="text-[9px] text-cyan-500/50 uppercase tracking-tighter font-bold">
-                                {user?.email || "NXQ System User"}
+                                {user?.email || "ACEPLACE System User"}
                             </p>
                         </div>
 
@@ -517,7 +657,7 @@ export default function DashboardPage() {
                                     <div className="flex flex-col min-w-0">
                                         <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-emerald-400 truncate">{job.prompt}</span>
                                         <div className="flex items-center justify-between">
-                                            <span className="text-[7px] uppercase font-bold text-slate-600 tracking-tighter italic">Status: {job.status}</span>
+                                            <span className="text-[7px] uppercase font-bold text-slate-600 tracking-tighter italic">Status: {formatStatus(deriveHomeStatus(job))}</span>
                                             <span className="text-[6px] font-mono text-slate-700 tracking-tighter">ID: {job.job_id.slice(-6)}</span>
                                         </div>
                                     </div>
@@ -567,7 +707,7 @@ export default function DashboardPage() {
                                     }}
                                     className={cn(
                                         "group border border-white/5 p-2 md:p-3 flex items-center gap-3 md:gap-4 bg-white/5 hover:bg-white/10 transition-all cursor-pointer relative overflow-hidden cursor-target",
-                                        job.status === 'in_progress' && "animate-breathing"
+                                        (job.status === 'in_progress' || job.status === 'executing') && "animate-breathing"
                                     )}
                                 >
                                     <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-cyan-500 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -577,7 +717,7 @@ export default function DashboardPage() {
                                     <div className="flex flex-col min-w-0">
                                         <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-cyan-400 truncate">{job.prompt}</span>
                                         <div className="flex items-center justify-between">
-                                            <span className="text-[7px] uppercase font-bold text-slate-600 tracking-tighter italic">Status: {job.status}</span>
+                                            <span className="text-[7px] uppercase font-bold text-slate-600 tracking-tighter italic">Status: {formatStatus(deriveHomeStatus(job))}</span>
                                             <span className="text-[6px] font-mono text-slate-700 tracking-tighter">ID: {job.job_id.slice(-6)}</span>
                                         </div>
                                     </div>
@@ -792,9 +932,9 @@ export default function DashboardPage() {
                                             <td className="py-3 text-nowrap">
                                                 <span className={cn(
                                                     "px-2 py-0.5 text-[8px] font-black uppercase tracking-widest border",
-                                                    statusColorMap[job.status] || "text-cyan-500 border-cyan-500/30 bg-cyan-500/5"
+                                                    statusColorMap[deriveHomeStatus(job)] || "text-cyan-500 border-cyan-500/30 bg-cyan-500/5"
                                                 )}>
-                                                    {job.status}
+                                                    {formatStatus(deriveHomeStatus(job))}
                                                 </span>
                                             </td>
                                             <td className="py-3">
@@ -852,7 +992,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Right Sidebar: COMMAND + MONITOR */}
-                <div className="col-span-1 md:col-span-12 lg:col-span-3 space-y-4 flex flex-col h-auto lg:h-[800px] lg:h-full lg:overflow-hidden order-3">
+                <div className="col-span-1 md:col-span-12 lg:col-span-3 space-y-4 flex flex-col h-auto lg:h-full lg:overflow-hidden order-3 min-h-0">
 
                     {/* Agent Identity Panel */}
                     <ErrorBoundary title="Identity Panel">
@@ -864,50 +1004,62 @@ export default function DashboardPage() {
                         <LeaseManager />
                     </ErrorBoundary>
 
-                    {/* NOVA 1000 COMMAND */}
-                    <HUDFrame title="NOVA 1000 COMMAND" className="h-[320px] lg:h-[400px] shrink-0 flex flex-col">
+                    {/* ACEPLACE COMMAND */}
+                    <HUDFrame title="ACEPLACE COMMAND" className="min-h-[300px] lg:min-h-[350px] flex-none shrink-0 flex flex-col relative overflow-hidden group">
+                        {/* Background subtle glow */}
+                        <div className={cn("absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[180%] h-[180%] bg-cyan-500/10 blur-[80px] rounded-full transition-opacity duration-1000", isSpeaking ? "opacity-100" : "opacity-0")} />
+                        
                         <div
-                            className="flex-1 flex flex-col items-center justify-center relative group cursor-target"
+                            className="flex-1 flex flex-col items-center justify-center relative z-10 cursor-target p-4"
                             onClick={() => setIsSpeaking(!isSpeaking)}
                         >
-                            {/* New Waveform UI */}
-                            <div className="w-44 h-44 md:w-52 md:h-52 relative flex items-center justify-center">
-                                <NovaWaveform
-                                    isSpeaking={isSpeaking}
-                                    className="w-full h-full"
-                                />
+                            {/* Premium Glow Orb */}
+                            <div className="relative flex items-center justify-center mb-6 transition-transform duration-700 group-hover:scale-105 active:scale-95">
+                                <div className="w-32 h-32 md:w-40 md:h-40 relative flex items-center justify-center">
+                                    {/* Pulse ring when scanning */}
+                                    <div className={cn("absolute inset-0 rounded-full border border-cyan-500/30 transition-all duration-1000", isSpeaking ? "scale-125 opacity-0 animate-[ping_3s_cubic-bezier(0,0,0.2,1)_infinite] shadow-[0_0_30px_rgba(6,182,212,0.3)]" : "scale-100 opacity-100")} />
+                                    
+                                    <AceWaveform
+                                        isSpeaking={isSpeaking}
+                                        className="w-full h-full"
+                                    />
+                                </div>
                             </div>
 
-                            {/* Label & Status */}
-                            <div className="mt-4 flex flex-col items-center">
-                                <h3 className="text-xl md:text-2xl font-medium text-white tracking-widest flex items-baseline gap-1">
-                                    NOVA 1000<span className="text-[10px] align-top font-bold text-cyan-500/80">™</span>
-                                </h3>
-
-                                <p className={cn(
-                                    "mt-2 text-[10px] font-medium tracking-[0.1em] transition-all duration-500",
-                                    isSpeaking ? "text-cyan-400 opacity-100" : "text-slate-500 opacity-60"
-                                )}>
-                                    {isSpeaking ? "NOVA 1000™ is speaking..." : "Ready for voice interaction"}
-                                </p>
-
-                                {/* 5-bar visualizer sub-indicator */}
-                                <div className="mt-3 flex gap-1 h-3 items-end">
-                                    {Array.from({ length: 5 }).map((_, i) => (
-                                        <div
-                                            key={i}
-                                            className={cn(
-                                                "w-1 bg-cyan-500/40 rounded-full transition-all duration-300",
-                                                isSpeaking && "animate-pulse bg-cyan-400"
-                                            )}
-                                            style={{
-                                                height: isSpeaking ? `${40 + Math.random() * 60}%` : '40%',
-                                                animationDelay: `${i * 0.1}s`
-                                            }}
-                                        />
-                                    ))}
+                            {/* Label & Dynamic Status Matrix */}
+                            <div className="mt-auto flex flex-col items-center w-full">
+                                <div className="text-center transition-all duration-500 group-hover:drop-shadow-[0_0_10px_rgba(34,211,238,0.5)]">
+                                    <h4 className="text-xl md:text-2xl font-black text-white tracking-[0.25em] flex items-baseline justify-center gap-1">
+                                        ACEPLACE<span className="text-[10px] align-top font-bold text-cyan-500/80">™</span>
+                                    </h4>
                                 </div>
-                                <p className="mt-4 text-[8px] uppercase text-cyan-500/20 font-black tracking-[0.3em]">Tap to begin</p>
+
+                                <div className="h-6 mt-2 relative w-full flex justify-center items-center overflow-hidden">
+                                    {/* Dynamic visualizer shown only when active */}
+                                    <div className={cn("absolute inset-y-0 flex gap-1 items-end justify-center transition-all duration-500", isSpeaking ? "opacity-100 scale-100" : "opacity-0 scale-90 translate-y-4")}>
+                                        {Array.from({ length: 5 }).map((_, i) => (
+                                            <div
+                                                key={i}
+                                                className="w-1 bg-cyan-400 rounded-full animate-pulse shadow-[0_0_8px_#22d3ee]"
+                                                style={{
+                                                    height: isSpeaking ? `${40 + Math.random() * 60}%` : '20%',
+                                                    animationDelay: `${i * 0.1}s`,
+                                                    animationDuration: '0.6s'
+                                                }}
+                                            />
+                                        ))}
+                                    </div>
+                                    
+                                    {/* Standby prompt */}
+                                    <p className={cn(
+                                        "absolute inset-y-0 flex items-center justify-center text-[10px] font-bold tracking-[0.15em] transition-all duration-500 uppercase",
+                                        isSpeaking ? "text-cyan-400 opacity-0 -translate-y-4" : "text-slate-500 opacity-80 translate-y-0"
+                                    )}>
+                                        Ready for voice routing
+                                    </p>
+                                </div>
+
+                                <p className="mt-4 text-[8px] uppercase text-cyan-500/30 font-black tracking-[0.4em] mb-1 opacity-0 group-hover:opacity-100 transition-opacity">Tap Orb to Initialize</p>
                             </div>
                         </div>
                     </HUDFrame>
@@ -1015,7 +1167,7 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 h-full">
                     {/* Stats boxes in footer */}
                     {[
-                        { label: "Total Requests", value: totalRequestCount, icon: Hash, color: "text-cyan-400" },
+                        { label: "Total Requests", value: isJobsSyncing || isStatsSyncing ? "--" : realStats.totalRequests.toString(), icon: Hash, color: "text-cyan-400" },
                         { label: "Tasks Completed", value: isJobsSyncing || isStatsSyncing ? "--" : realStats.tasksCompleted, icon: CheckCircle2, color: "text-blue-400" },
                         { label: "Failed Tasks", value: isJobsSyncing || isStatsSyncing ? "--" : realStats.failedTasks, icon: AlertTriangle, color: "text-purple-400" },
                         { label: "Active Tasks", value: isJobsSyncing || isStatsSyncing ? "--" : realStats.activeAgents.toString(), icon: Activity, color: "text-emerald-400" },

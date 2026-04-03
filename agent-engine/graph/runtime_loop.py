@@ -76,6 +76,12 @@ def run_envelope(envelope_id: str, instance_id: str) -> None:
     agent_id = identity_ctx.get("agent_id", "unknown")
     fingerprint = identity_ctx.get("identity_fingerprint", "")
 
+    # ── Job Sync: Lease Check ──────────────────────────────────────────────────
+    job_id = envelope.get("job_id")
+    if job_id:
+        from services.firestore import sync_job_with_envelope
+        sync_job_with_envelope(job_id=job_id, status="lease_check", envelope_id=envelope_id)
+
     # ── Step 3: Acquire Authority Lease ───────────────────────────────────────
     if not acquire_envelope_lease(envelope_id, instance_id):
         print(f"[RUNTIME] Lease acquisition failed (fork?) for {envelope_id}.")
@@ -116,6 +122,21 @@ def run_envelope(envelope_id: str, instance_id: str) -> None:
                     lease_holder=instance_id,
                     payload={"final_status": final},
                 )
+                # Sync job to awaiting_approval so UI shows governance controls
+                job_id = envelope.get("job_id")
+                if job_id:
+                    from services.firestore import sync_job_with_envelope
+                    sync_job_with_envelope(
+                        job_id=job_id,
+                        status="awaiting_approval" if not any_failed else "failed",
+                        envelope_id=envelope_id,
+                        extra={
+                            "active_stage": "COMPLETED",
+                            "completed_at": __import__("datetime").datetime.now(
+                                __import__("datetime").timezone.utc
+                            ).isoformat(),
+                        },
+                    )
             break
 
         step_id = step["step_id"]
@@ -133,6 +154,24 @@ def run_envelope(envelope_id: str, instance_id: str) -> None:
         update_envelope_step(envelope_id, step_id, {"status": "executing"})
         append_trace(envelope_id, step_id, agent_id, fingerprint,
                      f"STEP_STARTED_{step_type.upper()}")
+
+        # ── Sync job status for stage start ────────────────────────────────────
+        job_id = envelope.get("job_id")
+        if job_id:
+            STATUS_MAP = {
+                "plan": "coo_planning",
+                "assign": "research_execution",
+                "artifact_produce": "worker_execution",
+                "evaluation": "grading"
+            }
+            mapped_status = STATUS_MAP.get(step_type, f"{step_type}_execution")
+            from services.firestore import sync_job_with_envelope
+            sync_job_with_envelope(
+                job_id=job_id,
+                status=mapped_status,
+                envelope_id=envelope_id,
+                extra={"active_stage": step_type, "current_step": step_id},
+            )
 
         # ── Step 5: Generate #us# Message ─────────────────────────────────────
         try:
@@ -198,8 +237,40 @@ def run_envelope(envelope_id: str, instance_id: str) -> None:
                      f"STEP_COMPLETED_{step_type.upper()}",
                      {"artifact_id": artifact_id})
 
-        # ── Step 10: Advance next pending step → ready ─────────────────────────
-        advance_next_pending_step(envelope_id, step_id)
+        # ── Step 10: Advance next pending step → ready (with input_ref) ───────────
+        # CRITICAL: pass artifact_id so the next agent reads this step's output
+        advance_next_pending_step(envelope_id, step_id, artifact_id)
+
+        # ── Sync job status after each step ────────────────────────────────────────
+        job_id = envelope.get("job_id")
+        if job_id:
+            STATUS_MAP = {
+                "plan": "coo_planning",
+                "assign": "research_execution",
+                "artifact_produce": "worker_execution",
+                "evaluation": "grading"
+            }
+            mapped_status = STATUS_MAP.get(step_type, f"{step_type}_execution")
+            extra = {"active_stage": step_type, "last_completed_step": step_id}
+            
+            if step_type == "evaluation" and output_content:
+                try:
+                    import json
+                    parsed_out = json.loads(output_content) if isinstance(output_content, str) else output_content
+                    if "overall_score" in parsed_out:
+                        extra["grade_score"] = parsed_out["overall_score"]
+                    elif "score" in parsed_out:
+                        extra["grade_score"] = parsed_out["score"]
+                except Exception:
+                    pass
+
+            from services.firestore import sync_job_with_envelope
+            sync_job_with_envelope(
+                job_id=job_id,
+                status=mapped_status,
+                envelope_id=envelope_id,
+                extra=extra,
+            )
 
         print(f"[RUNTIME] Step {step_id} ({step_type}) completed → {artifact_id}")
 

@@ -35,10 +35,10 @@ function MessageRow({ message }: MessageRowProps) {
   const [expanded, setExpanded] = useState(false);
 
   // Defensive access for v1.0 vs legacy formats
-  const verb = message.message_type || (message as any).verb;
-  const senderId = message.identity?.agent_id || (message as any).sender_agent_id;
-  const targetId = (message as any).target_agent_id; // Phase 2 protocol has no explicit target, fallback to broadcast
-  const stepId = message.execution?.step_id || (message as any).step_id;
+  const verb = message.message_type || (message as unknown as { verb: string }).verb;
+  const senderId = message.identity?.agent_id || (message as unknown as { sender_agent_id: string }).sender_agent_id;
+  const targetId = (message as unknown as { target_agent_id: string }).target_agent_id; // Phase 2 protocol has no explicit target, fallback to broadcast
+  const stepId = message.execution?.step_id || (message as unknown as { step_id: string }).step_id;
 
   const verbColor = VERB_COLORS[verb] || "text-slate-400 border-slate-500/30 bg-slate-500/10";
 

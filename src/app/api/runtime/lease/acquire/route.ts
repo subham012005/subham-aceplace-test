@@ -5,10 +5,17 @@
 
 import { NextResponse } from "next/server";
 import { acquireLease } from "@/lib/runtime/kernels/authority";
+import { verifyUserApiKey, safeErrorResponse } from "@/lib/api-security";
+import { adminDb } from "@/lib/firebase-admin";
+import { COLLECTIONS } from "@/lib/runtime/constants";
 import type { LeaseAcquireRequest } from "@/lib/runtime/types";
 
 export async function POST(req: Request) {
   try {
+    // 🔐 1. Authenticate via Master Secret (API Key)
+    const { userId, error: authError } = await verifyUserApiKey(req);
+    if (authError) return authError;
+
     const body = (await req.json()) as LeaseAcquireRequest;
 
     if (!body.envelope_id || !body.instance_id) {
@@ -16,6 +23,17 @@ export async function POST(req: Request) {
         { error: "VALIDATION", message: "envelope_id and instance_id are required" },
         { status: 400 }
       );
+    }
+
+    // 🔐 2. Verify Envelope Ownership
+    const envelopeDoc = await adminDb!.collection(COLLECTIONS.EXECUTION_ENVELOPES).doc(body.envelope_id).get();
+    if (!envelopeDoc.exists) {
+      return NextResponse.json({ error: "NOT_FOUND", message: "Envelope not found" }, { status: 404 });
+    }
+
+    const envelopeData = envelopeDoc.data();
+    if (envelopeData?.user_id !== userId) {
+      return NextResponse.json({ error: "FORBIDDEN", message: "You do not have authority over this envelope." }, { status: 403 });
     }
 
     const result = await acquireLease(

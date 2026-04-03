@@ -59,7 +59,7 @@ export function planEnvelopeSteps(params: {
     },
     {
       step_id: artifactStepId,
-      step_type: "artifact_produce",
+      step_type: "produce_artifact",
       role: "Worker",
       status: "pending",
       depends_on: [assignStepId],
@@ -73,7 +73,7 @@ export function planEnvelopeSteps(params: {
     },
     {
       step_id: evalStepId,
-      step_type: "evaluation",
+      step_type: "evaluate",
       role: "Grader",
       status: "pending",
       depends_on: [artifactStepId],

@@ -1,16 +1,19 @@
 /**
- * Thin client to ACELOGIC control plane (identity verify + optional lease acquire).
- * When ACELOGIC_API_URL is unset, verifies locally via envelope identity only.
+ * ACELOGIC execution guard — internal service (default), optional remote ACELOGIC_API_URL, with cache.
  */
 
 import type { ExecutionGuardResult } from "./types";
+import { runAceLogicExecutionGuard } from "@/lib/acelogic/service";
+import {
+  getCachedGuard,
+  invalidateGuard,
+  setCachedGuard,
+} from "./execution-guard-cache";
 
-function inferGateFromLease(
-  lease: ExecutionGuardResult["lease"]
-): number {
-  if (!lease) return 1;
-  if (lease.status === "active") return 5;
-  return 1;
+if (typeof process !== "undefined" && !process.env.ACELOGIC_API_URL) {
+  console.warn(
+    "[ACELOGIC] ACELOGIC_API_URL is not set. Falling back to in-process execution guard. This is RECOMMENDED FOR DEVELOPMENT ONLY."
+  );
 }
 
 function isCapabilityDenied(status: number, body: unknown): boolean {
@@ -19,27 +22,20 @@ function isCapabilityDenied(status: number, body: unknown): boolean {
   return err === "CAPABILITY_DENIED" || err === "GATE_DENIED";
 }
 
-export async function acelogicExecutionGuard(params: {
+function inferGateFromLease(lease: ExecutionGuardResult["lease"]): number {
+  if (!lease) return 1;
+  if (lease.status === "active") return 5;
+  return 1;
+}
+
+async function callRemoteAceLogic(params: {
   agent_id: string;
   identity_fingerprint: string;
   instance_id: string;
   org_id: string;
   license_id: string;
 }): Promise<ExecutionGuardResult> {
-  const base = process.env.ACELOGIC_API_URL?.replace(/\/+$/, "");
-  if (!base) {
-    return {
-      allowed: true,
-      identity_context: {
-        agent_id: params.agent_id,
-        identity_fingerprint: params.identity_fingerprint,
-        instance_id: params.instance_id,
-        gate_level: 1,
-      },
-      lease: null,
-    };
-  }
-
+  const base = process.env.ACELOGIC_API_URL!.replace(/\/+$/, "");
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     "x-license-id": params.license_id,
@@ -55,7 +51,7 @@ export async function acelogicExecutionGuard(params: {
       instance_id: params.instance_id,
     }),
   });
-  const identityJson = (await identityRes.json()) as { valid?: boolean };
+  const identityJson = (await identityRes.json()) as { valid?: boolean; error?: string };
   if (!identityRes.ok || !identityJson.valid) {
     return {
       allowed: false,
@@ -83,6 +79,7 @@ export async function acelogicExecutionGuard(params: {
       lease_id?: string;
       lease_expires_at?: string;
       status?: "active" | "expired" | "revoked";
+      error?: string;
     };
     if (leaseRes.ok && leaseJson.lease_id) {
       lease = {
@@ -112,4 +109,32 @@ export async function acelogicExecutionGuard(params: {
     },
     lease,
   };
+}
+
+export async function acelogicExecutionGuard(params: {
+  agent_id: string;
+  identity_fingerprint: string;
+  instance_id: string;
+  org_id: string;
+  license_id: string;
+}): Promise<ExecutionGuardResult> {
+  const cached = getCachedGuard(params);
+  if (cached) return cached;
+
+  let result: ExecutionGuardResult;
+
+  const remote = process.env.ACELOGIC_API_URL?.replace(/\/+$/, "");
+  if (remote) {
+    result = await callRemoteAceLogic(params);
+  } else {
+    result = await runAceLogicExecutionGuard(params);
+  }
+
+  if (!result.allowed) {
+    invalidateGuard(params);
+    return result;
+  }
+
+  setCachedGuard(params, result);
+  return result;
 }

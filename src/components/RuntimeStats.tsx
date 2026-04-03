@@ -6,8 +6,7 @@
  */
 
 import React from "react";
-import { Layers, ShieldCheck, Activity, CheckCircle2 } from "lucide-react";
-import { HUDFrame } from "./HUDFrame";
+import { Layers, ShieldCheck, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRuntimeStats } from "@/hooks/useRuntimeStats";
 

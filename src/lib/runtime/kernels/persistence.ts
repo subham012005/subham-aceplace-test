@@ -181,3 +181,36 @@ export async function linkJobToEnvelope(
     .doc(jobId)
     .set({ envelope_id: envelopeId, updated_at: new Date().toISOString() }, { merge: true });
 }
+
+/**
+ * Sync the legacy job status with the envelope's current state.
+ */
+export async function syncJobStatus(
+  jobId: string,
+  status: string,
+  extraData?: Record<string, any>
+): Promise<void> {
+  await getDb()
+    .collection(COLLECTIONS.JOBS)
+    .doc(jobId)
+    .set({ 
+      status, 
+      updated_at: new Date().toISOString(),
+      ...(extraData || {})
+    }, { merge: true });
+}
+
+export async function getJob(jobId: string): Promise<{ envelope_id: string } | null> {
+  const doc = await getDb()
+    .collection(COLLECTIONS.JOBS)
+    .doc(jobId)
+    .get();
+  return doc.exists ? (doc.data() as { envelope_id: string }) : null;
+}
+
+export async function deleteAgent(agentId: string): Promise<void> {
+  await getDb()
+    .collection(COLLECTIONS.AGENTS)
+    .doc(agentId)
+    .delete();
+}

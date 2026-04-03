@@ -2,7 +2,7 @@
  * Runtime Engine Orchestrator — Phase 2
  *
  * Dispatch creates an execution_envelope with embedded steps[] and authority_lease=null.
- * Execution is driven by the deterministic runtime loop (runtime-loop.ts).
+ * Execution is driven by the parallel multi-agent runner (parallel-runner.ts).
  *
  * Phase 2 | Envelope-Driven Runtime
  */
@@ -10,7 +10,7 @@
 import * as identityKernel from "./kernels/identity";
 import * as persistence from "./kernels/persistence";
 import { buildEnvelope, buildDefaultIdentityContext } from "./envelope-builder";
-import { runEnvelope } from "./runtime-loop";
+import { runEnvelopeParallel } from "./parallel-runner";
 import { transition } from "./state-machine";
 import type { ExecutionEnvelope, DispatchRequest, DispatchResponse } from "./types";
 import { randomUUID } from "crypto";
@@ -19,13 +19,6 @@ const AGENT_ENGINE_URL = process.env.AGENT_ENGINE_URL || "http://localhost:8001"
 
 /**
  * Dispatch a new task — creates an envelope and starts the runtime loop.
- *
- * Full flow:
- *   1. Build identity context from agents/{agent_id}
- *   2. Build ExecutionEnvelope with steps[] embedded
- *   3. Persist envelope to execution_envelopes/{envelope_id}
- *   4. Link job → envelope (for UI display only)
- *   5. Trigger runtime loop (acquires lease + executes steps)
  */
 export async function dispatch(params: {
   prompt: string;
@@ -37,13 +30,37 @@ export async function dispatch(params: {
   const agentId = params.agentId || "agent_coo";
   const instanceId = `inst_${randomUUID().replace(/-/g, "").slice(0, 16)}`;
 
-  // ── Step 1: Build Identity Context ────────────────────────────────────────
-  let identityContext = buildDefaultIdentityContext(agentId);
-  try {
-    const stored = await identityKernel.buildIdentityContext(agentId);
-    if (stored) identityContext = stored;
-  } catch {
-    // agents collection may not exist yet in dev — use default
+  // ── Step 0: Idempotency Check ─────────────────────────────────────────────
+  if (params.jobId) {
+    const existingJob = await persistence.getJob(params.jobId);
+    if (existingJob && existingJob.envelope_id) {
+      const existingEnvelope = await persistence.getEnvelope(existingJob.envelope_id);
+      if (existingEnvelope) {
+        return {
+          success: true,
+          envelope_id: existingEnvelope.envelope_id,
+          envelope: existingEnvelope,
+          message: "Existing job found. Returning current state.",
+        };
+      }
+    }
+  }
+
+  // ── Step 1: Build Identity Contexts (Multi-Agent Map) ─────────────────────
+  const identity_contexts: Record<string, any> = {};
+  const coreAgents = [agentId, "agent_researcher", "agent_grader"];
+  
+  for (const aid of coreAgents) {
+    try {
+      const stored = await identityKernel.buildIdentityContext(aid);
+      if (stored) {
+        identity_contexts[aid] = stored;
+      } else {
+        identity_contexts[aid] = buildDefaultIdentityContext(aid);
+      }
+    } catch {
+      identity_contexts[aid] = buildDefaultIdentityContext(aid);
+    }
   }
 
   // ── Step 2: Build Envelope (steps embedded inside) ────────────────────────
@@ -52,26 +69,36 @@ export async function dispatch(params: {
     jobId: params.jobId,
     userId: params.userId,
     prompt: params.prompt,
-    identityContext,
+    identityContext: identity_contexts[agentId], // Principal/Coordinator
+    identity_contexts,                           // Full Multi-Agent Map
   });
 
   // ── Step 3: Persist Envelope ──────────────────────────────────────────────
   await persistence.createEnvelope(envelope);
 
   await persistence.addTrace(
-    envelope.envelope_id, "", agentId, identityContext.identity_fingerprint,
+    envelope.envelope_id, "", agentId, identity_contexts[agentId].identity_fingerprint,
     "ENVELOPE_CREATED", { step_count: envelope.steps.length }
   );
 
   // ── Step 4: Link Job → Envelope (UI pointer only) ─────────────────────────
   if (params.jobId) {
+    // Write envelope_id into job document immediately so UI can find it
+    await persistence.syncJobStatus(params.jobId, "executing", {
+      envelope_id: envelope.envelope_id,
+      active_stage: "DISPATCHED",
+      assigned_agent_id: agentId,
+    });
     await persistence.linkJobToEnvelope(params.jobId, envelope.envelope_id);
   }
 
   // ── Step 5: Trigger Runtime Loop ──────────────────────────────────────────
   // Runs async — returns dispatch response immediately, loop runs in background
-  runEnvelope(envelope.envelope_id, instanceId).catch((err) => {
-    console.error(`[ENGINE] Runtime loop crashed for ${envelope.envelope_id}:`, err);
+  runEnvelopeParallel({
+    envelope_id: envelope.envelope_id,
+    instance_id: instanceId,
+  }).catch((err) => {
+    console.error(`[ENGINE] Parallel runtime loop crashed for ${envelope.envelope_id}:`, err);
   });
 
   return {

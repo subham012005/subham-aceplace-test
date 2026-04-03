@@ -81,6 +81,39 @@ export function validatePerAgentLease(
   }
 }
 
+/** Heartbeat / explicit renew — extends lease_expires_at for active same-instance holder. */
+export async function renewPerAgentLease(
+  envelopeId: string,
+  agentId: string,
+  instanceId: string
+): Promise<AgentAuthorityLease> {
+  const db = getDb();
+  const ref = db.collection(COLLECTIONS.EXECUTION_ENVELOPES).doc(envelopeId);
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) throw new Error("ENVELOPE_NOT_FOUND");
+    const envelope = snap.data() as ExecutionEnvelope;
+    const current = envelope.authority_leases?.[agentId];
+    if (!current) throw new Error(`LEASE_MISSING:${agentId}`);
+    if (current.current_instance_id !== instanceId) {
+      throw new Error(`FORK_DETECTED:${agentId}`);
+    }
+    const nowIso = new Date().toISOString();
+    const expiresAt = new Date(Date.now() + LEASE_MS).toISOString();
+    const lease: AgentAuthorityLease = {
+      ...current,
+      lease_expires_at: expiresAt,
+      last_renewed_at: nowIso,
+      status: "active",
+    };
+    tx.update(ref, {
+      [`authority_leases.${agentId}`]: lease,
+      updated_at: nowIso,
+    });
+    return lease;
+  });
+}
+
 export async function releasePerAgentLease(envelopeId: string, agentId: string): Promise<void> {
   const db = getDb();
   const ref = db.collection(COLLECTIONS.EXECUTION_ENVELOPES).doc(envelopeId);

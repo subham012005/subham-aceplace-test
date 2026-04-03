@@ -1,8 +1,10 @@
 /**
- * Unified client for NXQ Workstation API.
+ * Unified client for ACEPLACE Workstation API.
  * 
  * All client-side calls go through local /api proxy routes.
  */
+import { auth } from "./firebase";
+import { getIdToken } from "firebase/auth";
 
 export interface CreateJobData {
     user_id: string;
@@ -25,9 +27,30 @@ export interface ForkSimulateData {
     reason: string;
 }
 
-class NXQApiClient {
+class AceApiClient {
     async createJob(data: CreateJobData) {
-        const response = await fetch("/api/jobs/intake", {
+        const response = await this.secureFetch("/api/jobs/intake", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+        });
+        return this.handleResponse(response);
+    }
+
+    /**
+     * Dashboard-oriented helper: dispatch a deterministic runtime task
+     * from an authenticated workstation session.
+     *
+     * This hits /api/runtime/dispatch/from-dashboard which:
+     *  - Authenticates via Firebase ID token (verifyUserApiKey)
+     *  - Calls the runtime engine dispatcher
+     */
+    async dispatchFromDashboard(data: {
+        prompt: string;
+        job_id?: string;
+        agent_id?: string;
+    }) {
+        const response = await this.secureFetch("/api/runtime/dispatch/from-dashboard", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(data),
@@ -36,18 +59,18 @@ class NXQApiClient {
     }
 
     async getAllJobs(userId: string) {
-        const response = await fetch(`/api/jobs?user_id=${userId}`);
+        const response = await this.secureFetch(`/api/jobs?user_id=${userId}`);
         return this.handleResponse(response);
     }
 
     async getJob(jobId: string, userId?: string) {
         const url = userId ? `/api/jobs/${jobId}?user_id=${userId}` : `/api/jobs/${jobId}`;
-        const response = await fetch(url);
+        const response = await this.secureFetch(url);
         return this.handleResponse(response);
     }
 
     async approveJob(jobId: string) {
-        const response = await fetch("/api/jobs/approve", {
+        const response = await this.secureFetch("/api/jobs/approve", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ job_id: jobId }),
@@ -56,7 +79,7 @@ class NXQApiClient {
     }
 
     async rejectJob(jobId: string, reason: string) {
-        const response = await fetch("/api/jobs/reject", {
+        const response = await this.secureFetch("/api/jobs/reject", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ job_id: jobId, reason }),
@@ -65,7 +88,7 @@ class NXQApiClient {
     }
 
     async resurrectJob(jobId: string, reason: string) {
-        const response = await fetch(`/api/jobs/${jobId}/resurrect`, {
+        const response = await this.secureFetch(`/api/jobs/${jobId}/resurrect`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ reason }),
@@ -74,7 +97,7 @@ class NXQApiClient {
     }
 
     async simulateFork(data: ForkSimulateData) {
-        const response = await fetch(`/api/jobs/${data.job_id}/fork-simulate`, {
+        const response = await this.secureFetch(`/api/jobs/${data.job_id}/fork-simulate`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(data),
@@ -85,7 +108,7 @@ class NXQApiClient {
     // ─── Phase 2 Runtime API ────────────────────────────────
 
     async dispatchTask(data: any) {
-        const response = await fetch("/api/runtime/dispatch", {
+        const response = await this.secureFetch("/api/runtime/dispatch", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(data),
@@ -93,18 +116,28 @@ class NXQApiClient {
         return this.handleResponse(response);
     }
 
+    /** ACEPLACE ACE → #us#.task.handoff → multi-agent envelope + parallel runner */
+    async submitAceHandoff(payload: Record<string, unknown>) {
+        const response = await this.secureFetch("/api/runtime/handoff", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+        return this.handleResponse(response);
+    }
+
     async getEnvelope(id: string) {
-        const response = await fetch(`/api/runtime/envelope/${id}`);
+        const response = await this.secureFetch(`/api/runtime/envelope/${id}`);
         return this.handleResponse(response);
     }
 
     async getEnvelopeSteps(id: string) {
-        const response = await fetch(`/api/runtime/envelope/${id}/steps`);
+        const response = await this.secureFetch(`/api/runtime/envelope/${id}/steps`);
         return this.handleResponse(response);
     }
 
     async acquireLease(data: { execution_id: string; agent_id: string }) {
-        const response = await fetch("/api/runtime/lease/acquire", {
+        const response = await this.secureFetch("/api/runtime/lease/acquire", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(data),
@@ -113,7 +146,7 @@ class NXQApiClient {
     }
 
     async releaseLease(leaseId: string) {
-        const response = await fetch("/api/runtime/lease/release", {
+        const response = await this.secureFetch("/api/runtime/lease/release", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ lease_id: leaseId }),
@@ -122,7 +155,7 @@ class NXQApiClient {
     }
 
     async updateCheckpoint(id: string, data: any) {
-        const response = await fetch(`/api/runtime/checkpoint/${id}`, {
+        const response = await this.secureFetch(`/api/runtime/checkpoint/${id}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(data),
@@ -131,7 +164,7 @@ class NXQApiClient {
     }
 
     async verifyIdentity(data: { agent_id: string; fingerprint: string }) {
-        const response = await fetch("/api/runtime/identity/verify", {
+        const response = await this.secureFetch("/api/runtime/identity/verify", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(data),
@@ -139,13 +172,124 @@ class NXQApiClient {
         return this.handleResponse(response);
     }
 
+    // ─── Dashboard Data Fetching (Secure Layer) ───────
+
+    async getActiveLeases() {
+        const response = await this.secureFetch("/api/runtime/leases/active");
+        return this.handleResponse(response);
+    }
+
+    async getAgentIdentity(agentId: string) {
+        const response = await this.secureFetch(`/api/runtime/identity/${agentId}`);
+        return this.handleResponse(response);
+    }
+
+    async getUserEnvelopes(userId: string) {
+        const response = await this.secureFetch(`/api/runtime/envelopes?user_id=${userId}`);
+        return this.handleResponse(response);
+    }
+
+    async getRuntimeStats() {
+        const response = await this.secureFetch("/api/runtime/stats");
+        return this.handleResponse(response);
+    }
+
+    async getSecureJobs() {
+        const response = await this.secureFetch("/api/runtime/jobs");
+        return this.handleResponse(response);
+    }
+
+    async getSecureJobDetail(jobId: string) {
+        const response = await this.secureFetch(`/api/runtime/jobs/${jobId}`);
+        return this.handleResponse(response);
+    }
+
+    async getSecureJobTraces(jobId: string) {
+        const response = await this.secureFetch(`/api/runtime/jobs/${jobId}/traces`);
+        return this.handleResponse(response);
+    }
+
+    async getSecureJobArtifacts(jobId: string) {
+        const response = await this.secureFetch(`/api/runtime/jobs/${jobId}/artifacts`);
+        return this.handleResponse(response);
+    }
+
+    async listExplorerEnvelopes(params?: { org_id?: string; status?: string; limit?: number }) {
+        const qs = new URLSearchParams();
+        if (params?.org_id) qs.set("org_id", params.org_id);
+        if (params?.status) qs.set("status", params.status);
+        if (params?.limit != null) qs.set("limit", String(params.limit));
+        const response = await fetch(`/api/explorer/envelopes?${qs.toString()}`);
+        return this.handleResponse(response);
+    }
+
+    async getExplorerEnvelopeDetail(envelopeId: string) {
+        const response = await fetch(`/api/explorer/envelopes/${envelopeId}`);
+        return this.handleResponse(response);
+    }
+
+    async getExplorerEnvelopeSummary(envelopeId: string) {
+        const response = await fetch(`/api/explorer/envelopes/${envelopeId}/summary`);
+        return this.handleResponse(response);
+    }
+
+    async getExplorerTraces(envelopeId: string) {
+        const response = await fetch(`/api/explorer/traces/${envelopeId}`);
+        return this.handleResponse(response);
+    }
+
+    async getExplorerMessages(envelopeId: string) {
+        const response = await fetch(`/api/explorer/messages/${envelopeId}`);
+        return this.handleResponse(response);
+    }
+
+    async getExplorerArtifacts(envelopeId: string) {
+        const response = await fetch(`/api/explorer/artifacts/${envelopeId}`);
+        return this.handleResponse(response);
+    }
+
+    async getExplorerTelemetryEnvelope(envelopeId: string) {
+        const response = await this.secureFetch(`/api/explorer/telemetry/envelope/${envelopeId}`);
+        return this.handleResponse(response);
+    }
+
+    async getExplorerTelemetryAgent(agentId: string) {
+        const response = await this.secureFetch(`/api/explorer/telemetry/agent/${agentId}`);
+        return this.handleResponse(response);
+    }
+
+    /** 🔒 Private helper to inject Authorization Bearer token */
+    private async secureFetch(url: string, init: RequestInit = {}) {
+        const user = auth.currentUser;
+        const headers = new Headers(init.headers || {});
+        
+        if (user) {
+            try {
+                const token = await getIdToken(user);
+                headers.set("Authorization", `Bearer ${token}`);
+            } catch (err) {
+                console.error("[AceApiClient] Failed to get ID token:", err);
+            }
+        }
+
+        return fetch(url, {
+            ...init,
+            headers
+        });
+    }
+
     private async handleResponse(response: Response) {
         if (!response.ok) {
-            const error = await response.json().catch(() => ({ error: "Unknown error" }));
-            throw new Error(error.error || `Request failed with status ${response.status}`);
+            const error = (await response.json().catch(() => ({}))) as {
+                error?: string;
+                message?: string;
+            };
+            throw new Error(
+                error.message || error.error || `Request failed with status ${response.status}`
+            );
         }
         return response.json();
     }
 }
 
-export const nxqApi = new NXQApiClient();
+export const aceApi = new AceApiClient();

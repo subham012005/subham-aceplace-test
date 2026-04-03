@@ -1,5 +1,5 @@
 /**
- * NXQ Runtime — Phase 2 Constants
+ * ACEPLACE Runtime — Phase 2 Constants
  *
  * Updated for envelope-driven runtime:
  * - No LEASES collection (lease embedded in envelope)
@@ -28,6 +28,13 @@ export const COLLECTIONS = {
   EXECUTION_MESSAGES: "execution_messages",      // #us# canonical persistence (spec)
   JOBS: "jobs",                                  // Legacy — UI pointer only (read-only)
   JOB_TRACES: "job_traces",                      // Legacy — UI display only
+  LICENSE_AUDIT_EVENTS: "license_audit_events",
+  LICENSES: "licenses",
+  TELEMETRY_EVENTS: "telemetry_events",
+  TELEMETRY_ROLLUPS: "telemetry_rollups",
+  ENVELOPE_METRICS: "envelope_metrics",
+  AGENT_METRICS: "agent_metrics",
+  SECRETS: "secrets",
 } as const;
 
 // ─── Envelope Status State Machine ────────────────────────────────────────────
@@ -37,9 +44,10 @@ export const ENVELOPE_STATUS_TRANSITIONS: Record<EnvelopeStatus, EnvelopeStatus[
   created:        ["leased", "failed"],
   leased:         ["planned", "quarantined", "failed"],
   planned:        ["executing", "failed"],
-  executing:      ["awaiting_human", "approved", "failed", "quarantined"],
+  executing:      ["awaiting_human", "approved", "completed", "failed", "quarantined"],
   awaiting_human: ["approved", "rejected", "failed"],
   approved:       [],                         // terminal
+  completed:      [],                         // terminal (canonical success — multi-agent path)
   rejected:       [],                         // terminal
   failed:         [],                         // terminal
   quarantined:    [],                         // terminal — requires manual intervention
@@ -61,13 +69,14 @@ export const STEP_STATUS_TRANSITIONS: Record<StepStatus, StepStatus[]> = {
 // ─── Step Type Config ─────────────────────────────────────────────────────────
 // Maps step_type → required #us# protocol verb
 
-export const STEP_TYPE_CONFIG: Record<StepType, {
+export const STEP_TYPE_CONFIG: Record<string, {
   label: string;
   protocol_verb: ProtocolVerb;
   agent_role: string;
   icon: string;
   color: string;
 }> = {
+  // ── Python STEP_HANDLERS keys (canonical source of truth) ──────────────────
   plan: {
     label: "Strategic Plan",
     protocol_verb: "#us#.task.plan",
@@ -76,10 +85,10 @@ export const STEP_TYPE_CONFIG: Record<StepType, {
     color: "#00E5FF",
   },
   assign: {
-    label: "Task Assignment",
+    label: "Research Assignment",
     protocol_verb: "#us#.task.assign",
     agent_role: "researcher",
-    icon: "Users",
+    icon: "Search",
     color: "#2DFF9B",
   },
   artifact_produce: {
@@ -90,6 +99,21 @@ export const STEP_TYPE_CONFIG: Record<StepType, {
     color: "#FF9E4D",
   },
   evaluation: {
+    label: "Grader Evaluation",
+    protocol_verb: "#us#.evaluation.score",
+    agent_role: "grader",
+    icon: "GraduationCap",
+    color: "#7CFF6B",
+  },
+  // ── Legacy aliases (keep for backward compat) ────────────────────────────
+  produce_artifact: {
+    label: "Artifact Production",
+    protocol_verb: "#us#.artifact.produce",
+    agent_role: "worker",
+    icon: "Cpu",
+    color: "#FF9E4D",
+  },
+  evaluate: {
     label: "Evaluation",
     protocol_verb: "#us#.evaluation.score",
     agent_role: "grader",
@@ -97,7 +121,7 @@ export const STEP_TYPE_CONFIG: Record<StepType, {
     color: "#7CFF6B",
   },
   human_approval: {
-    label: "Human approval",
+    label: "Human Approval",
     protocol_verb: "#us#.task.plan",
     agent_role: "coo",
     icon: "UserCircle",
@@ -115,7 +139,8 @@ export const STEP_TYPE_CONFIG: Record<StepType, {
 // ─── Default Step Pipeline ────────────────────────────────────────────────────
 // All steps default status is "pending". First step auto-advances to "ready".
 
-export const DEFAULT_STEP_PIPELINE: StepType[] = [
+// Canonical step order matching Python STEP_HANDLERS
+export const DEFAULT_STEP_PIPELINE: string[] = [
   "plan",
   "assign",
   "artifact_produce",
@@ -160,6 +185,7 @@ export const ENVELOPE_STATUS_DISPLAY: Record<EnvelopeStatus, {
   executing:      { label: "EXECUTING",       color: "text-amber-400",   bgColor: "bg-amber-400/10",   borderColor: "border-amber-400/50" },
   awaiting_human: { label: "AWAITING REVIEW", color: "text-orange-400",  bgColor: "bg-orange-400/10",  borderColor: "border-orange-400/50" },
   approved:       { label: "APPROVED",        color: "text-emerald-400", bgColor: "bg-emerald-400/10", borderColor: "border-emerald-400/50" },
+  completed:      { label: "COMPLETED",       color: "text-emerald-400", bgColor: "bg-emerald-400/10", borderColor: "border-emerald-400/50" },
   rejected:       { label: "REJECTED",        color: "text-red-400",     bgColor: "bg-red-400/10",     borderColor: "border-red-400/50" },
   failed:         { label: "FAILED",          color: "text-red-500",     bgColor: "bg-red-500/10",     borderColor: "border-red-500/50" },
   quarantined:    { label: "QUARANTINED",     color: "text-red-600",     bgColor: "bg-red-600/10",     borderColor: "border-red-600/50" },
@@ -171,9 +197,12 @@ export const STEP_STATUS_DISPLAY: Record<StepStatus, {
 }> = {
   pending:   { label: "PENDING",   color: "text-slate-500" },
   ready:     { label: "READY",     color: "text-cyan-400" },
-  executing: { label: "EXECUTING", color: "text-amber-400" },
-  completed: { label: "COMPLETED", color: "text-emerald-400" },
-  failed:    { label: "FAILED",    color: "text-red-500" },
+  executing: { label: "Executing", color: "#4DD9FF" },
+  completed: { label: "Completed", color: "#7CFF6B" },
+  failed: { label: "Failed", color: "#FF4D4D" },
+  awaiting_human: { label: "Awaiting Approval", color: "#FFC857" },
+  blocked: { label: "Blocked", color: "#FF9E4D" },
+  skipped: { label: "Skipped", color: "#94A3B8" }
 };
 
 // ─── Tier Definitions (UI display) ────────────────────────────────────────────

@@ -11,7 +11,7 @@
  * Phase 2 | Envelope-Driven Runtime
  */
 
-import { createHash } from "crypto";
+import { createHash, randomBytes } from "crypto";
 import { getDb } from "../db";
 import { COLLECTIONS } from "../constants";
 import { generateTraceId } from "../hash";
@@ -23,13 +23,7 @@ import type {
 } from "../types";
 
 /**
- * Verify agent identity against the envelope's identity_context.
- * MUST be called before any step execution.
- *
- * On mismatch: quarantines the envelope and returns verified=false.
- */
-/**
- * Resolve identity_context for a step agent (multi-agent envelopes).
+ * Resolve identity_context for a step agent (multi-agent envelopes), then verify.
  */
 export async function verifyIdentityForAgent(
   envelopeId: string,
@@ -61,6 +55,7 @@ export async function verifyIdentityForAgent(
   return verifyIdentity(envelopeId, agentId, synthetic);
 }
 
+/** Verify a single agent against envelope.identity_context (quarantines on mismatch). */
 export async function verifyIdentity(
   envelopeId: string,
   agentId: string,
@@ -85,13 +80,22 @@ export async function verifyIdentity(
 
   const agent = agentDoc.data() as AgentIdentity;
 
+  if (!agent.canonical_identity_json) {
+    await quarantineEnvelope(envelopeId, "IDENTITY_DATA_MISSING");
+    return { verified: false, agent_id: agentId, reason: "IDENTITY_DATA_MISSING", verified_at: now };
+  }
+
   // Recompute fingerprint from canonical_identity_json
-  const recomputedFingerprint = computeFingerprint(agent.canonical_identity_json);
+  const canonicalRaw = agent.canonical_identity_json;
+  const canonicalStr = typeof canonicalRaw === "string" ? canonicalRaw : JSON.stringify(canonicalRaw);
+  const recomputedFingerprint = computeFingerprint(canonicalStr);
 
   // Compare with envelope's expected fingerprint
   const expectedFingerprint = envelope.identity_context.identity_fingerprint;
 
-  if (recomputedFingerprint !== expectedFingerprint) {
+  if (expectedFingerprint === "pending_verification") {
+    // Pass verification; they are allowed to execute using their verified credential lease logic
+  } else if (recomputedFingerprint !== expectedFingerprint) {
     await quarantineEnvelope(envelopeId, "IDENTITY_FINGERPRINT_MISMATCH");
     await logIdentityTrace(envelopeId, agentId, recomputedFingerprint, "IDENTITY_FINGERPRINT_MISMATCH");
     return {
@@ -126,7 +130,11 @@ export async function buildIdentityContext(agentId: string): Promise<IdentityCon
   if (!doc.exists) return null;
 
   const agent = doc.data() as AgentIdentity;
-  const fingerprint = computeFingerprint(agent.canonical_identity_json);
+  if (!agent.canonical_identity_json) return null;
+  
+  const canonicalRaw = agent.canonical_identity_json;
+  const canonicalStr = typeof canonicalRaw === "string" ? canonicalRaw : JSON.stringify(canonicalRaw);
+  const fingerprint = computeFingerprint(canonicalStr);
 
   return {
     agent_id: agent.agent_id,
@@ -141,6 +149,70 @@ export async function buildIdentityContext(agentId: string): Promise<IdentityCon
  */
 export function computeFingerprint(canonicalJson: string): string {
   return createHash("sha256").update(canonicalJson, "utf8").digest("hex");
+}
+
+/**
+ * Register a new agent identity.
+ * Handles canonical JSON generation, fingerprinting, and persistence.
+ */
+export async function registerAgentIdentity(params: {
+  display_name: string;
+  role: string;
+  mission: string;
+  org_id: string;
+  agent_id?: string;
+  tier?: string;
+}): Promise<{ agent_id: string; identity_fingerprint: string }> {
+  const { display_name, role, mission, org_id, tier = "builder" } = params;
+
+  // 1. Generate or validate agent_id
+  const slug = display_name.toLowerCase().replace(/[^a-z0-9]/g, "_").slice(0, 32);
+  const suffix = randomBytes(3).toString("hex");
+  const agent_id = params.agent_id || `agent_${slug}_${suffix}`;
+
+  // 2. Build canonical JSON (the source of truth for the hash)
+  const canonical_identity = {
+    agent_id,
+    display_name,
+    role,
+    mission,
+    org_id,
+    created_at: new Date().toISOString(),
+  };
+  const canonical_identity_json = JSON.stringify(canonical_identity);
+
+  // 3. Compute Fingerprint
+  const identity_fingerprint = computeFingerprint(canonical_identity_json);
+
+  // 4. Persist to Firestore
+  const agentData: AgentIdentity = {
+    agent_id,
+    display_name,
+    canonical_identity_json,
+    identity_fingerprint,
+    fingerprint: identity_fingerprint, // UI compat alias
+    agent_class: role,
+    jurisdiction: "NXQ-AGENTSPACE",
+    mission,
+    tier: (tier as unknown) as number, // Compat with existing schema
+    created_at: new Date().toISOString(),
+    last_verified_at: null as any,
+  };
+
+  await getDb()
+    .collection(COLLECTIONS.AGENTS)
+    .doc(agent_id)
+    .set(agentData);
+
+  return { agent_id, identity_fingerprint };
+}
+
+/**
+ * Remove an agent identity record and its associated data.
+ */
+export async function deleteAgentIdentity(agentId: string): Promise<void> {
+  const { deleteAgent } = await import("../kernels/persistence");
+  await deleteAgent(agentId);
 }
 
 /**

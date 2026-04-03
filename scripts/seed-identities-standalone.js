@@ -116,10 +116,23 @@ async function seed() {
     console.log(`Starting seeding for ${AGENTS.length} agents...`);
 
     for (const agent of AGENTS) {
-        const fingerprint = computeFingerprint(agent.agent_id, agent.acelogic_id);
+        // ── 🤖 ALIGNMENT: Match Identity Kernel's canonical JSON & fingerprinting ────────────────
+        const canonical_identity = {
+            agent_id: agent.agent_id,
+            display_name: agent.display_name,
+            role: agent.agent_class,
+            mission: agent.mission,
+            org_id: agent.owner_org_id,
+            created_at: timestamp,
+        };
+        const canonical_identity_json = JSON.stringify(canonical_identity);
+        const identity_fingerprint = crypto.createHash("sha256").update(canonical_identity_json, "utf-8").digest("hex");
+
         const record = {
             ...agent,
-            fingerprint,
+            canonical_identity_json,
+            identity_fingerprint,
+            fingerprint: identity_fingerprint, // UI compat
             anchors: {
                 covenant_hash: sha256Hex(`${agent.agent_id}:covenant`),
                 cvr_polygon: null,
@@ -134,11 +147,13 @@ async function seed() {
                 fork_flag: false,
             },
             created_at: timestamp,
-            last_verified_at: timestamp, // Mark as verified for immediate UI success
+            last_verified_at: timestamp,
+            jurisdiction: agent.jurisdiction || "NXQ-AGENTSPACE",
         };
 
-        await db.collection("agent_identities").doc(agent.agent_id).set(record, { merge: true });
-        console.log(`✅ Seeded: ${agent.agent_id} | fingerprint: ${fingerprint.slice(0, 30)}...`);
+        // Write to 'agents' collection (as defined in COLLECTIONS.AGENTS)
+        await db.collection("agents").doc(agent.agent_id).set(record, { merge: true });
+        console.log(`✅ Seeded: ${agent.agent_id} | fingerprint: ${identity_fingerprint.slice(0, 30)}...`);
     }
 
     console.log("\n🚀 Identity seed complete. 4 agents registered in Firestore.");

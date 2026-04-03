@@ -54,15 +54,21 @@ export function DeliverableItem({
             // Handle common agent output wrappers
             const text = data.intelligence_summary || 
                         data.research_summary || 
+                        data.research_intelligence ||
+                        data.executive_summary ||
+                        data.strategic_plan ||
+                        data.plan_summary || 
+                        data.mission_synthesis ||
+                        data.deliverable_summary ||
                         data.summary || 
                         data.analysis || 
-                        data.plan_summary || 
                         data.content ||
+                        data.detailed_report ||
                         (typeof data.final_output === 'object' ? data.final_output.content : data.final_output) ||
-                        JSON.stringify(data, null, 2);
+                        (typeof data.result === 'string' ? data.result : JSON.stringify(data.result || data, null, 2));
             
-            const extraFindings = data.findings || data.steps || data.supporting_points || [];
-            const extraSources = data.sources || [];
+            const extraFindings = data.findings || data.steps || data.supporting_points || data.roadmap || data.assignments || data.key_findings || data.data_points || [];
+            const extraSources = data.sources || data.references || [];
             
             return { 
                 text: String(text), 

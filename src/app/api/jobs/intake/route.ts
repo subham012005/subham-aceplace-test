@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { workflowEngine } from "@/lib/workflow-engine";
+import { dispatch } from "@/lib/runtime/engine";
 
 /**
  * Job Intake — Local Workflow Engine + Agent Pipeline Trigger
@@ -21,38 +22,19 @@ export async function POST(req: Request) {
             force_crash: body.force_crash,
         });
 
-        const USE_DETERMINISTIC = body.use_deterministic ?? (process.env.NEXT_PUBLIC_USE_DETERMINISTIC_RUNTIME === "true");
-
-        if (USE_DETERMINISTIC) {
-            // Phase 2: dispatch through the deterministic runtime engine
-            const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
-            fetch(`${baseUrl}/api/runtime/dispatch`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    prompt: body.prompt,
-                    user_id: body.user_id,
-                    job_id: result.job_id,
-                    agent_id: body.requested_agent_id || "agent_coo",
-                    job_type: body.job_type,
-                }),
-            }).catch((err) => {
-                console.warn("[INTAKE] Runtime dispatch trigger failed:", err.message);
+        // Always dispatch through the deterministic runtime engine (Phase 2) DIRECTLY.
+        // This avoids internal fetch overhead and potential auth mismatches.
+        try {
+            const dispatchResult = await dispatch({
+                prompt: body.prompt,
+                userId: body.user_id,
+                jobId: result.job_id,
+                agentId: body.requested_agent_id || "agent_coo",
+                orgId: "default"
             });
-        } else {
-            // Phase 1: fire the agent pipeline asynchronously (non-blocking)
-            const agentEngineUrl = process.env.AGENT_ENGINE_URL || "http://localhost:8001";
-            fetch(`${agentEngineUrl}/execute`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    job_id: result.job_id,
-                    prompt: body.prompt,
-                    user_id: body.user_id,
-                }),
-            }).catch((err) => {
-                console.warn("[INTAKE] Agent engine trigger failed (pipeline may not be running):", err.message);
-            });
+            console.log(`[INTAKE] Successfully dispatched envelope: ${dispatchResult.envelope_id}`);
+        } catch (err: any) {
+            console.error("[INTAKE] Runtime dispatch trigger failed:", err.message);
         }
 
         return NextResponse.json(result, { status: 200 });
