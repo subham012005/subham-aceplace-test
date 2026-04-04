@@ -1,0 +1,22 @@
+{
+  "name": "@nxq/runtime-worker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "NXQ long-lived deterministic runtime worker — polls execution_queue and drives envelope execution",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "ts-node src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@nxq/runtime-core": "*",
+    "firebase-admin": "^10.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "ts-node": "^10.9.2",
+    "typescript": "^5"
+  }
+}

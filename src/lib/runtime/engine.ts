@@ -10,9 +10,11 @@
 import * as identityKernel from "./kernels/identity";
 import * as persistence from "./kernels/persistence";
 import { buildEnvelope, buildDefaultIdentityContext } from "./envelope-builder";
-import { runEnvelopeParallel } from "./parallel-runner";
+import { planEnvelopeSteps } from "./step-planner";
 import { transition } from "./state-machine";
-import type { ExecutionEnvelope, DispatchRequest, DispatchResponse } from "./types";
+import { getDb } from "./db";
+import { COLLECTIONS } from "./constants";
+import type { ExecutionEnvelope, DispatchRequest, DispatchResponse, IdentityContext } from "./types";
 import { randomUUID } from "crypto";
 
 const AGENT_ENGINE_URL = process.env.AGENT_ENGINE_URL || "http://localhost:8001";
@@ -46,18 +48,26 @@ export async function dispatch(params: {
     }
   }
 
-  // ── Step 1: Build Identity Contexts (Multi-Agent Map) ─────────────────────
-  const identity_contexts: Record<string, any> = {};
-  const coreAgents = [agentId, "agent_researcher", "agent_grader"];
-  
-  for (const aid of coreAgents) {
+  // ── Step 1: Plan steps first — derive agent set from step assignments ────────
+  // AUDIT FIX P0#2: identity_contexts MUST be derived from actual planned steps,
+  // not from a hardcoded array. The planner is the authoritative source of agent IDs.
+  const plannedSteps = planEnvelopeSteps({
+    require_human_approval: false,
+    role_assignments: {
+      COO: agentId,
+      Researcher: "agent_researcher",
+      Worker: "agent_worker",
+      Grader: "agent_grader",
+    },
+  });
+
+  const uniqueAgentIds = [...new Set(plannedSteps.map((s) => s.assigned_agent_id).filter(Boolean))];
+
+  const identity_contexts: Record<string, IdentityContext> = {};
+  for (const aid of uniqueAgentIds) {
     try {
       const stored = await identityKernel.buildIdentityContext(aid);
-      if (stored) {
-        identity_contexts[aid] = stored;
-      } else {
-        identity_contexts[aid] = buildDefaultIdentityContext(aid);
-      }
+      identity_contexts[aid] = stored ?? buildDefaultIdentityContext(aid);
     } catch {
       identity_contexts[aid] = buildDefaultIdentityContext(aid);
     }
@@ -69,8 +79,9 @@ export async function dispatch(params: {
     jobId: params.jobId,
     userId: params.userId,
     prompt: params.prompt,
-    identityContext: identity_contexts[agentId], // Principal/Coordinator
-    identity_contexts,                           // Full Multi-Agent Map
+    identityContext: identity_contexts[agentId] ?? buildDefaultIdentityContext(agentId),
+    identity_contexts,  // Full multi-agent context map — derived from planner
+    stepPipeline: plannedSteps.map((s) => s.step_type), // Use planner output
   });
 
   // ── Step 3: Persist Envelope ──────────────────────────────────────────────
@@ -92,21 +103,34 @@ export async function dispatch(params: {
     await persistence.linkJobToEnvelope(params.jobId, envelope.envelope_id);
   }
 
-  // ── Step 5: Trigger Runtime Loop ──────────────────────────────────────────
-  // Runs async — returns dispatch response immediately, loop runs in background
-  runEnvelopeParallel({
-    envelope_id: envelope.envelope_id,
-    instance_id: instanceId,
-  }).catch((err) => {
-    console.error(`[ENGINE] Parallel runtime loop crashed for ${envelope.envelope_id}:`, err);
-  });
+  // ── Step 5: Enqueue for runtime-worker ───────────────────────────────────────
+  // AUDIT FIX P0#1: Web tier NEVER executes the runtime loop.
+  // Enqueue the envelope so the dedicated runtime-worker process picks it up.
+  await enqueueEnvelope(envelope.envelope_id);
 
   return {
     success: true,
     envelope_id: envelope.envelope_id,
     envelope,
-    message: "Envelope created. Runtime loop started.",
+    message: "Envelope created and queued for worker execution.",
   };
+}
+
+/**
+ * Enqueue a created envelope for the runtime-worker to claim and execute.
+ * Writes to `execution_queue` Firestore collection.
+ *
+ * AUDIT FIX P0#1: This is the ONLY way execution is triggered from the web tier.
+ */
+async function enqueueEnvelope(envelope_id: string): Promise<void> {
+  await getDb()
+    .collection(COLLECTIONS.EXECUTION_QUEUE)
+    .doc(envelope_id)
+    .set({
+      envelope_id,
+      status: "queued",
+      created_at: new Date().toISOString(),
+    });
 }
 
 /**

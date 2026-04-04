@@ -9,16 +9,30 @@ API:
   GET  /health         ← Health check
 """
 
+import os
 import traceback
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, BackgroundTasks
+from fastapi import FastAPI, BackgroundTasks, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from config import AGENT_ENGINE_PORT, AGENT_ENGINE_HOST
 from graph.runtime_loop import run_envelope
 from services.firestore import append_trace, update_envelope_step
+
+# ─── Internal Service Token ────────────────────────────────────────────────────
+# Set INTERNAL_SERVICE_TOKEN in agent-engine/.env to enforce service-to-service auth.
+# Leave empty to disable (development mode only).
+INTERNAL_SERVICE_TOKEN = os.getenv("INTERNAL_SERVICE_TOKEN", "")
+
+# ─── Allowed CORS Origins ──────────────────────────────────────────────────────
+# AUDIT FIX P1#6: Restrict to specific origins, not wildcard.
+ALLOW_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3001").split(",")
+    if origin.strip()
+]
 
 
 # ─── Request Models ────────────────────────────────────────────────────────────
@@ -64,11 +78,28 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    # AUDIT FIX P1#6: no wildcard origins — restrict to workstation web + runtime worker
+    allow_origins=ALLOW_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ─── Internal Token Middleware ──────────────────────────────────────────────────
+# AUDIT FIX P1#6: Require X-Internal-Token for all non-public routes.
+
+@app.middleware("http")
+async def require_internal_token(request: Request, call_next):
+    """Enforce internal service token on all non-health routes."""
+    public_paths = ("/health", "/docs", "/openapi.json", "/redoc")
+    if request.url.path in public_paths:
+        return await call_next(request)
+    if INTERNAL_SERVICE_TOKEN:
+        token = request.headers.get("X-Internal-Token", "")
+        if token != INTERNAL_SERVICE_TOKEN:
+            raise HTTPException(status_code=403, detail="Unauthorized: invalid internal service token")
+    return await call_next(request)
 
 
 # ─── Background Runner ─────────────────────────────────────────────────────────
