@@ -1,0 +1,590 @@
+﻿I reviewed it as an audit + architecture fix.
+Verdict
+The repo has the right Phase 2 intent: it is envelope-driven in docs, uses Firestore as shared state between the Next.js tier and Python agent engine, has a public dispatcher in engine.ts, a parallel runner, a state machine, per-agent authority, and identity kernel files. That part is real and aligned with NXQ. 
+The problem is that the implementation boundary is still wrong in a few critical places. The biggest one: engine.ts persists the envelope and then starts runEnvelopeParallel(...) inline and returns immediately, which is fine in a durable worker but fragile inside a web/API process. The same repo is a Next.js app, so that launch pattern is not a safe long-term runtime host. 
+P0 fixes
+1. Move runtime execution out of the Next.js request path
+Current shape:
+* Next.js is both UI/API and runtime dispatcher.
+
+* engine.ts creates an envelope and starts the runner in-process. 
+
+Fix:
+   * Keep Next.js as control plane only.
+
+   * Add a separate runtime-worker service whose only job is:
+
+      * poll/claim runnable envelopes
+
+      * acquire lease
+
+      * execute steps
+
+      * write traces/artifacts
+
+         * Keep Python agent-engine as the LLM execution tier.
+
+Target split:
+apps/
+  workstation-web/      # Next.js dashboard + API
+  runtime-worker/       # long-lived TS worker
+  agent-engine/         # FastAPI step executor
+
+
+packages/
+  runtime-core/         # envelopes, leases, state machine, #us#, persistence
+  protocol/             # #us# types + validators
+  acelogic-client/      # identity/license/continuity API client
+That is the single most important fix.
+2. Stop hardcoding the multi-agent identity map
+Right now engine.ts seeds identity contexts from:
+[agentId, "agent_researcher", "agent_grader"]
+and does not include agent_worker. 
+Fix:
+            * Build identity_contexts from the actual planned steps or role assignments, not from a hardcoded array.
+
+            * The planner should return the set of assigned agent IDs.
+
+            * Envelope builder should derive contexts for every assigned agent before persistence.
+
+Required rule:
+identity_contexts = unique(step.assigned_agent_id for step in steps)
+3. Remove the 
+pending_verification
+ execution bypass
+The identity kernel currently allows execution to pass when the envelope fingerprint is "pending_verification" in at least two places. 
+Fix:
+               * Production rule: no execution without a canonical verified fingerprint.
+
+               * If you need bootstrap mode, gate it behind an explicit environment flag:
+
+ALLOW_PENDING_IDENTITY=false
+and fail closed in prod.
+Required rule:
+if (!canonical_identity || fingerprint_mismatch) quarantine
+if (expectedFingerprint === "pending_verification") reject in prod
+4. Route quarantine through the state machine
+per-agent-authority.ts directly updates envelope status to quarantined on fork detection. 
+Fix:
+                  * Never write terminal state directly from lease code.
+
+                  * Lease layer should emit a domain error like FORK_DETECTED.
+
+                  * Runtime layer should call the centralized state machine transition helper so every quarantine is traced consistently.
+
+Your state machine already writes transition traces to execution_traces, which is the right model. 
+5. Align auth docs and schema
+API docs say runtime routes can authenticate using a Firebase ID token or a master API key stored in Firestore api_keys. The schema doc does not list api_keys at all. 
+Fix:
+                     * Add api_keys to the schema doc and code constants.
+
+                     * Define exact fields:
+
+interface ApiKeyDoc {
+  key_id: string;
+  org_id: string;
+  label: string;
+  hashed_key: string;
+  status: "active" | "revoked";
+  scopes: string[];
+  created_at: string;
+  last_used_at?: string;
+}
+Do not leave auth-critical storage implicit.
+6. Lock down the Python agent engine
+The FastAPI app currently uses allow_origins=["*"]. 
+Fix:
+                        * Restrict CORS to the workstation web origin and runtime worker origin.
+
+                        * Require an internal service token between runtime-worker and agent-engine.
+
+                        * Do not expose the agent engine as a broad public API.
+
+Architecture you should keep
+These parts are correct and should stay:
+                           * Execution envelope as canonical state in Firestore. 
+
+                           * State machine as the only allowed transition path. 
+
+                           * Per-agent lease model for parallel execution. 
+
+                           * Separate Python execution tier for model/tool work. 
+
+Corrected runtime architecture
+ACELOGIC / Birthing Portal
+  -> canonical agent identity
+  -> fingerprint verification
+  -> continuity / quarantine status
+
+
+workstation-web
+  -> user submits task
+  -> creates envelope only
+  -> never runs long-lived execution loop
+
+
+runtime-worker
+  -> claims runnable envelope
+  -> verifies identity through ACELOGIC
+  -> acquires per-agent lease
+  -> executes steps via agent-engine
+  -> persists artifacts, messages, traces
+  -> advances state machine
+
+
+agent-engine
+  -> pure step execution
+  -> no ownership of runtime state
+That gives you deterministic ownership:
+                              * web app = control plane
+
+                              * worker = execution plane
+
+                              * agent engine = compute plane
+
+File-level refactor plan
+Keep in 
+runtime-core
+                                 * state-machine.ts
+
+                                 * per-agent-authority.ts
+
+                                 * parallel-runner.ts
+
+                                 * types.ts
+
+                                 * constants.ts
+
+                                 * us-message-engine.ts
+
+                                 * persistence kernels
+
+Move out of web app
+                                    * engine.ts runtime launch responsibility
+
+New behavior for engine.ts:
+                                       * create envelope
+
+                                       * persist envelope
+
+                                       * write initial trace
+
+                                       * enqueue envelope for runtime-worker
+
+                                       * return response
+
+Not:
+                                          * create envelope
+
+                                          * launch background runner in same request process
+
+Make 
+runtime-worker
+ entrypoint
+Example:
+while (true) {
+  const envelope = await claimNextRunnableEnvelope();
+  if (!envelope) {
+    await sleep(1000);
+    continue;
+  }
+  await runEnvelopeParallel({
+    envelope_id: envelope.envelope_id,
+    instance_id: workerInstanceId,
+  });
+}
+Tighten 
+identity.ts
+Replace soft pass with:
+if (!agentDoc.exists) reject_and_quarantine("AGENT_NOT_FOUND");
+if (!canonical_identity_json) reject_and_quarantine("IDENTITY_DATA_MISSING");
+if (expectedFingerprint !== recomputedFingerprint) reject_and_quarantine("IDENTITY_FINGERPRINT_MISMATCH");
+Tighten planner/envelope-builder
+                                             * planner returns all role assignments
+
+                                             * envelope-builder derives complete identity contexts from those assignments
+
+                                             * no magic agent IDs in dispatcher
+
+Test architecture you need
+Your root package.json has no test script right now. 
+Add three layers:
+1. Unit tests
+                                                * state transition legality
+
+                                                * fingerprint validation
+
+                                                * lease validation
+
+                                                * #us# schema validation
+
+2. Integration tests
+                                                   * dispatch creates envelope only
+
+                                                   * runtime-worker claims envelope
+
+                                                   * step executes and writes artifact
+
+                                                   * fork detection quarantines through state machine
+
+                                                   * crash recovery resumes from Firestore state
+
+3. Invariant tests
+                                                      * one agent identity cannot hold two active leases
+
+                                                      * one envelope step cannot complete twice
+
+                                                      * no execution with pending_verification in prod
+
+                                                      * every state transition produces a trace
+
+                                                      * every artifact has execution_id and identity_fingerprint
+
+My final call
+The repo is close enough to keep, not something to throw away. The docs, schema direction, and runtime decomposition are broadly right. 
+But the architecture needs one decisive correction:
+Make execution a dedicated worker service, not a background promise inside the web tier.
+After that, the next two mandatory fixes are:
+                                                         * derive identity contexts from actual assigned agents
+
+                                                         * remove pending_verification as an execution bypass
+
+If you want, next I’ll turn this into a concrete repo refactor plan with exact folders, files to move, and what each service should own.
+
+
+Good — now we move from “analysis” → execution plan.
+I’m going to give you a clean refactor blueprint Subham can follow step-by-step. No ambiguity.
+________________
+
+
+🚧 GOAL
+Convert current repo into:
+deterministic runtime system
+= envelope-driven
+= identity-enforced
+= worker-executed
+= trace-complete
+________________
+
+
+🧱 TARGET STRUCTURE (FINAL)
+Tell Subham to restructure repo like this:
+NXQ-Workspace/
+
+
+apps/
+  workstation-web/        ← Next.js (UI + API ONLY)
+  runtime-worker/         ← NEW (critical)
+  agent-engine/           ← existing Python service
+
+
+packages/
+  runtime-core/           ← move all runtime logic here
+  protocol/               ← #us# schema + validators
+  acelogic-client/        ← identity verification client
+
+
+infra/
+  firebase/               ← schema + rules
+________________
+
+
+🔥 STEP-BY-STEP REFACTOR
+STEP 1 — Extract runtime-core
+Move from:
+src/lib/runtime/*
+To:
+packages/runtime-core/
+Files to move:
+                                                            * engine.ts ❗ (but modify later)
+
+                                                            * parallel-runner.ts
+
+                                                            * state-machine.ts
+
+                                                            * per-agent-authority.ts
+
+                                                            * identity.ts
+
+                                                            * constants.ts
+
+                                                            * types.ts
+
+________________
+
+
+After move
+All runtime logic must be framework-independent
+❌ NO Next.js imports
+❌ NO request/response logic
+________________
+
+
+STEP 2 — Kill runtime execution in web app
+In engine.ts:
+REMOVE this pattern:
+runEnvelopeParallel(...).catch(...)
+REPLACE with:
+await createEnvelope(...)
+await enqueueEnvelope(envelope_id)
+
+
+return { envelope_id }
+________________
+
+
+Add new function
+async function enqueueEnvelope(envelope_id: string) {
+  await db.collection("execution_queue").doc(envelope_id).set({
+    envelope_id,
+    status: "queued",
+    created_at: new Date().toISOString(),
+  });
+}
+________________
+
+
+STEP 3 — Create runtime-worker (NEW)
+Create:
+apps/runtime-worker/src/index.ts
+________________
+
+
+Worker loop
+while (true) {
+  const envelope = await claimNextEnvelope();
+
+
+  if (!envelope) {
+    await sleep(1000);
+    continue;
+  }
+
+
+  try {
+    await runEnvelopeParallel({
+      envelope_id: envelope.envelope_id,
+      instance_id: WORKER_ID,
+    });
+  } catch (err) {
+    console.error("Execution failed", err);
+  }
+}
+________________
+
+
+Claim function
+async function claimNextEnvelope() {
+  const snapshot = await db
+    .collection("execution_queue")
+    .where("status", "==", "queued")
+    .limit(1)
+    .get();
+
+
+  if (snapshot.empty) return null;
+
+
+  const doc = snapshot.docs[0];
+
+
+  await doc.ref.update({
+    status: "claimed",
+    claimed_at: new Date().toISOString(),
+  });
+
+
+  return doc.data();
+}
+________________
+
+
+STEP 4 — Fix identity system (CRITICAL)
+In identity.ts
+________________
+
+
+REMOVE:
+if (expectedFingerprint === "pending_verification") {
+  return true;
+}
+________________
+
+
+REPLACE WITH:
+if (expectedFingerprint === "pending_verification") {
+  throw new Error("IDENTITY_NOT_VERIFIED");
+}
+________________
+
+
+Add strict validation:
+if (!canonical_identity_json) {
+  quarantine("IDENTITY_DATA_MISSING");
+}
+
+
+if (computedFingerprint !== expectedFingerprint) {
+  quarantine("IDENTITY_FINGERPRINT_MISMATCH");
+}
+________________
+
+
+STEP 5 — Fix identity_context generation
+In engine.ts
+________________
+
+
+REMOVE:
+[agentId, "agent_researcher", "agent_grader"]
+________________
+
+
+REPLACE WITH:
+const agentIds = new Set(
+  steps.map(step => step.assigned_agent_id)
+);
+
+
+const identity_contexts = Array.from(agentIds).map(agent_id => ({
+  agent_id,
+  identity_fingerprint: "...",
+}));
+________________
+
+
+STEP 6 — Enforce state transitions ONLY via state-machine
+________________
+
+
+In 
+per-agent-authority.ts
+❌ REMOVE direct:
+envelope.status = "quarantined"
+________________
+
+
+REPLACE WITH:
+await transitionEnvelopeState({
+  envelope_id,
+  from: current_state,
+  to: "quarantined",
+  reason: "FORK_DETECTED",
+});
+________________
+
+
+STEP 7 — Add missing Firestore collections
+Add:
+execution_queue
+api_keys
+________________
+
+
+api_keys schema
+{
+  key_id: string;
+  org_id: string;
+  hashed_key: string;
+  status: "active" | "revoked";
+  scopes: string[];
+  created_at: string;
+}
+________________
+
+
+STEP 8 — Lock Python agent engine
+In main.py
+________________
+
+
+CHANGE:
+allow_origins=["*"]
+________________
+
+
+TO:
+allow_origins=[
+  "https://your-workstation.app"
+]
+________________
+
+
+Add internal auth header
+if request.headers.get("X-INTERNAL-TOKEN") != EXPECTED_TOKEN:
+    raise HTTPException(status_code=403)
+________________
+
+
+STEP 9 — Add test layer (MANDATORY)
+Add:
+npm install vitest
+________________
+
+
+Add script:
+"test": "vitest"
+________________
+
+
+Required tests
+1. State machine
+it("prevents invalid transitions")
+2. Identity
+it("rejects fingerprint mismatch")
+3. Lease
+it("prevents double lease")
+4. Execution
+it("executes steps in order")
+5. Crash recovery
+it("resumes execution from firestore")
+________________
+
+
+⚠️ NON-NEGOTIABLE RULES
+Subham must follow these:
+________________
+
+
+Rule 1
+Web app NEVER executes runtime
+________________
+
+
+Rule 2
+All execution MUST go through worker
+________________
+
+
+Rule 3
+No identity → no execution
+________________
+
+
+Rule 4
+No lease → no execution
+________________
+
+
+Rule 5
+Every action → trace
+________________
+
+
+🧠 Final Assessment
+Right now the repo is:
+70% correct architecture
+30% dangerous shortcuts
+After this refactor:
+production-grade deterministic runtime
+________________
+
+
+🚀 Next Step
+When Subham pushes updated repo:
+→ I will do runtime flow verification:
+                                                               * envelope → lease → execution → trace → completion
+
+                                                               * and point out any remaining race conditions or state bugs
+
+No guesswork. Full system validation.
