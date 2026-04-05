@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "firebase-admin": "^10.3.0"
+    "firebase-admin": "^13.7.0"
   },
   "devDependencies": {
     "@types/node": "^20",
