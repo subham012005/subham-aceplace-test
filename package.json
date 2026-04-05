@@ -52,6 +52,7 @@
     "protobufjs": "^7.4.0",
     "esbuild": "^0.25.0",
     "@google-cloud/firestore": "^7.0.0",
-    "google-gax": "^4.0.0"
+    "google-gax": "^4.0.0",
+    "@tootallnate/once": "^2.0.0"
   }
 }
