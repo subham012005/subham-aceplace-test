@@ -4,7 +4,7 @@
 
 ---
 
-## TypeScript Runtime (`src/lib/runtime/`)
+## TypeScript Runtime (`packages/runtime-core/`)
 
 ### File Map
 

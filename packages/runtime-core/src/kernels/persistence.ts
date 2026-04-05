@@ -214,3 +214,20 @@ export async function deleteAgent(agentId: string): Promise<void> {
     .doc(agentId)
     .delete();
 }
+
+// ─── Execution Queue ──────────────────────────────────────────────────────────
+
+/**
+ * Enqueue a created envelope for the runtime-worker to claim and execute.
+ * Writes to `execution_queue` Firestore collection.
+ */
+export async function enqueueEnvelope(envelope_id: string): Promise<void> {
+  await getDb()
+    .collection(COLLECTIONS.EXECUTION_QUEUE)
+    .doc(envelope_id)
+    .set({
+      envelope_id,
+      status: "queued",
+      created_at: new Date().toISOString(),
+    });
+}

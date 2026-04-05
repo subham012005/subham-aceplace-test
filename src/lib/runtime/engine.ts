@@ -81,7 +81,7 @@ export async function dispatch(params: {
     prompt: params.prompt,
     identityContext: identity_contexts[agentId] ?? buildDefaultIdentityContext(agentId),
     identity_contexts,  // Full multi-agent context map — derived from planner
-    stepPipeline: plannedSteps.map((s) => s.step_type), // Use planner output
+    steps: plannedSteps, // Embed exact steps mapped by planner
   });
 
   // ── Step 3: Persist Envelope ──────────────────────────────────────────────
@@ -106,7 +106,7 @@ export async function dispatch(params: {
   // ── Step 5: Enqueue for runtime-worker ───────────────────────────────────────
   // AUDIT FIX P0#1: Web tier NEVER executes the runtime loop.
   // Enqueue the envelope so the dedicated runtime-worker process picks it up.
-  await enqueueEnvelope(envelope.envelope_id);
+  await persistence.enqueueEnvelope(envelope.envelope_id);
 
   return {
     success: true,
@@ -116,22 +116,7 @@ export async function dispatch(params: {
   };
 }
 
-/**
- * Enqueue a created envelope for the runtime-worker to claim and execute.
- * Writes to `execution_queue` Firestore collection.
- *
- * AUDIT FIX P0#1: This is the ONLY way execution is triggered from the web tier.
- */
-async function enqueueEnvelope(envelope_id: string): Promise<void> {
-  await getDb()
-    .collection(COLLECTIONS.EXECUTION_QUEUE)
-    .doc(envelope_id)
-    .set({
-      envelope_id,
-      status: "queued",
-      created_at: new Date().toISOString(),
-    });
-}
+
 
 /**
  * Get the current state of an envelope by ID.

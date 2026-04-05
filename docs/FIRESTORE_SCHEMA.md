@@ -283,6 +283,50 @@ total_steps, avg_step_duration_ms
 
 ---
 
+## `secrets`
+
+Agent secrets storage.
+
+```typescript
+interface AgentSecrets {
+  agent_id: string;
+  secrets: Record<string, string>;
+  updated_at: string;
+}
+```
+
+---
+
+## `api_keys`
+
+System API keys.
+
+```typescript
+interface SystemApiKey {
+  key_id: string;
+  hashed_key: string;
+  user_id: string;
+  status: "active" | "revoked";
+  created_at: string;
+}
+```
+
+---
+
+## `execution_queue`
+
+Queue for the runtime-worker to pick up execution.
+
+```typescript
+interface ExecutionQueueEntry {
+  envelope_id: string;
+  status: "queued";
+  created_at: string;
+}
+```
+
+---
+
 ## Firestore Index Rules
 
 The current indexes are defined in `firestore.indexes.json`. Key composite indexes needed:

@@ -9,14 +9,15 @@
 
 NXQ Workstation is a **multi-agent AI task execution platform** built on a deterministic, envelope-driven runtime. It replaces the previous n8n-based orchestration with a code-native, auditable, fork-resistant execution model.
 
-The system is split into two tiers:
+The system is split into three tiers:
 
 | Tier | Technology | Role |
 |------|-----------|------|
-| **Frontend + API** | Next.js 16 (TypeScript) | Dashboard UI, REST API routes, Firestore client |
+| **Frontend + API** | Next.js 16 (TypeScript) | Dashboard UI, REST API routes, Enqueues work |
+| **Runtime Worker** | Node.js (TypeScript) | Claims envelopes, executes deterministic state machine, `#us#` message routing |
 | **Agent Engine** | Python 3.10 + FastAPI | LLM step execution, artifact production |
 
-Both tiers communicate through **Firestore** as the shared state store, and directly via HTTP for step dispatch.
+All tiers communicate through **Firestore** as the shared state store. The worker communicates directly with the Python agent engine via HTTP for step dispatch.
 
 ---
 
@@ -32,12 +33,11 @@ Both tiers communicate through **Firestore** as the shared state store, and dire
 │  └──────┬──────┘  └──────┬───────┘  └──────────────┬─────────────┘  │
 │         │                │                          │                │
 │  ┌──────▼──────────────────────────────────────────▼─────────────┐  │
-│  │                     src/lib/                                    │  │
 │  │                                                                 │  │
 │  │  ┌─────────────────────────────────────────────────────────┐   │  │
-│  │  │              runtime/ (DETERMINISTIC ENGINE)             │   │  │
-│  │  │  engine.ts · runtime-loop.ts · parallel-runner.ts       │   │  │
-│  │  │  ace-handoff.ts · state-machine.ts · step-planner.ts   │   │  │
+│  │  │         apps/runtime-worker (DETERMINISTIC ENGINE)       │   │  │
+│  │  │                + packages/runtime-core                   │   │  │
+│  │  │  parallel-runner.ts · state-machine.ts · step-planner.ts │   │  │
 │  │  │                                                         │   │  │
 │  │  │  kernels/: identity · authority · persistence           │   │  │
 │  │  │           communications · execution                    │   │  │
@@ -187,15 +187,19 @@ POST /api/runtime/handoff
      → Validate #us#.task.handoff message
      → Resolve per-agent fingerprints
      → Build multi-agent execution envelope
-     → parallel-runner.ts::runEnvelopeParallel()
-        → For each step batch (bounded parallelism):
-           → acelogicExecutionGuard() — license + identity check
-           → acquirePerAgentLease() — per-agent authority
-           → leaseHeartbeatManager.start()
-           → Create + handle #us# protocol message
-           → Finalize step (completed/failed/retry)
-           → releasePerAgentLease()
-        → Transition envelope on completion
+     → persistence::enqueueEnvelope()
+
+(In Background App: runtime-worker)
+  → Claims envelope from execution_queue
+  → parallel-runner.ts::runEnvelopeParallel()
+     → For each step batch (bounded parallelism):
+         → acelogicExecutionGuard() — license + identity check
+         → acquirePerAgentLease() — per-agent authority
+         → leaseHeartbeatManager.start()
+         → Create + handle #us# protocol message
+         → Finalize step (completed/failed/retry)
+         → releasePerAgentLease()
+     → Transition envelope on completion
 ```
 
 ---
