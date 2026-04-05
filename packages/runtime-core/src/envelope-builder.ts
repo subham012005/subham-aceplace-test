@@ -28,14 +28,15 @@ export function buildEnvelope(params: {
   identityContext: IdentityContext;
   identity_contexts?: Record<string, IdentityContext>;
   stepPipeline?: string[];        // canonical step types from Python engine
+  steps?: EnvelopeStep[];         // explicitly mapped steps from the planner
 }): ExecutionEnvelope {
   const now = new Date().toISOString();
   const envelopeId = `env_${randomUUID().replace(/-/g, "").slice(0, 20)}`;
   const pipeline = params.stepPipeline ?? DEFAULT_STEP_PIPELINE;
 
   // Build embedded steps — first step is "ready", rest are "pending"
-  const steps: EnvelopeStep[] = pipeline.map((stepType, index) => {
-    const config = STEP_TYPE_CONFIG[stepType];
+  const steps: EnvelopeStep[] = params.steps ?? pipeline.map((stepType, index) => {
+    const config = STEP_TYPE_CONFIG[stepType as keyof typeof STEP_TYPE_CONFIG];
     return {
       step_id: `step_${envelopeId}_${index}`,
       step_type: stepType as StepType,
@@ -45,6 +46,21 @@ export function buildEnvelope(params: {
       max_retries: 2,
     } as EnvelopeStep;
   });
+
+  const identity_contexts = params.identity_contexts ?? {
+    [params.identityContext.agent_id]: params.identityContext,
+  };
+
+  const assignedAgents = new Set(steps.map(s => s.assigned_agent_id));
+  if (assignedAgents.size > 1 && !params.identity_contexts) {
+    throw new Error(`INCOMPLETE_IDENTITY_CONTEXTS: Multi-agent envelope requires explicit identity_contexts map covering exactly the planned agents.`);
+  }
+
+  for (const agentId of assignedAgents) {
+    if (!identity_contexts[agentId]) {
+      throw new Error(`INCOMPLETE_IDENTITY_CONTEXTS: Missing identity context for assigned agent: ${agentId}`);
+    }
+  }
 
   return {
     envelope_id: envelopeId,
@@ -60,11 +76,9 @@ export function buildEnvelope(params: {
     // Identity context from agent store
     identity_context: params.identityContext,
 
-    // Multi-agent identity contexts
-    multi_agent: true,
-    identity_contexts: params.identity_contexts ?? {
-      [params.identityContext.agent_id]: params.identityContext,
-    },
+  // Multi-agent identity contexts
+    multi_agent: assignedAgents.size > 1,
+    identity_contexts,
 
     // Metadata for completion
     artifact_refs: [],

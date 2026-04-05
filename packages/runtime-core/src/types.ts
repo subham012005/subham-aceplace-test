@@ -330,6 +330,14 @@ export interface AgentSecrets {
   updated_at: string;
 }
 
+export interface SystemApiKey {
+  key_id: string;
+  hashed_key: string;
+  user_id: string;
+  status: "active" | "revoked";
+  created_at: string;
+}
+
 // ─── Dispatch API ─────────────────────────────────────────────────────────────
 
 export interface DispatchRequest {

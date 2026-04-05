@@ -5,6 +5,9 @@
     "moduleResolution": "node",
     "lib": ["ES2022"],
     "baseUrl": "../..",
+    "paths": {
+      "@/*": ["src/*"]
+    },
     "outDir": "dist",
     "rootDir": "../..",
     "strict": true,
@@ -16,6 +19,6 @@
     "sourceMap": true,
     "composite": true
   },
-  "include": ["src/**/*", "../../src/lib/runtime/**/*"],
+  "include": ["src/**/*", "../../src/lib/runtime/**/*", "../../src/lib/firebase-admin.ts"],
   "exclude": ["node_modules", "dist"]
 }

@@ -9,7 +9,7 @@ import { getDb } from "./db";
 import { COLLECTIONS } from "./constants";
 import type { AgentIdentity, ExecutionEnvelope, IdentityContext, RuntimeRole } from "./types";
 import { planEnvelopeSteps } from "./step-planner";
-import { runEnvelopeParallel } from "./parallel-runner";
+
 import { emitRuntimeMetric } from "./telemetry/emitRuntimeMetric";
 
 export type HandoffRole = { role: RuntimeRole; agent_id: string };
@@ -281,15 +281,7 @@ export async function acceptAceHandoff(handoff: AceHandoffMessage): Promise<{
     requested_by_user_id,
   });
 
-  const runtimeId = `runtime_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
-  runEnvelopeParallel({
-    envelope_id,
-    instance_id: runtimeId,
-    max_parallel_steps: 20,
-  }).catch((err) => {
-    console.error("[ACEPLACE_HANDOFF] Parallel runner failed:", err);
-    require("fs").writeFileSync("parallel_err.txt", err.stack || String(err));
-  });
+  await persistence.enqueueEnvelope(envelope_id);
 
   return { success: true, envelope_id };
 }
