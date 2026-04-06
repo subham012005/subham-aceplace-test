@@ -35,9 +35,7 @@ function getDb(): FirebaseFirestore.Firestore {
 
 // ── Lazy import runtime-core so firebase-admin init runs first ──────────────
 async function loadRuntime() {
-  // Direct import from upstream source (src/lib/runtime).
-  // Adjust this to "@nxq/runtime-core" once the monorepo workspace links are installed.
-  const runner = await import("../../../src/lib/runtime/parallel-runner");
+  const runner = await import("@nxq/runtime-core");
   return runner;
 }
 
