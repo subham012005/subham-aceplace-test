@@ -8,8 +8,8 @@
 import React, { useState } from "react";
 import { CheckCircle2, AlertCircle, Clock, Cpu, Search, GraduationCap, ShieldCheck, Play, ChevronDown, ChevronUp, Hash } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { STEP_TYPE_CONFIG, STEP_STATUS_DISPLAY } from "@/lib/runtime/constants";
-import type { EnvelopeStep, StepType } from "@/lib/runtime/types";
+import { STEP_TYPE_CONFIG, STEP_STATUS_DISPLAY } from "@aceplace/runtime-core";
+import type { EnvelopeStep, StepType } from "@aceplace/runtime-core";
 import type { Artifact } from "@/hooks/useJobs";
 
 const STEP_ICONS: Partial<Record<StepType, React.ElementType>> = {

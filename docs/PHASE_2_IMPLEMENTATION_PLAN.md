@@ -1,4 +1,4 @@
-# NXQ Workstation — Phase 2: Deterministic Runtime Implementation Plan
+# ACEPLACE — Phase 2: Deterministic Runtime Implementation Plan
 
 > **Version:** 1.1  
 > **Date:** 2026-03-22  
@@ -9,7 +9,7 @@
 
 ## 🤖 AI Agent Instructions
 
-> **READ THIS FIRST.** This section is specifically for AI coding agents (Copilot, Claude, Gemini, etc.) that are tasked with implementing Phase 2 of the NXQ Workstation. Follow these instructions exactly.
+> **READ THIS FIRST.** This section is specifically for AI coding agents (Copilot, Claude, Gemini, etc.) that are tasked with implementing Phase 2 of the ACEPLACE. Follow these instructions exactly.
 
 ### How to Use This Plan
 
@@ -29,8 +29,8 @@ For each task you pick up from the CSV:
 4. **Check dependencies** — Look at the task's `Sprint` number. All tasks in previous sprints (lower sprint numbers) should be `Done` first. If they're not, implement those first.
 5. **Create or modify the file** at the path specified in the `FilePath` column.
 6. **Follow these code rules:**
-   - All TypeScript types go in `src/lib/runtime/types.ts`
-   - All constants/enums go in `src/lib/runtime/constants.ts`
+   - All TypeScript types go in `packages/runtime-core/src/types.ts`
+   - All constants/enums go in `packages/runtime-core/src/constants.ts`
    - Server-side Firestore code uses `firebase-admin` (see `src/lib/firebase-admin.ts`)
    - Client-side Firestore code uses `firebase` SDK (see `src/lib/firebase.ts`)
    - React hooks use the pattern from `src/hooks/useJobs.ts` (Firestore `onSnapshot` subscriptions)
@@ -53,12 +53,12 @@ After you have **fully implemented and verified** a task, update `docs/phase2_ta
 
 **Example — before:**
 ```csv
-T-001,Sprint 1,Foundation,TypeScript Types,"Create all TypeScript interfaces...",src/lib/runtime/types.ts,Not Started,Critical,,Foundational — all other files depend on this
+T-001,Sprint 1,Foundation,TypeScript Types,"Create all TypeScript interfaces...",packages/runtime-core/src/types.ts,Not Started,Critical,,Foundational — all other files depend on this
 ```
 
 **Example — after:**
 ```csv
-T-001,Sprint 1,Foundation,TypeScript Types,"Create all TypeScript interfaces...",src/lib/runtime/types.ts,Done,Critical,2026-03-18,Created 15 interfaces covering envelopes steps leases and identities
+T-001,Sprint 1,Foundation,TypeScript Types,"Create all TypeScript interfaces...",packages/runtime-core/src/types.ts,Done,Critical,2026-03-18,Created 15 interfaces covering envelopes steps leases and identities
 ```
 
 ### Status Values for CSV
@@ -83,7 +83,7 @@ T-001,Sprint 1,Foundation,TypeScript Types,"Create all TypeScript interfaces..."
 ## 1. Project Context
 
 ### Phase 1 (COMPLETED ✅)
-Phase 1 built the NXQ Workstation frontend as a Next.js 16 application with:
+Phase 1 built the ACEPLACE frontend as a Next.js 16 application with:
 - **Firebase Auth** for user identity
 - **Firestore** real-time subscriptions for job state
 - **n8n Webhooks** as the backend orchestration layer (job-intake, approve, reject, resurrect)
@@ -102,7 +102,7 @@ Phase 2 is a **strategic migration** from n8n-based orchestration to a **custom,
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                   NXQ WORKSTATION UI                     │
+│                   ACEPLACE WORKSTATION UI                     │
 │  (Next.js — Dashboard, Governance, Envelope Inspector)   │
 └──────────────────────┬──────────────────────────────────┘
                        │ Firestore Real-time
@@ -341,16 +341,16 @@ created → identity_verified → lease_acquired → running → awaiting_human 
 #### Runtime Engine Core
 | File Path | Purpose |
 |---|---|
-| `src/lib/runtime/engine.ts` | Main deterministic execution engine |
-| `src/lib/runtime/envelope-builder.ts` | Builds Canonical Execution Envelopes from prompts |
-| `src/lib/runtime/kernels/identity.ts` | Identity Kernel — fingerprint verification |
-| `src/lib/runtime/kernels/authority.ts` | Authority Kernel — lease management |
-| `src/lib/runtime/kernels/execution.ts` | Execution Kernel — step graph runner |
-| `src/lib/runtime/kernels/persistence.ts` | Persistence Kernel — Firestore state management |
-| `src/lib/runtime/kernels/communications.ts` | Communications Kernel — #us# protocol |
-| `src/lib/runtime/types.ts` | TypeScript types for envelopes, steps, leases, identities |
-| `src/lib/runtime/constants.ts` | Protocol constants, step types, status enums |
-| `src/lib/runtime/hash.ts` | SHA-256 hashing utilities for step integrity |
+| `packages/runtime-core/src/engine.ts` | Main deterministic execution engine |
+| `packages/runtime-core/src/envelope-builder.ts` | Builds Canonical Execution Envelopes from prompts |
+| `packages/runtime-core/src/kernels/identity.ts` | Identity Kernel — fingerprint verification |
+| `packages/runtime-core/src/kernels/authority.ts` | Authority Kernel — lease management |
+| `packages/runtime-core/src/kernels/execution.ts` | Execution Kernel — step graph runner |
+| `packages/runtime-core/src/kernels/persistence.ts` | Persistence Kernel — Firestore state management |
+| `packages/runtime-core/src/kernels/communications.ts` | Communications Kernel — #us# protocol |
+| `packages/runtime-core/src/types.ts` | TypeScript types for envelopes, steps, leases, identities |
+| `packages/runtime-core/src/constants.ts` | Protocol constants, step types, status enums |
+| `packages/runtime-core/src/hash.ts` | SHA-256 hashing utilities for step integrity |
 
 #### API Routes
 | File Path | Purpose |
@@ -388,7 +388,7 @@ created → identity_verified → lease_acquired → running → awaiting_human 
 | File Path | Changes |
 |---|---|
 | `src/hooks/useJobs.ts` | Add envelope reference fields to Job interface |
-| `src/lib/api-client.ts` | Add runtime API methods to `NXQApiClient` |
+| `src/lib/api-client.ts` | Add runtime API methods to `ACEPLACEApiClient` |
 | `src/components/TaskComposer.tsx` | Add runtime dispatch option |
 | `src/components/TaskDetail.tsx` | Integrate EnvelopeInspector when available |
 | `src/app/dashboard/page.tsx` | Add runtime stats, lease info, identity panel |
@@ -399,9 +399,9 @@ created → identity_verified → lease_acquired → running → awaiting_human 
 ## 6. Implementation Order (Recommended)
 
 ### Sprint 1 — Foundation (Types + Firestore Schema)
-1. Create `src/lib/runtime/types.ts` with all TypeScript interfaces
-2. Create `src/lib/runtime/constants.ts` with enums and protocol constants
-3. Create `src/lib/runtime/hash.ts` with SHA-256 utilities
+1. Create `packages/runtime-core/src/types.ts` with all TypeScript interfaces
+2. Create `packages/runtime-core/src/constants.ts` with enums and protocol constants
+3. Create `packages/runtime-core/src/hash.ts` with SHA-256 utilities
 4. Expand Firestore schema (new collections)
 
 ### Sprint 2 — Kernel System

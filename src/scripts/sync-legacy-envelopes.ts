@@ -1,7 +1,8 @@
-import { adminDb } from "../lib/firebase-admin";
+import { getDb } from "@aceplace/runtime-core";
 
 async function syncLegacyEnvelopes() {
     console.log("[SYNC] Starting legacy envelope sync...");
+    const adminDb = getDb();
     const jobsSnap = await adminDb.collection("jobs").get();
     let updatedCount = 0;
 

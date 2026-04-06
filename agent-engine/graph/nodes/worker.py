@@ -14,7 +14,7 @@ from services.firestore import get_artifact, log_agent_action
 from config import AGENT_MODELS, ANTHROPIC_API_KEY, OPENAI_API_KEY
 
 
-WORKER_SYSTEM_PROMPT = """You are the Worker agent in the NXQ Phase 2 runtime.
+WORKER_SYSTEM_PROMPT = """You are the Worker agent in the ACEPLACE Phase 2 runtime.
 Produce the required deliverable based on research findings and the original task.
 Return ONLY valid JSON:
 {

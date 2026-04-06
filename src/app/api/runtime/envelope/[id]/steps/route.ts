@@ -3,8 +3,8 @@
  * Steps are NOT in a separate collection — they are inside execution_envelopes.steps[]
  */
 
-import { getDb } from "@/lib/runtime/db";
-import { COLLECTIONS } from "@/lib/runtime/constants";
+import { getDb } from "@aceplace/runtime-core";
+import { COLLECTIONS } from "@aceplace/runtime-core";
 import { verifyUserApiKey, safeErrorResponse, secureJson } from "@/lib/api-security";
 
 export async function GET(

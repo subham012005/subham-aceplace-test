@@ -19,7 +19,9 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@aceplace/runtime-core": ["./packages/runtime-core/src/index.ts"],
+      "@aceplace/runtime-core/*": ["./packages/runtime-core/src/*"]
     }
   },
   "include": [

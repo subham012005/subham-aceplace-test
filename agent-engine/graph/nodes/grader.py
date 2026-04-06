@@ -16,7 +16,7 @@ from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import SystemMessage, HumanMessage
 
 
-GRADER_SYSTEM_PROMPT = """You are the Grader agent in the NXQ Phase 2 runtime.
+GRADER_SYSTEM_PROMPT = """You are the Grader agent in the ACEPLACE Phase 2 runtime.
 Evaluate the deliverable against the original task requirements.
 Return ONLY valid JSON:
 {

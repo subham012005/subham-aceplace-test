@@ -1,5 +1,5 @@
 """
-Firestore Service — Phase 2 NXQ Agent Engine
+Firestore Service — Phase 2 ACEPLACE Agent Engine
 
 All execution state lives in execution_envelopes/{envelope_id}.
 Steps are EMBEDDED in envelope.steps[].

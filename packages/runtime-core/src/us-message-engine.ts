@@ -165,8 +165,7 @@ async function handleArtifactProduce(msg: USMessage, envelope: ExecutionEnvelope
       console.error(`[#us#] Agent Engine error (${res.status}): ${errText}`);
       throw new Error(`Agent Engine error: ${errText}`);
     }
-    const result = await res.json();
-    console.log(`[#us#] Agent Engine success for ${msg.execution.step_id}:`, result);
+    const result = await res.json() as { success: boolean; error?: string; artifact_id: string };
     if (!result.success) throw new Error(result.error || "Agent Engine execution failed");
 
     const artifactId = result.artifact_id;
@@ -227,7 +226,7 @@ async function handleEvaluation(msg: USMessage, envelope: ExecutionEnvelope): Pr
   });
 
   if (!res.ok) throw new Error(`Agent Engine error: ${await res.text()}`);
-  const result = await res.json();
+  const result = await res.json() as { success: boolean; error?: string; artifact_id: string };
   if (!result.success) throw new Error(result.error || "Agent Engine execution failed");
 
   // 3. Return the completion message with the aggregated result
@@ -268,8 +267,7 @@ async function handleExecutionComplete(msg: USMessage): Promise<USMessage | null
     agent_id: msg.identity.agent_id,
   }).catch(() => undefined);
 
-  // 🛡️ Belt-and-suspenders: explicitly transition envelope to completed
-  await transition(msg.execution.envelope_id, "completed").catch(() => undefined);
+  // 🛡️ Removed early transition: parallel-runner manages terminal states.
 
   return null;
 }

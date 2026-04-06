@@ -1,4 +1,4 @@
-# NXQ Workstation — Firestore Schema Reference
+# ACEPLACE — Firestore Schema Reference
 
 > **Phase 2 — Envelope-Driven Runtime**
 > Steps and leases are **embedded inside envelopes**, not in separate collections.

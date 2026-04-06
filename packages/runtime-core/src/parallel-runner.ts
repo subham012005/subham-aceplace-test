@@ -12,6 +12,7 @@ import {
   releasePerAgentLease,
   validatePerAgentLease,
 } from "./per-agent-authority";
+import { addTrace } from "./kernels/persistence";
 import {
   createUSMessage,
   handleUSMessage,
@@ -280,6 +281,16 @@ async function executeClaimedStep(params: {
       output_ref: { message_id: messageId },
     });
 
+    // 🔬 Trace emission for audit trail
+    await addTrace(
+      envelope_id,
+      step.step_id,
+      agentId,
+      fingerprint,
+      "STEP_COMPLETED",
+      { duration_ms: duration, message_id: messageId }
+    );
+
     await emitSafe({
       event_type: "STEP_COMPLETED",
       envelope_id,
@@ -320,24 +331,24 @@ export async function runEnvelopeParallel(params: {
   if (first.status === "created") {
     try {
       await transition(envelope_id, "leased");
-    } catch {
-      /* ignore */
+    } catch (e: any) {
+      console.error(`[RUNTIME] Transition to leased failed: ${e.message}`);
     }
   }
   const s1 = (await ref.get()).data() as ExecutionEnvelope;
   if (s1.status === "leased") {
     try {
       await transition(envelope_id, "planned");
-    } catch {
-      /* ignore */
+    } catch (e: any) {
+      console.error(`[RUNTIME] Transition to planned failed: ${e.message}`);
     }
   }
   const s2 = (await ref.get()).data() as ExecutionEnvelope;
   if (s2.status === "planned") {
     try {
       await transition(envelope_id, "executing");
-    } catch {
-      /* ignore */
+    } catch (e: any) {
+      console.error(`[RUNTIME] Transition to executing failed: ${e.message}`);
     }
   }
 
@@ -371,9 +382,7 @@ export async function runEnvelopeParallel(params: {
       return;
     }
 
-    const runnableSteps = getRunnableSteps(envelope).filter(
-      (s) => s.step_type !== "human_approval"
-    );
+    const runnableSteps = getRunnableSteps(envelope);
 
     if (!runnableSteps.length) {
       const hasRunning = (envelope.steps || []).some((s) => s.status === "executing");
@@ -399,7 +408,7 @@ export async function runEnvelopeParallel(params: {
             });
           }
         } catch {
-          /* */
+          /* ignore if already terminal */
         }
         return;
       }

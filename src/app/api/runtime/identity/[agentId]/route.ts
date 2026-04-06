@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
-import { COLLECTIONS } from "@/lib/runtime/constants";
+import { COLLECTIONS } from "@aceplace/runtime-core";
 import { secureJson, safeErrorResponse, verifyUserApiKey } from "@/lib/api-security";
-import type { AgentIdentity } from "@/lib/runtime/types";
+import type { AgentIdentity } from "@aceplace/runtime-core";
 
 /**
  * GET /api/runtime/identity/[agentId] — Fetch agent identity from identity store.

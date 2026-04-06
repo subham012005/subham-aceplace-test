@@ -1,4 +1,4 @@
-# NXQ Workstation — System Architecture
+# ACEPLACE — System Architecture
 
 > **Version:** 2.0 (Phase 2 — Deterministic Runtime)
 > **Last Updated:** 2026-03-30
@@ -7,7 +7,7 @@
 
 ## Overview
 
-NXQ Workstation is a **multi-agent AI task execution platform** built on a deterministic, envelope-driven runtime. It replaces the previous n8n-based orchestration with a code-native, auditable, fork-resistant execution model.
+ACEPLACE is a **multi-agent AI task execution platform** built on a deterministic, envelope-driven runtime. It replaces the previous n8n-based orchestration with a code-native, auditable, fork-resistant execution model.
 
 The system is split into three tiers:
 
@@ -25,7 +25,7 @@ All tiers communicate through **Firestore** as the shared state store. The worke
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                     NXQ WORKSTATION (Next.js)                        │
+│                     ACEPLACE WORKSTATION (Next.js)                        │
 │                                                                       │
 │  ┌─────────────┐  ┌──────────────┐  ┌────────────────────────────┐  │
 │  │  Dashboard  │  │  Task        │  │  Envelope Inspector /       │  │

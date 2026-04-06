@@ -1,4 +1,4 @@
-# NXQ Workstation — API Reference
+# ACEPLACE — API Reference
 
 > Full REST API reference for the Next.js backend.
 

@@ -12,6 +12,7 @@
 import { randomUUID } from "crypto";
 import { getDb } from "./db";
 import { COLLECTIONS } from "./constants";
+import { addTrace } from "./kernels/persistence";
 import type { AgentAuthorityLease, ExecutionEnvelope } from "./types";
 
 const LEASE_MS = 60_000;
@@ -68,6 +69,17 @@ export async function acquirePerAgentLease(
     };
     const authority_leases = { ...(envelope.authority_leases || {}), [agentId]: lease };
     tx.update(ref, { authority_leases, updated_at: nowIso });
+
+    // 🔬 Trace emission for audit trail
+    await addTrace(
+      envelopeId,
+      "",
+      agentId,
+      envelope.identity_contexts?.[agentId]?.identity_fingerprint || "unknown",
+      "LEASE_ACQUIRED",
+      { lease_id: leaseId, instance_id: instanceId }
+    );
+
     return lease;
   });
 }

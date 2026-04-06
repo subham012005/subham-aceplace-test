@@ -216,7 +216,7 @@ export async function registerAgentIdentity(params: {
     identity_fingerprint,
     fingerprint: identity_fingerprint, // UI compat alias
     agent_class: role,
-    jurisdiction: "NXQ-AGENTSPACE",
+    jurisdiction: "ACEPLACE-AGENTSPACE",
     mission,
     tier: (tier as unknown) as number, // Compat with existing schema
     created_at: new Date().toISOString(),

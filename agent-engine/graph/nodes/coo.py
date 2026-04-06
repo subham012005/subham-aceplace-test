@@ -16,7 +16,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from services.firestore import log_agent_action
 
 
-COO_SYSTEM_PROMPT = """You are the COO agent in the NXQ Phase 2 runtime.
+COO_SYSTEM_PROMPT = """You are the COO agent in the ACEPLACE Phase 2 runtime.
 Your task is to create a deterministic execution plan for the given prompt.
 
 Return ONLY valid JSON in this exact structure:

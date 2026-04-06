@@ -1,5 +1,5 @@
 """
-Step Context — Phase 2 NXQ Agent Engine
+Step Context — Phase 2 ACEPLACE Agent Engine
 
 Replaces PipelineState (LangGraph-specific).
 Each agent node receives a simple context dict.

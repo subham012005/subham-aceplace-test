@@ -3,7 +3,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { verifyIdentity } from "@/lib/runtime/kernels/identity";
+import { verifyIdentity } from "@aceplace/runtime-core";
 import { verifyUserApiKey, safeErrorResponse } from "@/lib/api-security";
 
 interface IdentityVerifyRequest {
@@ -32,9 +32,9 @@ export async function POST(req: Request) {
       );
     }
 
-    const db = (await import("@/lib/runtime/db")).getDb();
-    const { COLLECTIONS } = await import("@/lib/runtime/constants");
-    const { computeFingerprint } = await import("@/lib/runtime/kernels/identity");
+    const db = (await import("@aceplace/runtime-core")).getDb();
+    const { COLLECTIONS } = await import("@aceplace/runtime-core");
+    const { computeFingerprint } = await import("@aceplace/runtime-core");
     
     // Phase 2: If envelopeId is missing, perform a GLOBAL registration check.
     if (!envelopeId) {

@@ -66,7 +66,7 @@ export default function ApiIntegration() {
     const pythonSnippet = `
 import requests
 
-# NXQ Workstation — Agent Integration
+# ACEPLACE — Agent Integration
 MASTER_SECRET = "${apiKey || 'YOUR_MASTER_SECRET'}"
 API_URL = "http://localhost:3000/api/runtime/dispatch"
 

@@ -16,7 +16,7 @@ from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import SystemMessage, HumanMessage
 
 
-RESEARCHER_SYSTEM_PROMPT = """You are the Researcher agent in the NXQ Phase 2 runtime.
+RESEARCHER_SYSTEM_PROMPT = """You are the Researcher agent in the ACEPLACE Phase 2 runtime.
 Gather information, analysis, and data relevant to the task.
 Return ONLY valid JSON:
 {

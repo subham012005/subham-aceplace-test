@@ -7,7 +7,7 @@
  *  - Security headers on all responses.
  */
 
-import { registerAgentIdentity } from "@/lib/runtime/kernels/identity";
+import { registerAgentIdentity } from "@aceplace/runtime-core";
 import {
   verifyUserApiKey,
   sanitiseString,

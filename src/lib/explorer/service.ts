@@ -2,9 +2,9 @@
  * Read-only explorer queries (ACEPLACE explorer API spec).
  */
 
-import { getDb } from "@/lib/runtime/db";
-import { COLLECTIONS } from "@/lib/runtime/constants";
-import type { ExecutionEnvelope } from "@/lib/runtime/types";
+import { getDb } from "@aceplace/runtime-core";
+import { COLLECTIONS } from "@aceplace/runtime-core";
+import type { ExecutionEnvelope } from "@aceplace/runtime-core";
 
 function mapSummary(
   envelope: ExecutionEnvelope,

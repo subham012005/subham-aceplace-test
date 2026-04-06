@@ -12,7 +12,7 @@ import {
   acceptAceHandoff,
   validateAceHandoff,
   type AceHandoffMessage,
-} from "@/lib/runtime/ace-handoff";
+} from "@aceplace/runtime-core";
 import { safeErrorResponse, secureJson, verifyUserApiKey } from "@/lib/api-security";
 
 const MAX_TASK_DESCRIPTION_LENGTH = 8_000;

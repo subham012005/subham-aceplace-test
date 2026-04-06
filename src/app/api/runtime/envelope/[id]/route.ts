@@ -3,7 +3,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { getEnvelopeState } from "@/lib/runtime/engine";
+import { getEnvelopeState } from "@aceplace/runtime-core";
 import { verifyUserApiKey, safeErrorResponse, secureJson } from "@/lib/api-security";
 
 export async function GET(

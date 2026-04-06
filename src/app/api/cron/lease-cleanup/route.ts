@@ -6,17 +6,17 @@
  */
 
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/runtime/db";
-import { COLLECTIONS } from "@/lib/runtime/constants";
-import { transition } from "@/lib/runtime/state-machine";
-import { addTrace } from "@/lib/runtime/kernels/persistence";
-import type { EnvelopeStep, ExecutionEnvelope } from "@/lib/runtime/types";
-import { emitRuntimeMetric } from "@/lib/runtime/telemetry/emitRuntimeMetric";
+import { getDb } from "@aceplace/runtime-core";
+import { COLLECTIONS } from "@aceplace/runtime-core";
+import { transition } from "@aceplace/runtime-core";
+import { addTrace } from "@aceplace/runtime-core";
+import type { EnvelopeStep, ExecutionEnvelope } from "@aceplace/runtime-core";
+import { emitRuntimeMetric } from "@aceplace/runtime-core";
 import { verifyCronAuth, secureJson } from "@/lib/api-security";
 
 const STALE_STEP_MS = 120_000;
 
-import { recoverGlobalDeadSteps } from "@/lib/runtime/recover-dead-steps";
+import { recoverGlobalDeadSteps } from "@aceplace/runtime-core";
 
 export async function GET(req: Request) {
   // 🔐 CRON_SECRET is required — hard-fail if missing or wrong

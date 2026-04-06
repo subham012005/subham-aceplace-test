@@ -74,13 +74,13 @@ export async function expandWorkerSteps(params: {
       }
     }
 
-    const updatedSteps = (envelope.steps || [])
-      .filter((s) => s.role !== "Worker")
-      .map((s) =>
-        s.role === "Grader"
-          ? { ...s, depends_on: workerSteps.map((w) => w.step_id) }
-          : s
-      );
+    const existingSteps = (envelope.steps || []);
+    // Transition the parent step (Assign) to completed in this same transaction
+    const updatedSteps = existingSteps.map((s) => {
+      if (s.step_id === plan.parent_step_id) return { ...s, status: "completed" };
+      if (s.role === "Grader") return { ...s, depends_on: workerSteps.map((w) => w.step_id) };
+      return s;
+    }).filter(s => s.role !== "Worker" || s.status === "completed"); // Only remove old Workers if they aren't somehow already completed
 
     tx.update(ref, {
       steps: [...updatedSteps, ...workerSteps],
