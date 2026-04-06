@@ -42,3 +42,14 @@ next-env.d.ts
 
 # Testing Workspace
 testing-end-to-end/
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+agent-engine/.venv/
+
+# Temp/scratch output files
+tmp_*.json
+tmp_*.txt
+audit_results.json
