@@ -3,8 +3,8 @@ import path from "path";
 
 export default defineConfig({
   test: {
-    // Pick up every *.test.ts anywhere under src/
-    include: ["src/**/*.test.ts"],
+    // Pick up tests in the root src/ and in all workspace packages
+    include: ["src/**/*.test.ts", "packages/*/src/**/*.test.ts"],
     exclude: ["node_modules", ".next", "dist"],
     environment: "node",
   },

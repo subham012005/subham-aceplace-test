@@ -365,8 +365,8 @@ All hooks use Firestore `onSnapshot` for real-time updates.
 
 ## Coding Conventions
 
-1. **Types** — All TypeScript interfaces must be in `src/lib/runtime/types.ts`
-2. **Constants** — Enums/config in `src/lib/runtime/constants.ts`
+1. **Types** — All TypeScript interfaces must be in `packages/runtime-core/src/types.ts`
+2. **Constants** — Enums/config in `packages/runtime-core/src/constants.ts`
 3. **Server Firestore** — Always use `firebase-admin` (see `src/lib/firebase-admin.ts`)
 4. **Client Firestore** — Use Firebase SDK (see `src/lib/firebase.ts`)
 5. **API Routes** — Next.js App Router pattern (`route.ts` with named exports)
