@@ -1,5 +1,5 @@
 {
-  "name": "nxq-workstation",
+  "name": "aceplace",
   "version": "0.1.0",
   "private": true,
   "workspaces": [
@@ -15,9 +15,11 @@
     "test:watch": "vitest",
     "worker": "ts-node apps/runtime-worker/src/index.ts",
     "worker:build": "tsc -p apps/runtime-worker/tsconfig.json",
-    "worker:start": "node apps/runtime-worker/dist/index.js"
+    "worker:start": "node apps/runtime-worker/dist/index.js",
+    "test:e2e": "vitest run apps/runtime-worker/src/__tests__/e2e-runtime.test.ts"
   },
   "dependencies": {
+    "@aceplace/runtime-core": "*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "firebase": "^12.9.0",
@@ -37,8 +39,10 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "firebase-tools": "^15.13.0",
     "shadcn": "^3.8.5",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",

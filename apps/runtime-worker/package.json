@@ -1,8 +1,8 @@
 {
-  "name": "@nxq/runtime-worker",
+  "name": "@aceplace/runtime-worker",
   "version": "1.0.0",
   "private": true,
-  "description": "NXQ long-lived deterministic runtime worker — polls execution_queue and drives envelope execution",
+  "description": "ACEPLACE long-lived deterministic runtime worker — polls execution_queue and drives envelope execution",
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node src/index.ts",
@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@nxq/runtime-core": "*",
+    "@aceplace/runtime-core": "*",
     "firebase-admin": "^13.7.0"
   },
   "devDependencies": {

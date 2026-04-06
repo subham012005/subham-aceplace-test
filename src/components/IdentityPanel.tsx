@@ -10,8 +10,8 @@ import { Fingerprint, ShieldCheck, ShieldAlert, Globe } from "lucide-react";
 import { HUDFrame } from "./HUDFrame";
 import { cn } from "@/lib/utils";
 import { useIdentity } from "@/hooks/useIdentity";
-import { TIER_DEFINITIONS } from "@/lib/runtime/constants";
-import type { LicenseTier } from "@/lib/runtime/types";
+import { TIER_DEFINITIONS } from "@aceplace/runtime-core";
+import type { LicenseTier } from "@aceplace/runtime-core";
 
 interface IdentityPanelProps {
   agentId: string;

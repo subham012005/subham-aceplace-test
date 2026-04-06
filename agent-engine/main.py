@@ -1,5 +1,5 @@
 """
-NXQ Agent Engine — Phase 2 FastAPI Entry Point
+ACEPLACE Agent Engine — Phase 2 FastAPI Entry Point
 
 Envelope-driven runtime. No hardcoded pipeline.
 No jobs collection dependency for execution.
@@ -59,7 +59,7 @@ class ExecuteStepRequest(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("╔══════════════════════════════════════════════╗")
-    print("║   NXQ Agent Engine — Phase 2 Runtime         ║")
+    print("║   ACEPLACE Agent Engine — Phase 2 Runtime         ║")
     print("║   Envelope-Driven • No hardcoded pipeline    ║")
     print(f"║   Running on port {AGENT_ENGINE_PORT}                        ║")
     print("╚══════════════════════════════════════════════╝")
@@ -70,7 +70,7 @@ async def lifespan(app: FastAPI):
 # ─── FastAPI App ───────────────────────────────────────────────────────────────
 
 app = FastAPI(
-    title="NXQ Agent Engine",
+    title="ACEPLACE Agent Engine",
     description="Phase 2 Envelope-Driven Runtime",
     version="2.0.0",
     lifespan=lifespan,
@@ -191,7 +191,7 @@ async def execute_step(request: ExecuteStepRequest):
 async def health_check():
     return {
         "status": "healthy",
-        "service": "NXQ Agent Engine",
+        "service": "ACEPLACE Agent Engine",
         "runtime": "envelope-driven",
         "version": "2.0.0",
     }

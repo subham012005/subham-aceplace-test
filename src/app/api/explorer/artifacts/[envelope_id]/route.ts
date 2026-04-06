@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/runtime/db";
-import { COLLECTIONS } from "@/lib/runtime/constants";
-import type { ExecutionEnvelope } from "@/lib/runtime/types";
+import { getDb } from "@aceplace/runtime-core";
+import { COLLECTIONS } from "@aceplace/runtime-core";
+import type { ExecutionEnvelope } from "@aceplace/runtime-core";
 
 export async function GET(
   _req: Request,

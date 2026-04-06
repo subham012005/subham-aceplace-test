@@ -3,7 +3,7 @@
  */
 
 import type { ExecutionGuardResult } from "./types";
-import { runAceLogicExecutionGuard } from "@/lib/acelogic/service";
+import { runAceLogicExecutionGuard } from "./acelogic/service";
 import {
   getCachedGuard,
   invalidateGuard,

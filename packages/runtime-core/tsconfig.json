@@ -4,12 +4,12 @@
     "module": "CommonJS",
     "moduleResolution": "node",
     "lib": ["ES2022"],
-    "baseUrl": "../..",
+    "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]
     },
     "outDir": "dist",
-    "rootDir": "../..",
+    "rootDir": "src",
     "strict": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -19,6 +19,6 @@
     "sourceMap": true,
     "composite": true
   },
-  "include": ["src/**/*", "../../src/lib/runtime/**/*", "../../src/lib/firebase-admin.ts"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }

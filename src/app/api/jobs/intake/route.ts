@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { workflowEngine } from "@/lib/workflow-engine";
-import { dispatch } from "@/lib/runtime/engine";
+import { dispatch } from "@aceplace/runtime-core";
 
 /**
  * Job Intake — Local Workflow Engine + Agent Pipeline Trigger

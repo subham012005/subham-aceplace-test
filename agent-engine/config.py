@@ -1,5 +1,5 @@
 """
-Configuration for the NXQ Agent Engine.
+Configuration for the ACEPLACE Agent Engine.
 Loads environment variables and defines agent model settings.
 """
 

@@ -1,8 +1,8 @@
 {
-  "name": "@nxq/runtime-core",
+  "name": "@aceplace/runtime-core",
   "version": "1.0.0",
   "private": true,
-  "description": "Framework-agnostic NXQ deterministic runtime core — envelope, state machine, identity, leases",
+  "description": "Framework-agnostic ACEPLACE deterministic runtime core — envelope, state machine, identity, leases",
   "main": "src/index.ts",
   "types": "src/index.ts",
   "scripts": {

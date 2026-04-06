@@ -7,8 +7,8 @@
 
 import React from "react";
 import { cn } from "@/lib/utils";
-import { STEP_TYPE_CONFIG } from "@/lib/runtime/constants";
-import type { EnvelopeStep } from "@/lib/runtime/types";
+import { STEP_TYPE_CONFIG } from "@aceplace/runtime-core";
+import type { EnvelopeStep } from "@aceplace/runtime-core";
 
 interface StepGraphProps {
   steps: EnvelopeStep[];

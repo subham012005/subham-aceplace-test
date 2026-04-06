@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { aceLogicResurrectionVerify } from "@/lib/acelogic/service";
-import { getLicenseFromRequest, runtimeIdFromRequest } from "@/lib/acelogic/http-context";
+import { aceLogicResurrectionVerify } from "@aceplace/runtime-core";
+import { getLicenseFromRequest, runtimeIdFromRequest } from "@aceplace/runtime-core";
 
 export async function POST(req: Request) {
   const lr = await getLicenseFromRequest(req);

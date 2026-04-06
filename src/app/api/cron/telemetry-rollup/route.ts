@@ -4,7 +4,7 @@
  * 🔐 Security: CRON_SECRET is required. Returns 500 if not configured.
  */
 
-import { aggregateTelemetryWindow } from "@/lib/runtime/telemetry/aggregateTelemetryWindow";
+import { aggregateTelemetryWindow } from "@aceplace/runtime-core";
 import { verifyCronAuth, secureJson } from "@/lib/api-security";
 
 export async function GET(req: Request) {

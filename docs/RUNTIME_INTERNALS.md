@@ -1,4 +1,4 @@
-# NXQ Workstation — Runtime Internals
+# ACEPLACE — Runtime Internals
 
 > Deep reference for the TypeScript runtime engine and Python agent engine.
 
@@ -120,7 +120,7 @@ Checks if an agent is authorized before execution.
 
 **Resolution order:**
 1. If `ACELOGIC_API_URL` is set → call remote ACELOGIC REST API
-2. Otherwise → call in-process `runAceLogicExecutionGuard()` from `src/lib/acelogic/service.ts`
+2. Otherwise → call in-process `runAceLogicExecutionGuard()` from `packages/runtime-core/src/acelogic/service.ts`
 
 Results cached in `execution-guard-cache.ts` (TTL: 55s, max 500 entries) to avoid repeated Firestore reads.
 
@@ -367,8 +367,8 @@ All hooks use Firestore `onSnapshot` for real-time updates.
 
 1. **Types** — All TypeScript interfaces must be in `packages/runtime-core/src/types.ts`
 2. **Constants** — Enums/config in `packages/runtime-core/src/constants.ts`
-3. **Server Firestore** — Always use `firebase-admin` (see `src/lib/firebase-admin.ts`)
-4. **Client Firestore** — Use Firebase SDK (see `src/lib/firebase.ts`)
+3. **Server Firestore** — Always use `firebase-admin`
+4. **Client Firestore** — Use Firebase SDK
 5. **API Routes** — Next.js App Router pattern (`route.ts` with named exports)
 6. **UI** — Sci-fi/HUD aesthetic: dark backgrounds, cyan/slate accents, `tracking-widest`, `uppercase`, `text-[9px]` labels
-7. **No new collections** — Data lives inside envelopes; avoid ad-hoc Firestore collections
+7. **Enforced Schema Consistency** — The ACEPLACE platform uses a strict, documented schema in `docs/FIRESTORE_SCHEMA.md`. Do not add ad-hoc collections to the runtime database without updating the schema. The canonical collections are: `execution_envelopes`, `execution_messages`, `execution_traces`, `artifacts`, `telemetry_events`, `secrets`, and `api_keys`. All runtime state is natively embedded inside the envelopes to ensure atomicity.

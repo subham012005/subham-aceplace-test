@@ -1,4 +1,4 @@
-import { dispatch } from "@/lib/runtime/engine";
+import { dispatch } from "@aceplace/runtime-core";
 import { sanitisePrompt, safeErrorResponse, secureJson, verifyUserApiKey } from "@/lib/api-security";
 
 /**

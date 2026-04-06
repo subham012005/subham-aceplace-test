@@ -31,7 +31,7 @@ async function seed() {
   const keyRecord = {
     key_id: "key_test_admin",
     user_id: "test_user_hardening_123",
-    org_id: "NXQ-CORE",
+    org_id: "ACEPLACE-CORE",
     master_secret: masterSecret,
     status: "active",
     created_at: new Date().toISOString(),

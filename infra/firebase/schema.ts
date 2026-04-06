@@ -1,7 +1,7 @@
 /**
  * Firestore Schema — Phase 2
  *
- * Canonical collection definitions for the NXQ deterministic runtime.
+ * Canonical collection definitions for the ACEPLACE deterministic runtime.
  * This is the source of truth for all Firestore collection shapes.
  *
  * Phase 2 | Envelope-Driven Runtime

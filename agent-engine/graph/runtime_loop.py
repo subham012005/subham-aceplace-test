@@ -1,5 +1,5 @@
 """
-Deterministic Runtime Loop — Phase 2 NXQ Agent Engine
+Deterministic Runtime Loop — Phase 2 ACEPLACE Agent Engine
 
 Replaces graph/pipeline.py (LangGraph hardcoded COO→Researcher→Worker→Grader).
 Drives execution entirely from execution_envelopes.steps[].

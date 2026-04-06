@@ -1,0 +1,82 @@
+"use strict";
+/**
+ * Envelope Builder — Phase 2
+ *
+ * Builds a canonical ExecutionEnvelope with steps[] EMBEDDED.
+ * No separate ExecutionStep[] — everything lives inside the envelope document.
+ *
+ * Phase 2 | Envelope-Driven Runtime
+ */
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.buildEnvelope = buildEnvelope;
+exports.buildDefaultIdentityContext = buildDefaultIdentityContext;
+const crypto_1 = require("crypto");
+const constants_1 = require("./constants");
+/**
+ * Build a canonical ExecutionEnvelope with embedded steps[].
+ * The first step is initialized to "ready"; all others are "pending".
+ */
+function buildEnvelope(params) {
+    const now = new Date().toISOString();
+    const envelopeId = `env_${(0, crypto_1.randomUUID)().replace(/-/g, "").slice(0, 20)}`;
+    const pipeline = params.stepPipeline ?? constants_1.DEFAULT_STEP_PIPELINE;
+    // Build embedded steps — first step is "ready", rest are "pending"
+    const steps = params.steps ?? pipeline.map((stepType, index) => {
+        const config = constants_1.STEP_TYPE_CONFIG[stepType];
+        return {
+            step_id: `step_${envelopeId}_${index}`,
+            step_type: stepType,
+            status: index === 0 ? "ready" : "pending",
+            assigned_agent_id: config?.agent_role ?? stepType,
+            retry_count: 0,
+            max_retries: 2,
+        };
+    });
+    const identity_contexts = params.identity_contexts ?? {
+        [params.identityContext.agent_id]: params.identityContext,
+    };
+    const assignedAgents = new Set(steps.map(s => s.assigned_agent_id));
+    if (assignedAgents.size > 1 && !params.identity_contexts) {
+        throw new Error(`INCOMPLETE_IDENTITY_CONTEXTS: Multi-agent envelope requires explicit identity_contexts map covering exactly the planned agents.`);
+    }
+    for (const agentId of assignedAgents) {
+        if (!identity_contexts[agentId]) {
+            throw new Error(`INCOMPLETE_IDENTITY_CONTEXTS: Missing identity context for assigned agent: ${agentId}`);
+        }
+    }
+    return {
+        envelope_id: envelopeId,
+        org_id: params.orgId ?? "default",
+        status: "created",
+        // Steps EMBEDDED (not external collection)
+        steps,
+        // Lease starts as null — acquired before first step
+        authority_lease: null,
+        // Identity context from agent store
+        identity_context: params.identityContext,
+        // Multi-agent identity contexts
+        multi_agent: assignedAgents.size > 1,
+        identity_contexts,
+        // Metadata for completion
+        artifact_refs: [],
+        trace_head_hash: null,
+        created_at: now,
+        updated_at: now,
+        // Legacy link fields
+        job_id: params.jobId,
+        user_id: params.userId,
+        prompt: params.prompt,
+    };
+}
+/**
+ * Build a minimal identity context (no agent store lookup).
+ * Used for development/testing when agents collection doesn't exist.
+ */
+function buildDefaultIdentityContext(agentId) {
+    return {
+        agent_id: agentId,
+        identity_fingerprint: "pending_verification",
+        verified: false,
+    };
+}
+//# sourceMappingURL=envelope-builder.js.map

@@ -4,11 +4,11 @@
  */
 
 import { NextResponse } from "next/server";
-import { acquireLease } from "@/lib/runtime/kernels/authority";
+import { acquireLease } from "@aceplace/runtime-core";
 import { verifyUserApiKey, safeErrorResponse } from "@/lib/api-security";
 import { adminDb } from "@/lib/firebase-admin";
-import { COLLECTIONS } from "@/lib/runtime/constants";
-import type { LeaseAcquireRequest } from "@/lib/runtime/types";
+import { COLLECTIONS } from "@aceplace/runtime-core";
+import type { LeaseAcquireRequest } from "@aceplace/runtime-core";
 
 export async function POST(req: Request) {
   try {

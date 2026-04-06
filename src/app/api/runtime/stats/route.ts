@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
-import { COLLECTIONS } from "@/lib/runtime/constants";
+import { COLLECTIONS } from "@aceplace/runtime-core";
 import { secureJson, safeErrorResponse, verifyUserApiKey } from "@/lib/api-security";
-import type { ExecutionEnvelope } from "@/lib/runtime/types";
+import type { ExecutionEnvelope } from "@aceplace/runtime-core";
 
 /**
  * GET /api/runtime/stats — Aggregate runtime stats for the authenticated user.

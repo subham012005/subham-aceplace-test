@@ -7,7 +7,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { setAgentSecrets, listSecretNames } from "@/lib/runtime/kernels/secrets";
+import { setAgentSecrets, listSecretNames } from "@aceplace/runtime-core";
 import { verifyMasterAuth, secureJson, safeErrorResponse } from "@/lib/api-security";
 
 export async function POST(req: Request) {

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/runtime/db";
-import { COLLECTIONS } from "@/lib/runtime/constants";
+import { getDb } from "@aceplace/runtime-core";
+import { COLLECTIONS } from "@aceplace/runtime-core";
 
 export async function GET(
   _req: Request,

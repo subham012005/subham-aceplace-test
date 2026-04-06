@@ -8,7 +8,7 @@
  *  - Stack traces never returned to client
  */
 
-import { dispatch } from "@/lib/runtime/engine";
+import { dispatch } from "@aceplace/runtime-core";
 import {
   sanitisePrompt,
   sanitiseUserId,

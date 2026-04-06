@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from "react";
 import { aceApi } from "@/lib/api-client";
-import type { ExecutionEnvelope } from "@/lib/runtime/types";
+import type { ExecutionEnvelope } from "@aceplace/runtime-core";
 
 export interface UseEnvelopesReturn {
   envelopes: ExecutionEnvelope[];

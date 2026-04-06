@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from "react";
 import { aceApi } from "@/lib/api-client";
-import type { AgentIdentity } from "@/lib/runtime/types";
+import type { AgentIdentity } from "@aceplace/runtime-core";
 
 export interface UseIdentityReturn {
   identity: AgentIdentity | null;
