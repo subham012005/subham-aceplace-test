@@ -1,2 +1,0 @@
-NOVA ACE → Handoff → Envelope Creation (ENTRY POINT)  (1).docx
-

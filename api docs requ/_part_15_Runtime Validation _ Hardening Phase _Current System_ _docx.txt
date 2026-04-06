@@ -1,2 +1,0 @@
-Runtime Validation + Hardening Phase (Current System) .docx
-
