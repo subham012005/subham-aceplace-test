@@ -53,3 +53,12 @@ agent-engine/.venv/
 tmp_*.json
 tmp_*.txt
 audit_results.json
+
+# ACEPLACE / Claude Specific
+.claude/
+.antigravity/
+.antigravityignore
+claude_*.json
+claude_*.txt
+antigravity_*.json
+antigravity_*.txt

@@ -9,7 +9,7 @@
 
 import { useState, useEffect } from "react";
 import { aceApi } from "@/lib/api-client";
-import type { AuthorityLease } from "@aceplace/runtime-core";
+import type { AuthorityLease } from "@aceplace/runtime-core/shared";
 
 export interface ActiveLease {
   envelope_id: string;
