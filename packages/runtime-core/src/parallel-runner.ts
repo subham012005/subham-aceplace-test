@@ -12,6 +12,15 @@ import {
   releasePerAgentLease,
   validatePerAgentLease,
 } from "./per-agent-authority";
+import {
+  assertAgentIdentityContext,
+  assertAgentLease,
+  assertClaimOwnership,
+  assertEnvelopeHasSteps,
+  assertEnvelopeNotTerminal,
+  assertIdentityContext,
+  assertStepNotCompleted,
+} from "./runtime/guards";
 import { addTrace } from "./kernels/persistence";
 import {
   createUSMessage,
@@ -194,6 +203,12 @@ async function executeClaimedStep(params: {
   const agentId = step.assigned_agent_id;
   if (!agentId) throw new Error(`STEP_AGENT_MISSING:${step.step_id}`);
 
+  // ── Hard invariant assertions — fail before touching any runtime state ──
+  assertEnvelopeNotTerminal(envelope);
+  assertIdentityContext(envelope);
+  assertAgentIdentityContext(envelope, agentId);
+  assertStepNotCompleted(step);
+
   const ident = await verifyIdentityForAgent(envelope_id, envelope, agentId);
   if (!ident.verified) {
     throw new Error(`IDENTITY_FAILED:${ident.reason}`);
@@ -226,6 +241,8 @@ async function executeClaimedStep(params: {
 
   const refreshed = (await ref.get()).data() as ExecutionEnvelope;
   validatePerAgentLease(refreshed, agentId, instanceId);
+  // Hard guard: lease must be valid, active, and owned by this instance.
+  assertAgentLease(refreshed, agentId, instanceId);
 
   const fingerprint =
     refreshed.multi_agent && refreshed.identity_contexts?.[agentId]
@@ -327,6 +344,18 @@ export async function runEnvelopeParallel(params: {
   const boot = await ref.get();
   if (!boot.exists) throw new Error("ENVELOPE_NOT_FOUND");
   const first = boot.data() as ExecutionEnvelope;
+
+  // Hard guard: envelope must have steps before we attempt execution.
+  assertEnvelopeHasSteps(first);
+
+  // Hard guard: assert that this instance actually owns the queue claim
+  const qSnap = await getDb().collection(COLLECTIONS.EXECUTION_QUEUE).doc(envelope_id).get();
+  if (qSnap.exists) {
+    const qData = qSnap.data();
+    if (qData?.status === "claimed") {
+      assertClaimOwnership(envelope_id, qData.claimed_by, instance_id);
+    }
+  }
 
   if (first.status === "created") {
     try {

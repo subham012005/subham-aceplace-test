@@ -12,10 +12,9 @@
 |------|---------|
 | `types.ts` | All TypeScript interfaces (envelope, steps, leases, protocol messages) |
 | `constants.ts` | Firestore collection names, state machine transitions, step config, display config |
-| `engine.ts` | Public dispatcher — single-agent path entry point |
+| `engine.ts` | Public dispatcher — enqueues envelopes for the runtime worker |
 | `ace-handoff.ts` | Multi-agent handoff entry point (`#us#.task.handoff`) |
-| `runtime-loop.ts` | Sequential single-agent execution loop |
-| `parallel-runner.ts` | Multi-agent parallel step execution loop |
+| `parallel-runner.ts` | Multi-agent parallel step execution loop (called only by apps/runtime-worker) |
 | `step-planner.ts` | Builds the `steps[]` array from role assignments |
 | `envelope-builder.ts` | Constructs a new `ExecutionEnvelope` from a dispatch request |
 | `state-machine.ts` | Atomic envelope status transitions (Firestore transactions) |
@@ -32,7 +31,7 @@
 | `kernels/authority.ts` | Single-agent lease acquire/release/validation |
 | `kernels/persistence.ts` | All Firestore read/write operations |
 | `kernels/communications.ts` | `#us#` message emission and lookup |
-| `kernels/execution.ts` | (Stub/unused directly) execution kernel primitives |
+| `runtime/guards.ts` | Hard assertion guardrails — fail immediately on invariant violations |
 | `telemetry/emitRuntimeMetric.ts` | Emits runtime metrics to Firestore |
 | `telemetry/aggregateTelemetryWindow.ts` | Aggregates raw events into rollups |
 
@@ -46,7 +45,7 @@ Verifies that the `agent_id` in the envelope matches a stored agent document.
 
 **Key functions:**
 - `buildIdentityContext(agentId)` — Fetches agent from Firestore, computes fingerprint
-- `verifyIdentity(envelopeId, agentId, envelope)` — Checks fingerprint matches stored; transitions envelope to `quarantined` on mismatch
+- `verifyIdentity(envelopeId, agentId, envelope)` — Checks fingerprint matches stored; Transitions to `quarantined` on mismatch OR if `pending_verification` is found and `ALLOW_PENDING_IDENTITY != true`.
 - `verifyIdentityForAgent(envelopeId, envelope, agentId)` — Multi-agent version
 - `computeFingerprint(canonicalIdentityJson)` — SHA-256 of canonical JSON string
 
@@ -146,6 +145,7 @@ The multi-agent bounded-parallelism execution loop.
 
 **Algorithm:**
 1. Boot envelope status through `created → leased → planned → executing`
+   - **Hard Guard**: `assertClaimOwnership()` — ensures this runtime instance owns the queue claim for this envelope.
 2. Loop until terminal state:
    - Check for `human_approval` step ready → pause envelope (`awaiting_human`)
    - Find all `ready`/`pending` + dependency-satisfied steps

@@ -48,10 +48,22 @@ export {
   expireStaleLeases,
 } from "./kernels/authority";
 
-// Parallel runner
+// Parallel runner — execution plane primitives
 export {
   runEnvelopeParallel,
+  claimEnvelopeStep,
+  finalizeEnvelopeStep,
+  getRunnableSteps,
+  selectParallelStepBatch,
 } from "./parallel-runner";
+
+// Per-agent authority leases
+export {
+  acquirePerAgentLease,
+  releasePerAgentLease,
+  validatePerAgentLease,
+  renewPerAgentLease,
+} from "./per-agent-authority";
 export {
   recoverGlobalDeadSteps,
   recoverEnvelopeDeadSteps,
@@ -96,6 +108,19 @@ export {
 export { auditLicenseCheck, checkCapability } from "./acelogic/capability";
 export { isLicenseExpired, resolveLicenseById } from "./acelogic/resolve-license";
 export { getLicenseFromRequest, runtimeIdFromRequest } from "./acelogic/http-context";
+
+// Runtime guardrails
+export {
+  assertEnvelopeNotTerminal,
+  assertIdentityContext,
+  assertAgentIdentityContext,
+  assertAgentLease,
+  assertClaimOwnership,
+  assertStepExists,
+  assertStepNotCompleted,
+  assertDependenciesSatisfied,
+  assertEnvelopeHasSteps,
+} from "./runtime/guards";
 
 // Types & constants
 export * from "./types";

@@ -16,7 +16,8 @@
     "worker": "ts-node apps/runtime-worker/src/index.ts",
     "worker:build": "tsc -p apps/runtime-worker/tsconfig.json",
     "worker:start": "node apps/runtime-worker/dist/index.js",
-    "test:e2e": "vitest run apps/runtime-worker/src/__tests__/e2e-runtime.test.ts"
+    "test:e2e": "vitest run apps/runtime-worker/src/__tests__/e2e-runtime.test.ts",
+    "audit": "npm audit --audit-level=moderate"
   },
   "dependencies": {
     "@aceplace/runtime-core": "*",
@@ -48,15 +49,16 @@
     "ts-node": "^10.9.2",
     "tw-animate-css": "^1.4.0",
     "typescript": "^5",
-    "vitest": "^1.6.1"
+    "vitest": "^3.2.0"
   },
   "overrides": {
     "jsonwebtoken": "^9.0.0",
     "@grpc/grpc-js": "^1.12.0",
     "protobufjs": "^7.4.0",
     "esbuild": "^0.25.0",
-    "@google-cloud/firestore": "^7.0.0",
-    "google-gax": "^4.0.0",
-    "@tootallnate/once": "^2.0.0"
+    "@google-cloud/firestore": "^7.11.0",
+    "google-gax": "^5.0.1",
+    "@tootallnate/once": "^3.0.1",
+    "vite": "^6.4.2"
   }
 }
