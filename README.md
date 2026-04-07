@@ -72,4 +72,9 @@ npm run test:e2e
 ---
 
 ## 🛡️ Identity & Security
-ACEPLACE implements mandatory **SHA-256 identity fingerprinting**. Every agent in the multi-agent graph is verified against its canonical registry document before any execution-tier lease is granted. Any mismatch results in **Immediate Envelope Quarantine**.
+ACEPLACE implements mandatory **SHA-256 identity fingerprinting**. Every agent in the multi-agent graph is verified against its canonical registry document before any execution-tier lease is granted. 
+
+### Hardened Production Guardrails:
+- **Queue Claim Ownership**: Every envelope execution is guarded by an atomic claim check — only the worker that claimed the envelope from the `execution_queue` can drive its state machine.
+- **Fail-Closed Identity**: In production, `pending_verification` identities are strictly rejected. Set `ALLOW_PENDING_IDENTITY=true` only for local development.
+- **Immediate Quarantine**: Any identity mismatch, lease conflict (fork), or unauthorized claim results in **Immediate Envelope Quarantine**, halting all downstream steps.

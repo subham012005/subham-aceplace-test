@@ -68,12 +68,14 @@ All tiers communicate through **Firestore** as the shared state store. The worke
                │           GOOGLE FIRESTORE           │
                │                                      │
                │  execution_envelopes  (PRIMARY)      │
+               │  execution_queue      (worker inbox) │
                │  agents · artifacts                  │
                │  execution_traces · licenses         │
                │  execution_messages · protocol_msgs  │
                │  telemetry_events · telemetry_rollups│
                │  envelope_metrics · agent_metrics    │
                │  license_audit_events                │
+               │  api_keys · secrets                  │
                │  jobs (legacy, read-only UI pointer) │
                └──────────────────────────────────────┘
 ```
@@ -162,19 +164,35 @@ The dashboard calls `POST /api/runtime/dispatch/from-dashboard`, which authentic
 the user via Firebase ID token and then invokes the core `dispatch()` entry point
 behind the scenes.
 
+**Execution is ALWAYS: Envelope → Runtime Worker → Agent Engine**
+
 ```
 POST /api/runtime/dispatch  (or /api/runtime/dispatch/from-dashboard from the UI)
   → engine.ts::dispatch()
-  → Builds envelope with default COO agent
-  → runtime-loop.ts::runEnvelope()
-     → identity kernel: verify fingerprint
-     → authority kernel: acquire single lease
-     → For each step:
-         → Send #us# protocol message
-         → Call Python agent-engine POST /execute-step
-         → Persist artifact
-         → Update step + advance next step to "ready"
-     → Transition envelope to approved/failed
+     → Resolves role assignments and per-agent identity fingerprints
+     → Builds ExecutionEnvelope (status: "created")
+     → Persists envelope to Firestore (execution_envelopes/{id})
+     → enqueueEnvelope() → execution_queue collection
+     → Returns { success: true, envelope_id }
+
+(In Background: apps/runtime-worker)
+  → claimNextEnvelope(workerId) — atomic claim from execution_queue
+  → parallel-runner.ts::runEnvelopeParallel()
+     → assertClaimOwnership() — verifies workerId matches the entry in execution_queue
+     → Boot transitions: created → leased → planned → executing
+     → For each ready step (bounded parallelism, one step per agent):
+         → assertEnvelopeNotTerminal() + assertIdentityContext() [guardrails]
+         → verifyIdentityForAgent() — SHA-256 fingerprint check
+         → acelogicExecutionGuard() — license + capability validation
+         → acquirePerAgentLease() — per-agent authority lease
+         → leaseHeartbeatManager.start()
+         → createUSMessage() + handleUSMessage()
+             → calls Python agent-engine POST /execute-step
+             → persists artifact to artifacts/{id}
+         → finalizeEnvelopeStep() — update step status + output_ref
+         → leaseHeartbeatManager.stop() + releasePerAgentLease()
+     → Transition envelope to completed / failed / quarantined
+  → finalizeQueueEntry() — mark execution_queue entry as done
 ```
 
 ### Path 2 — Multi-Agent Handoff (`/api/runtime/handoff`)

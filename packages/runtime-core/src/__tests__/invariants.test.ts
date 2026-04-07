@@ -13,7 +13,16 @@ import { ENVELOPE_STATUS_TRANSITIONS, COLLECTIONS } from "../constants";
 import { buildDefaultIdentityContext } from "../envelope-builder";
 import { planEnvelopeSteps } from "../step-planner";
 import { computeFingerprint } from "../kernels/identity";
-import type { EnvelopeStatus } from "../types";
+import {
+  assertEnvelopeNotTerminal,
+  assertIdentityContext,
+  assertAgentIdentityContext,
+  assertAgentLease,
+  assertStepNotCompleted,
+  assertDependenciesSatisfied,
+  assertEnvelopeHasSteps,
+} from "../runtime/guards";
+import type { EnvelopeStatus, ExecutionEnvelope, EnvelopeStep } from "../types";
 
 describe("Invariant — terminal states have no transitions", () => {
   const terminals: EnvelopeStatus[] = ["approved", "completed", "rejected", "failed", "quarantined"];
@@ -86,6 +95,122 @@ describe("Invariant — step planner agent coverage", () => {
     // Must NOT contain the old hardcoded IDs
     expect(agents.has("agent_researcher")).toBe(false);
     expect(agents.has("agent_grader")).toBe(false);
+  });
+});
+
+describe("Invariant — runtime guardrails (guards.ts)", () => {
+  it("assertEnvelopeNotTerminal throws on every terminal status", () => {
+    const terminals: EnvelopeStatus[] = ["approved", "completed", "rejected", "failed", "quarantined"];
+    for (const status of terminals) {
+      expect(() =>
+        assertEnvelopeNotTerminal({ status } as ExecutionEnvelope)
+      ).toThrow(`GUARD_ENVELOPE_TERMINAL:${status}`);
+    }
+  });
+
+  it("assertEnvelopeNotTerminal does not throw on non-terminal statuses", () => {
+    const nonTerminals: EnvelopeStatus[] = ["created", "leased", "planned", "executing"];
+    for (const status of nonTerminals) {
+      expect(() =>
+        assertEnvelopeNotTerminal({ status } as ExecutionEnvelope)
+      ).not.toThrow();
+    }
+  });
+
+  it("assertIdentityContext throws when identity_context is absent", () => {
+    expect(() =>
+      assertIdentityContext({ identity_context: null } as any)
+    ).toThrow("GUARD_IDENTITY_CONTEXT_MISSING");
+  });
+
+  it("assertIdentityContext throws when identity_fingerprint is empty", () => {
+    expect(() =>
+      assertIdentityContext({ identity_context: { identity_fingerprint: "" } } as any)
+    ).toThrow("GUARD_IDENTITY_FINGERPRINT_MISSING");
+  });
+
+  it("assertIdentityContext passes when fingerprint is present", () => {
+    expect(() =>
+      assertIdentityContext({
+        identity_context: { agent_id: "a", identity_fingerprint: "abc123", verified: true },
+      } as any)
+    ).not.toThrow();
+  });
+
+  it("assertAgentIdentityContext throws when agent ctx is missing in multi-agent envelope", () => {
+    expect(() =>
+      assertAgentIdentityContext(
+        { multi_agent: true, identity_contexts: {} } as any,
+        "agent_missing"
+      )
+    ).toThrow("GUARD_AGENT_IDENTITY_CONTEXT_MISSING:agent_missing");
+  });
+
+  it("assertAgentLease throws GUARD_LEASE_MISSING when no lease exists", () => {
+    const env = { authority_leases: {} } as any;
+    expect(() => assertAgentLease(env, "agent_1", "instance_1"))
+      .toThrow("GUARD_LEASE_MISSING:agent_1");
+  });
+
+  it("assertAgentLease throws GUARD_LEASE_EXPIRED for a past expiry", () => {
+    const env = {
+      authority_leases: {
+        agent_1: {
+          lease_id: "l1",
+          agent_id: "agent_1",
+          current_instance_id: "instance_1",
+          lease_expires_at: new Date(Date.now() - 10_000).toISOString(),
+          status: "active",
+        },
+      },
+    } as any;
+    expect(() => assertAgentLease(env, "agent_1", "instance_1"))
+      .toThrow("GUARD_LEASE_EXPIRED:agent_1");
+  });
+
+  it("assertAgentLease throws GUARD_LEASE_INSTANCE_MISMATCH when wrong instance holds lease", () => {
+    const env = {
+      authority_leases: {
+        agent_1: {
+          lease_id: "l1",
+          agent_id: "agent_1",
+          current_instance_id: "instance_OTHER",
+          lease_expires_at: new Date(Date.now() + 60_000).toISOString(),
+          status: "active",
+        },
+      },
+    } as any;
+    expect(() => assertAgentLease(env, "agent_1", "instance_1"))
+      .toThrow("GUARD_LEASE_INSTANCE_MISMATCH:agent_1");
+  });
+
+  it("assertStepNotCompleted throws for a completed step", () => {
+    const step: EnvelopeStep = { step_id: "s1", status: "completed" } as any;
+    expect(() => assertStepNotCompleted(step)).toThrow("GUARD_STEP_ALREADY_COMPLETED:s1");
+  });
+
+  it("assertDependenciesSatisfied throws when dependency is not completed", () => {
+    const step: EnvelopeStep = { step_id: "s2", depends_on: ["s1"], status: "ready" } as any;
+    const allSteps: EnvelopeStep[] = [
+      { step_id: "s1", status: "executing" } as any,
+      step,
+    ];
+    expect(() => assertDependenciesSatisfied(step, allSteps))
+      .toThrow("GUARD_DEPENDENCY_NOT_SATISFIED:s2:needs=s1:dep_status=executing");
+  });
+
+  it("assertDependenciesSatisfied passes when all deps are completed", () => {
+    const step: EnvelopeStep = { step_id: "s2", depends_on: ["s1"], status: "ready" } as any;
+    const allSteps: EnvelopeStep[] = [
+      { step_id: "s1", status: "completed" } as any,
+      step,
+    ];
+    expect(() => assertDependenciesSatisfied(step, allSteps)).not.toThrow();
+  });
+
+  it("assertEnvelopeHasSteps throws when steps array is empty", () => {
+    expect(() => assertEnvelopeHasSteps({ steps: [] } as any)).toThrow("GUARD_ENVELOPE_NO_STEPS");
+    expect(() => assertEnvelopeHasSteps({ steps: undefined } as any)).toThrow("GUARD_ENVELOPE_NO_STEPS");
   });
 });
 
