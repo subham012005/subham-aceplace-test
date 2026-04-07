@@ -11,9 +11,9 @@ import { HUDFrame } from "./HUDFrame";
 import { StepGraph } from "./StepGraph";
 import { EnvelopeStepCard } from "./EnvelopeStepCard";
 import { cn } from "@/lib/utils";
-import { ENVELOPE_STATUS_DISPLAY } from "@aceplace/runtime-core";
+import { ENVELOPE_STATUS_DISPLAY } from "@aceplace/runtime-core/shared";
 import { useEnvelope } from "@/hooks/useEnvelope";
-import type { ExecutionEnvelope } from "@aceplace/runtime-core";
+import type { ExecutionEnvelope } from "@aceplace/runtime-core/shared";
 
 interface EnvelopeInspectorProps {
   executionId: string;

@@ -9,7 +9,7 @@ import React, { useState } from "react";
 import { Terminal, ChevronDown, ChevronRight, Radio } from "lucide-react";
 import { HUDFrame } from "./HUDFrame";
 import { cn } from "@/lib/utils";
-import type { ProtocolMessage } from "@aceplace/runtime-core";
+import type { ProtocolMessage } from "@aceplace/runtime-core/shared";
 
 interface ProtocolViewerProps {
   executionId?: string;

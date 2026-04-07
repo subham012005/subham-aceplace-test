@@ -42,7 +42,7 @@ import { LeaseManager } from "@/components/LeaseManager";
 import { IdentityPanel } from "@/components/IdentityPanel";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useEnvelopes } from "@/hooks/useEnvelopes";
-import type { ExecutionEnvelope } from "@aceplace/runtime-core";
+import type { ExecutionEnvelope } from "@aceplace/runtime-core/shared";
 
 interface ActivityLog {
     id: string;
