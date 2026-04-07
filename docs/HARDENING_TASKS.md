@@ -1,0 +1,26 @@
+# Task List - ACEPLACE Runtime Hardening
+
+- [x] **Phase 1: Enforce Single Runtime Ownership**
+    - [x] Audit `runtime-worker/src/index.ts` to ensure it's the sole entry point.
+    - [x] Refactor `src/lib/workflow-engine.ts` to be a thin orchestrator.
+    - [x] Remove any direct execution logic from root `src/` and API routes.
+- [x] **Phase 2: Strict Identity Enforcement**
+    - [x] Refactor `packages/runtime-core/src/kernels/identity.ts` to disable `pending_verification` by default.
+    - [x] Strengthen `verifyIdentity` and `verifyIdentityForAgent` to fail hard.
+    - [x] Update `packages/runtime-core/src/runtime/guards.ts` with stricter identity context checks.
+- [x] **Phase 3: Strict Lease Enforcement**
+    - [x] Strengthen `assertAgentLease` in `guards.ts`.
+    - [x] Verify `FORK_DETECTED` invariant in `per-agent-authority.ts`.
+- [x] **Phase 4: Runtime Guardrails**
+    - [x] Integrate hard assertions into `packages/runtime-core/src/parallel-runner.ts`.
+    - [x] Ensure all key execution boundaries are guarded.
+- [x] **Phase 5: E2E and Invariant Testing**
+    - [x] Extend `apps/runtime-worker/src/__tests__/e2e-runtime.test.ts`.
+    - [x] Add identity mismatch and fork detection test cases.
+- [x] **Phase 6: README + Docs Cleanup**
+    - [x] Update README.md, ARCHITECTURE.md, and RUNTIME_INTERNALS.md.
+    - [x] Clarify root `src/` role.
+- [x] **Phase 7: Dependency Hardening & CI**
+    - [x] Update root `package.json` with secure overrides.
+    - [x] Update `.github/workflows/ci.yml` with `npm audit` check.
+    - [x] Run final audit and tests.
