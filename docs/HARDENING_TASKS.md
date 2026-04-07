@@ -24,3 +24,8 @@
     - [x] Update root `package.json` with secure overrides.
     - [x] Update `.github/workflows/ci.yml` with `npm audit` check.
     - [x] Run final audit and tests.
+- [x] **Phase 8: Build Restoration (Decoupling Exports)**
+    - [x] Create `packages/runtime-core/src/shared.ts` for types and constants.
+    - [x] Update `packages/runtime-core/package.json` for sub-path exports.
+    - [x] Refactor Client Components to use shared entry point.
+    - [x] Verify build and E2E tests.
