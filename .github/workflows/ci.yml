@@ -2,9 +2,15 @@ name: CI
 
 on:
   push:
-    branches: ["main", "develop"]
+    branches:
+      - main
+      - master
+      - develop
   pull_request:
-    branches: ["main", "develop"]
+    branches:
+      - main
+      - master
+      - develop
 
 jobs:
   ci:
@@ -18,21 +24,19 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: "npm"
+          node-version: 20
+          cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
-      - name: TypeScript compile — runtime-core
+      - name: TypeScript compile - runtime-core
         run: npx tsc -p packages/runtime-core/tsconfig.json --noEmit
 
       - name: Unit tests
         run: npm test
         env:
-          # Ensure pending_verification bypass is OFF in CI
           ALLOW_PENDING_IDENTITY: "false"
-          # Use in-process ACELOGIC (no external service needed)
           ACELOGIC_DEV_LICENSE_FALLBACK: "true"
           ACELOGIC_DEV_LICENSE_TIER: "builder"
 
@@ -43,8 +47,5 @@ jobs:
           ACELOGIC_DEV_LICENSE_FALLBACK: "true"
           ACELOGIC_DEV_LICENSE_TIER: "builder"
 
-      - name: Security audit (moderate+)
+      - name: Security audit
         run: npm audit --audit-level=moderate
-        # Continue on error so we see the full report in the log;
-        # the step still fails the workflow via the exit code.
-        continue-on-error: false
