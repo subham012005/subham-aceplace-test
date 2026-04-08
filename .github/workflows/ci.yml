@@ -30,8 +30,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: TypeScript compile - runtime-core
-        run: npx tsc -p packages/runtime-core/tsconfig.json --noEmit
+      - name: TypeScript compile
+        run: npx tsc --noEmit
 
       - name: Unit tests
         run: npm test

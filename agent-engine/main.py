@@ -58,11 +58,13 @@ class ExecuteStepRequest(BaseModel):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("╔══════════════════════════════════════════════╗")
-    print("║   ACEPLACE Agent Engine — Phase 2 Runtime         ║")
-    print("║   Envelope-Driven • No hardcoded pipeline    ║")
-    print(f"║   Running on port {AGENT_ENGINE_PORT}                        ║")
-    print("╚══════════════════════════════════════════════╝")
+    # NOTE: Use ASCII-only banners for Windows consoles that default to cp1252.
+    # Box-drawing characters can crash startup with UnicodeEncodeError.
+    print("==============================================")
+    print(" ACEPLACE Agent Engine — Phase 2 Runtime")
+    print(" Envelope-Driven • No hardcoded pipeline")
+    print(f" Running on port {AGENT_ENGINE_PORT}")
+    print("==============================================")
     yield
     print("[AGENT-ENGINE] Shutting down...")
 
