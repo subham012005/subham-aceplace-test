@@ -44,7 +44,6 @@ export async function claimNextEnvelope(workerId: string): Promise<{ envelope_id
   const snapshot = await db
     .collection(EXECUTION_QUEUE_COLLECTION)
     .where("status", "==", "queued")
-    .orderBy("created_at", "asc")
     .limit(1)
     .get();
 
