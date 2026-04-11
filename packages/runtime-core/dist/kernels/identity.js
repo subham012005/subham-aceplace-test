@@ -74,6 +74,10 @@ async function verifyIdentityForAgent(envelopeId, envelope, agentId) {
             ? envelope.identity_context
             : null;
     if (!ctx) {
+        // AUDIT FIX: Missing identity_context is a hard invariant violation — quarantine
+        // immediately rather than returning a soft failure that the caller might retry.
+        await quarantineEnvelope(envelopeId, "IDENTITY_CONTEXT_MISSING");
+        await logIdentityTrace(envelopeId, agentId, "", "IDENTITY_CONTEXT_MISSING");
         return {
             verified: false,
             agent_id: agentId,
@@ -116,6 +120,12 @@ async function verifyIdentity(envelopeId, agentId, envelope) {
     const recomputedFingerprint = computeFingerprint(canonicalStr);
     // Compare with envelope's expected fingerprint
     const expectedFingerprint = envelope.identity_context.identity_fingerprint;
+    // RULE: Missing identity_fingerprint on envelope is a hard failure.
+    if (!expectedFingerprint) {
+        await quarantineEnvelope(envelopeId, "GUARD_IDENTITY_FINGERPRINT_MISSING");
+        await logIdentityTrace(envelopeId, agentId, recomputedFingerprint, "IDENTITY_FINGERPRINT_MISSING");
+        return { verified: false, agent_id: agentId, reason: "IDENTITY_FINGERPRINT_MISSING", verified_at: now };
+    }
     // AUDIT FIX P0#3: pending_verification is NOT a valid production fingerprint.
     // Gate behind env flag — fail CLOSED in prod (ALLOW_PENDING_IDENTITY not set).
     if (expectedFingerprint === "pending_verification") {
@@ -126,7 +136,7 @@ async function verifyIdentity(envelopeId, agentId, envelope) {
         }
         else {
             await quarantineEnvelope(envelopeId, "IDENTITY_NOT_VERIFIED");
-            await logIdentityTrace(envelopeId, agentId, "", "IDENTITY_PENDING_REJECTED");
+            await logIdentityTrace(envelopeId, agentId, recomputedFingerprint, "IDENTITY_PENDING_REJECTED");
             return {
                 verified: false,
                 agent_id: agentId,

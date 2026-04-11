@@ -41,8 +41,11 @@ export async function storeUSMessage(msg: USMessage): Promise<string> {
     payload: msg.payload,
     created_at: new Date().toISOString(),
   });
-  await db.collection(COLLECTIONS.EXECUTION_TRACES).add({
+  const traceId = randomUUID();
+  await db.collection(COLLECTIONS.EXECUTION_TRACES).doc(traceId).set({
+    trace_id: traceId,
     envelope_id: msg.execution.envelope_id,
+    step_id: msg.execution.step_id,
     message_id,
     agent_id: msg.identity.agent_id,
     identity_fingerprint: msg.identity.identity_fingerprint,
@@ -146,7 +149,10 @@ async function handleArtifactProduce(msg: USMessage, envelope: ExecutionEnvelope
     console.log(`[#us#] Fetching ${AGENT_ENGINE_URL}/execute-step...`);
     const res = await fetch(`${AGENT_ENGINE_URL}/execute-step`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { 
+        "Content-Type": "application/json",
+        "X-Internal-Token": process.env.INTERNAL_SERVICE_TOKEN || ""
+      },
       body: JSON.stringify({
         envelope_id: msg.execution.envelope_id,
         step_id: msg.execution.step_id,
@@ -171,6 +177,18 @@ async function handleArtifactProduce(msg: USMessage, envelope: ExecutionEnvelope
     const artifactId = result.artifact_id;
     await attachArtifactToStep(msg.execution.envelope_id, msg.execution.step_id, artifactId);
     await attachArtifactToEnvelope(msg.execution.envelope_id, artifactId);
+
+    const traceId = randomUUID();
+    await getDb().collection(COLLECTIONS.EXECUTION_TRACES).doc(traceId).set({
+      trace_id: traceId,
+      envelope_id: msg.execution.envelope_id,
+      step_id: msg.execution.step_id,
+      agent_id: msg.identity.agent_id,
+      identity_fingerprint: msg.identity.identity_fingerprint,
+      event_type: "#us#.artifact.produce",
+      artifact_id: artifactId,
+      timestamp: new Date().toISOString(),
+    });
   } catch (err) {
     console.error(`[#us#] EXCEPTION in handleArtifactProduce:`, err);
     throw err;
@@ -213,7 +231,10 @@ async function handleEvaluation(msg: USMessage, envelope: ExecutionEnvelope): Pr
   // 2. Call the Agent Engine (Grader)
   const res = await fetch(`${AGENT_ENGINE_URL}/execute-step`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { 
+      "Content-Type": "application/json",
+      "X-Internal-Token": process.env.INTERNAL_SERVICE_TOKEN || ""
+    },
     body: JSON.stringify({
       envelope_id: msg.execution.envelope_id,
       step_id: msg.execution.step_id,
@@ -260,6 +281,19 @@ async function handleExecutionComplete(msg: USMessage): Promise<USMessage | null
       created_at: new Date().toISOString(),
     });
   await attachArtifactToEnvelope(msg.execution.envelope_id, final_artifact_id);
+
+  const traceId = randomUUID();
+  await getDb().collection(COLLECTIONS.EXECUTION_TRACES).doc(traceId).set({
+    trace_id: traceId,
+    envelope_id: msg.execution.envelope_id,
+    step_id: msg.execution.step_id,
+    agent_id: msg.identity.agent_id,
+    identity_fingerprint: msg.identity.identity_fingerprint,
+    event_type: "#us#.execution.complete",
+    artifact_id: final_artifact_id,
+    timestamp: new Date().toISOString(),
+  });
+
   await emitRuntimeMetric({
     event_type: "ARTIFACT_CREATED",
     envelope_id: msg.execution.envelope_id,

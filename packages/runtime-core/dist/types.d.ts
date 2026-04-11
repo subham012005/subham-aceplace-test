@@ -180,11 +180,13 @@ export interface Artifact {
 export interface ExecutionTrace {
     trace_id: string;
     envelope_id: string;
-    step_id: string;
-    agent_id: string;
-    identity_fingerprint: string;
     event_type: string;
     timestamp: string;
+    agent_id: string;
+    identity_fingerprint: string;
+    step_id?: string;
+    artifact_id?: string;
+    message_id?: string;
     metadata?: Record<string, unknown>;
 }
 export interface AgentIdentity {

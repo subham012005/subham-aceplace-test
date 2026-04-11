@@ -1,0 +1,1 @@
+{"version":3,"file":"aggregateTelemetryWindow.d.ts","sourceRoot":"","sources":["../../src/telemetry/aggregateTelemetryWindow.ts"],"names":[],"mappings":"AAAA;;GAEG;AAOH,wBAAsB,wBAAwB,CAAC,MAAM,EAAE;IACrD,YAAY,EAAE,MAAM,CAAC;IACrB,UAAU,EAAE,MAAM,CAAC;CACpB,GAAG,OAAO,CAAC;IAAE,SAAS,EAAE,MAAM,CAAA;CAAE,CAAC,CA4FjC"}

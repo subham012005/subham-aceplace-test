@@ -6,7 +6,7 @@ Loads environment variables and defines agent model settings.
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=True)
 
 # ─── LLM API Keys ───────────────────────────────────────
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")

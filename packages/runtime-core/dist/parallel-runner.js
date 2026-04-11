@@ -14,6 +14,8 @@ const state_machine_1 = require("./state-machine");
 const constants_1 = require("./constants");
 const db_1 = require("./db");
 const per_agent_authority_1 = require("./per-agent-authority");
+const guards_1 = require("./runtime/guards");
+const persistence_1 = require("./kernels/persistence");
 const us_message_engine_1 = require("./us-message-engine");
 const acelogic_guard_1 = require("./acelogic-guard");
 const batch_execution_guard_1 = require("./batch-execution-guard");
@@ -164,6 +166,11 @@ async function executeClaimedStep(params) {
     const agentId = step.assigned_agent_id;
     if (!agentId)
         throw new Error(`STEP_AGENT_MISSING:${step.step_id}`);
+    // ── Hard invariant assertions — fail before touching any runtime state ──
+    (0, guards_1.assertEnvelopeNotTerminal)(envelope);
+    (0, guards_1.assertIdentityContext)(envelope);
+    (0, guards_1.assertAgentIdentityContext)(envelope, agentId);
+    (0, guards_1.assertStepNotCompleted)(step);
     const ident = await (0, identity_1.verifyIdentityForAgent)(envelope_id, envelope, agentId);
     if (!ident.verified) {
         throw new Error(`IDENTITY_FAILED:${ident.reason}`);
@@ -192,6 +199,8 @@ async function executeClaimedStep(params) {
     });
     const refreshed = (await ref.get()).data();
     (0, per_agent_authority_1.validatePerAgentLease)(refreshed, agentId, instanceId);
+    // Hard guard: lease must be valid, active, and owned by this instance.
+    (0, guards_1.assertAgentLease)(refreshed, agentId, instanceId);
     const fingerprint = refreshed.multi_agent && refreshed.identity_contexts?.[agentId]
         ? refreshed.identity_contexts[agentId].identity_fingerprint
         : refreshed.identity_context.identity_fingerprint;
@@ -238,6 +247,8 @@ async function executeClaimedStep(params) {
             status: "completed",
             output_ref: { message_id: messageId },
         });
+        // 🔬 Trace emission for audit trail
+        await (0, persistence_1.addTrace)(envelope_id, step.step_id, agentId, fingerprint, "STEP_COMPLETED", { duration_ms: duration, message_id: messageId });
         await emitSafe({
             event_type: "STEP_COMPLETED",
             envelope_id,
@@ -270,12 +281,22 @@ async function runEnvelopeParallel(params) {
     if (!boot.exists)
         throw new Error("ENVELOPE_NOT_FOUND");
     const first = boot.data();
+    // Hard guard: envelope must have steps before we attempt execution.
+    (0, guards_1.assertEnvelopeHasSteps)(first);
+    // Hard guard: assert that this instance actually owns the queue claim
+    const qSnap = await (0, db_1.getDb)().collection(constants_1.COLLECTIONS.EXECUTION_QUEUE).doc(envelope_id).get();
+    if (qSnap.exists) {
+        const qData = qSnap.data();
+        if (qData?.status === "claimed") {
+            (0, guards_1.assertClaimOwnership)(envelope_id, qData.claimed_by, instance_id);
+        }
+    }
     if (first.status === "created") {
         try {
             await (0, state_machine_1.transition)(envelope_id, "leased");
         }
-        catch {
-            /* ignore */
+        catch (e) {
+            console.error(`[RUNTIME] Transition to leased failed: ${e.message}`);
         }
     }
     const s1 = (await ref.get()).data();
@@ -283,8 +304,8 @@ async function runEnvelopeParallel(params) {
         try {
             await (0, state_machine_1.transition)(envelope_id, "planned");
         }
-        catch {
-            /* ignore */
+        catch (e) {
+            console.error(`[RUNTIME] Transition to planned failed: ${e.message}`);
         }
     }
     const s2 = (await ref.get()).data();
@@ -292,8 +313,8 @@ async function runEnvelopeParallel(params) {
         try {
             await (0, state_machine_1.transition)(envelope_id, "executing");
         }
-        catch {
-            /* ignore */
+        catch (e) {
+            console.error(`[RUNTIME] Transition to executing failed: ${e.message}`);
         }
     }
     while (true) {
@@ -318,7 +339,7 @@ async function runEnvelopeParallel(params) {
             await pauseForHumanApproval(envelope_id, humanApprovalStep.step_id, envelope.coordinator_agent_id || envelope.identity_context.agent_id);
             return;
         }
-        const runnableSteps = getRunnableSteps(envelope).filter((s) => s.step_type !== "human_approval");
+        const runnableSteps = getRunnableSteps(envelope);
         if (!runnableSteps.length) {
             const hasRunning = (envelope.steps || []).some((s) => s.status === "executing");
             const hasPending = (envelope.steps || []).some((s) => s.status === "pending" || s.status === "ready");
@@ -343,7 +364,7 @@ async function runEnvelopeParallel(params) {
                     }
                 }
                 catch {
-                    /* */
+                    /* ignore if already terminal */
                 }
                 return;
             }

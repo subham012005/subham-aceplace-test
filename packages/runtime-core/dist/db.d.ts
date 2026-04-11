@@ -9,4 +9,8 @@ import * as admin from "firebase-admin";
  * Initializes the app if called for the first time.
  */
 export declare function getDb(): admin.firestore.Firestore;
+/**
+ * For testing purposes ONLY: override the database instance.
+ */
+export declare function setDb(db: any): void;
 //# sourceMappingURL=db.d.ts.map

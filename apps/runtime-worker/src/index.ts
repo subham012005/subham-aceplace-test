@@ -18,6 +18,9 @@ import * as admin from "firebase-admin";
 
 import { getDb } from "@aceplace/runtime-core";
 
+import { loadEnvConfig } from "@next/env";
+loadEnvConfig(process.cwd());
+
 // ── Firebase init (standalone — no Next.js) ───────────────────────────────────
 let _app: admin.app.App;
 

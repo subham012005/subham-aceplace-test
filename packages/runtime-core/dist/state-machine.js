@@ -23,12 +23,24 @@ async function transition(envelopeId, newStatus, metadata) {
     const db = (0, db_1.getDb)();
     const ref = db.collection(constants_1.COLLECTIONS.EXECUTION_ENVELOPES).doc(envelopeId);
     const now = new Date().toISOString();
+    let traceAgentId = metadata?.agent_id || "runtime_worker";
+    let traceFingerprint = "0000000000000000000000000000000000000000000000000000000000000000";
     await db.runTransaction(async (tx) => {
         const snap = await tx.get(ref);
         if (!snap.exists)
             throw new Error(`Envelope ${envelopeId} not found`);
         const envelope = snap.data();
         const currentStatus = envelope.status;
+        if (!metadata?.agent_id) {
+            traceAgentId = envelope.coordinator_agent_id || envelope.identity_context?.agent_id || "runtime_worker";
+        }
+        if (traceAgentId !== "runtime_worker") {
+            const fp = envelope.multi_agent && envelope.identity_contexts?.[traceAgentId]
+                ? envelope.identity_contexts[traceAgentId]?.identity_fingerprint
+                : envelope.identity_context?.identity_fingerprint;
+            if (fp)
+                traceFingerprint = fp;
+        }
         const allowed = constants_1.ENVELOPE_STATUS_TRANSITIONS[currentStatus];
         if (!allowed.includes(newStatus)) {
             throw new Error(`[StateMachine] Illegal transition: ${currentStatus} → ${newStatus}. ` +
@@ -46,9 +58,9 @@ async function transition(envelopeId, newStatus, metadata) {
     await db.collection(constants_1.COLLECTIONS.EXECUTION_TRACES).doc(traceId).set({
         trace_id: traceId,
         envelope_id: envelopeId,
-        step_id: "",
-        agent_id: "state_machine",
-        identity_fingerprint: "",
+        step_id: metadata?.step_id || "",
+        agent_id: traceAgentId,
+        identity_fingerprint: traceFingerprint,
         event_type: `STATUS_TRANSITION_${newStatus.toUpperCase()}`,
         timestamp: now,
         metadata: metadata ?? {},
