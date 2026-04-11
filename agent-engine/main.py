@@ -58,13 +58,9 @@ class ExecuteStepRequest(BaseModel):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # NOTE: Use ASCII-only banners for Windows consoles that default to cp1252.
-    # Box-drawing characters can crash startup with UnicodeEncodeError.
-    print("==============================================")
-    print(" ACEPLACE Agent Engine — Phase 2 Runtime")
-    print(" Envelope-Driven • No hardcoded pipeline")
-    print(f" Running on port {AGENT_ENGINE_PORT}")
-    print("==============================================")
+    print("--- ACEPLACE Agent Engine Runtime ---")
+    print("--- Envelope-Driven Runtime ---")
+    print(f"--- Running on port {AGENT_ENGINE_PORT} ---")
     yield
     print("[AGENT-ENGINE] Shutting down...")
 
@@ -98,9 +94,10 @@ async def require_internal_token(request: Request, call_next):
     if request.url.path in public_paths:
         return await call_next(request)
     if INTERNAL_SERVICE_TOKEN:
+        from fastapi.responses import JSONResponse
         token = request.headers.get("X-Internal-Token", "")
         if token != INTERNAL_SERVICE_TOKEN:
-            raise HTTPException(status_code=403, detail="Unauthorized: invalid internal service token")
+            return JSONResponse(status_code=403, content={"detail": "Unauthorized: invalid internal service token"})
     return await call_next(request)
 
 

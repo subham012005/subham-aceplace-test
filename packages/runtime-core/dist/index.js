@@ -20,8 +20,8 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.resolveLicenseById = exports.isLicenseExpired = exports.checkCapability = exports.auditLicenseCheck = exports.aceLogicResurrectionVerify = exports.aceLogicLeaseRelease = exports.aceLogicLeaseRenew = exports.aceLogicLeaseAcquire = exports.aceLogicVerifyIdentity = exports.aceLogicIntrospect = exports.acelogicExecutionGuard = exports.rejectEnvelope = exports.approveEnvelope = exports.getEnvelopeState = exports.dispatch = exports.storeUSMessage = exports.mapStepTypeToUSMessage = exports.handleUSMessage = exports.createUSMessage = exports.planEnvelopeSteps = exports.buildDefaultIdentityContext = exports.buildEnvelope = exports.runEnvelopeParallel = exports.releasePerAgentLease = exports.renewPerAgentLease = exports.validatePerAgentLease = exports.acquirePerAgentLease = exports.deleteAllAgentSecrets = exports.getAgentSecrets = exports.getAgentSecret = exports.storeAgentSecret = exports.enqueueEnvelope = exports.getJob = exports.syncJobStatus = exports.linkJobToEnvelope = exports.createArtifact = exports.addTrace = exports.getNextReadyStep = exports.getEnvelopeStep = exports.updateEnvelopeStep = exports.updateEnvelope = exports.getEnvelope = exports.createEnvelope = exports.getDb = exports.computeFingerprint = exports.buildIdentityContext = exports.verifyIdentityForAgent = exports.verifyIdentity = exports.canTransition = exports.transition = void 0;
-exports.runtimeIdFromRequest = exports.getLicenseFromRequest = void 0;
+exports.aggregateTelemetryWindow = exports.validateAceHandoff = exports.acceptAceHandoff = exports.storeUSMessage = exports.mapStepTypeToUSMessage = exports.handleUSMessage = exports.createUSMessage = exports.planEnvelopeSteps = exports.buildDefaultIdentityContext = exports.buildEnvelope = exports.emitRuntimeMetric = exports.recoverEnvelopeDeadSteps = exports.recoverGlobalDeadSteps = exports.renewPerAgentLease = exports.validatePerAgentLease = exports.releasePerAgentLease = exports.acquirePerAgentLease = exports.selectParallelStepBatch = exports.getRunnableSteps = exports.finalizeEnvelopeStep = exports.claimEnvelopeStep = exports.runEnvelopeParallel = exports.expireStaleLeases = exports.hasValidLease = exports.releaseLease = exports.acquireLease = exports.removeAgentSecret = exports.listSecretNames = exports.getAgentSecrets = exports.setAgentSecrets = exports.enqueueEnvelope = exports.getJob = exports.syncJobStatus = exports.linkJobToEnvelope = exports.createArtifact = exports.addTrace = exports.getNextReadyStep = exports.getEnvelopeStep = exports.updateEnvelopeStep = exports.updateEnvelope = exports.getEnvelope = exports.createEnvelope = exports.getDb = exports.registerAgentIdentity = exports.computeFingerprint = exports.buildIdentityContext = exports.verifyIdentityForAgent = exports.verifyIdentity = exports.canTransition = exports.transition = void 0;
+exports.assertEnvelopeHasSteps = exports.assertDependenciesSatisfied = exports.assertStepNotCompleted = exports.assertStepExists = exports.assertClaimOwnership = exports.assertAgentLease = exports.assertAgentIdentityContext = exports.assertIdentityContext = exports.assertEnvelopeNotTerminal = exports.runtimeIdFromRequest = exports.getLicenseFromRequest = exports.resolveLicenseById = exports.isLicenseExpired = exports.checkCapability = exports.auditLicenseCheck = exports.aceLogicResurrectionVerify = exports.aceLogicLeaseRelease = exports.aceLogicLeaseRenew = exports.aceLogicLeaseAcquire = exports.aceLogicVerifyIdentity = exports.aceLogicIntrospect = exports.acelogicExecutionGuard = exports.rejectEnvelope = exports.approveEnvelope = exports.getEnvelopeState = exports.dispatch = void 0;
 // State machine
 var state_machine_1 = require("./state-machine");
 Object.defineProperty(exports, "transition", { enumerable: true, get: function () { return state_machine_1.transition; } });
@@ -32,6 +32,7 @@ Object.defineProperty(exports, "verifyIdentity", { enumerable: true, get: functi
 Object.defineProperty(exports, "verifyIdentityForAgent", { enumerable: true, get: function () { return identity_1.verifyIdentityForAgent; } });
 Object.defineProperty(exports, "buildIdentityContext", { enumerable: true, get: function () { return identity_1.buildIdentityContext; } });
 Object.defineProperty(exports, "computeFingerprint", { enumerable: true, get: function () { return identity_1.computeFingerprint; } });
+Object.defineProperty(exports, "registerAgentIdentity", { enumerable: true, get: function () { return identity_1.registerAgentIdentity; } });
 // Persistence kernel
 var db_1 = require("./db");
 Object.defineProperty(exports, "getDb", { enumerable: true, get: function () { return db_1.getDb; } });
@@ -49,19 +50,34 @@ Object.defineProperty(exports, "syncJobStatus", { enumerable: true, get: functio
 Object.defineProperty(exports, "getJob", { enumerable: true, get: function () { return persistence_1.getJob; } });
 Object.defineProperty(exports, "enqueueEnvelope", { enumerable: true, get: function () { return persistence_1.enqueueEnvelope; } });
 var secrets_1 = require("./kernels/secrets");
-Object.defineProperty(exports, "storeAgentSecret", { enumerable: true, get: function () { return secrets_1.storeAgentSecret; } });
-Object.defineProperty(exports, "getAgentSecret", { enumerable: true, get: function () { return secrets_1.getAgentSecret; } });
+Object.defineProperty(exports, "setAgentSecrets", { enumerable: true, get: function () { return secrets_1.setAgentSecrets; } });
 Object.defineProperty(exports, "getAgentSecrets", { enumerable: true, get: function () { return secrets_1.getAgentSecrets; } });
-Object.defineProperty(exports, "deleteAllAgentSecrets", { enumerable: true, get: function () { return secrets_1.deleteAllAgentSecrets; } });
+Object.defineProperty(exports, "listSecretNames", { enumerable: true, get: function () { return secrets_1.listSecretNames; } });
+Object.defineProperty(exports, "removeAgentSecret", { enumerable: true, get: function () { return secrets_1.removeAgentSecret; } });
 // Lease management
-var per_agent_authority_1 = require("./per-agent-authority");
-Object.defineProperty(exports, "acquirePerAgentLease", { enumerable: true, get: function () { return per_agent_authority_1.acquirePerAgentLease; } });
-Object.defineProperty(exports, "validatePerAgentLease", { enumerable: true, get: function () { return per_agent_authority_1.validatePerAgentLease; } });
-Object.defineProperty(exports, "renewPerAgentLease", { enumerable: true, get: function () { return per_agent_authority_1.renewPerAgentLease; } });
-Object.defineProperty(exports, "releasePerAgentLease", { enumerable: true, get: function () { return per_agent_authority_1.releasePerAgentLease; } });
-// Parallel runner
+var authority_1 = require("./kernels/authority");
+Object.defineProperty(exports, "acquireLease", { enumerable: true, get: function () { return authority_1.acquireLease; } });
+Object.defineProperty(exports, "releaseLease", { enumerable: true, get: function () { return authority_1.releaseLease; } });
+Object.defineProperty(exports, "hasValidLease", { enumerable: true, get: function () { return authority_1.hasValidLease; } });
+Object.defineProperty(exports, "expireStaleLeases", { enumerable: true, get: function () { return authority_1.expireStaleLeases; } });
+// Parallel runner — execution plane primitives
 var parallel_runner_1 = require("./parallel-runner");
 Object.defineProperty(exports, "runEnvelopeParallel", { enumerable: true, get: function () { return parallel_runner_1.runEnvelopeParallel; } });
+Object.defineProperty(exports, "claimEnvelopeStep", { enumerable: true, get: function () { return parallel_runner_1.claimEnvelopeStep; } });
+Object.defineProperty(exports, "finalizeEnvelopeStep", { enumerable: true, get: function () { return parallel_runner_1.finalizeEnvelopeStep; } });
+Object.defineProperty(exports, "getRunnableSteps", { enumerable: true, get: function () { return parallel_runner_1.getRunnableSteps; } });
+Object.defineProperty(exports, "selectParallelStepBatch", { enumerable: true, get: function () { return parallel_runner_1.selectParallelStepBatch; } });
+// Per-agent authority leases
+var per_agent_authority_1 = require("./per-agent-authority");
+Object.defineProperty(exports, "acquirePerAgentLease", { enumerable: true, get: function () { return per_agent_authority_1.acquirePerAgentLease; } });
+Object.defineProperty(exports, "releasePerAgentLease", { enumerable: true, get: function () { return per_agent_authority_1.releasePerAgentLease; } });
+Object.defineProperty(exports, "validatePerAgentLease", { enumerable: true, get: function () { return per_agent_authority_1.validatePerAgentLease; } });
+Object.defineProperty(exports, "renewPerAgentLease", { enumerable: true, get: function () { return per_agent_authority_1.renewPerAgentLease; } });
+var recover_dead_steps_1 = require("./recover-dead-steps");
+Object.defineProperty(exports, "recoverGlobalDeadSteps", { enumerable: true, get: function () { return recover_dead_steps_1.recoverGlobalDeadSteps; } });
+Object.defineProperty(exports, "recoverEnvelopeDeadSteps", { enumerable: true, get: function () { return recover_dead_steps_1.recoverEnvelopeDeadSteps; } });
+var emitRuntimeMetric_1 = require("./telemetry/emitRuntimeMetric");
+Object.defineProperty(exports, "emitRuntimeMetric", { enumerable: true, get: function () { return emitRuntimeMetric_1.emitRuntimeMetric; } });
 // Envelope builder
 var envelope_builder_1 = require("./envelope-builder");
 Object.defineProperty(exports, "buildEnvelope", { enumerable: true, get: function () { return envelope_builder_1.buildEnvelope; } });
@@ -75,6 +91,11 @@ Object.defineProperty(exports, "createUSMessage", { enumerable: true, get: funct
 Object.defineProperty(exports, "handleUSMessage", { enumerable: true, get: function () { return us_message_engine_1.handleUSMessage; } });
 Object.defineProperty(exports, "mapStepTypeToUSMessage", { enumerable: true, get: function () { return us_message_engine_1.mapStepTypeToUSMessage; } });
 Object.defineProperty(exports, "storeUSMessage", { enumerable: true, get: function () { return us_message_engine_1.storeUSMessage; } });
+var ace_handoff_1 = require("./ace-handoff");
+Object.defineProperty(exports, "acceptAceHandoff", { enumerable: true, get: function () { return ace_handoff_1.acceptAceHandoff; } });
+Object.defineProperty(exports, "validateAceHandoff", { enumerable: true, get: function () { return ace_handoff_1.validateAceHandoff; } });
+var aggregateTelemetryWindow_1 = require("./telemetry/aggregateTelemetryWindow");
+Object.defineProperty(exports, "aggregateTelemetryWindow", { enumerable: true, get: function () { return aggregateTelemetryWindow_1.aggregateTelemetryWindow; } });
 // Dispatching Engine
 var engine_1 = require("./engine");
 Object.defineProperty(exports, "dispatch", { enumerable: true, get: function () { return engine_1.dispatch; } });
@@ -100,6 +121,17 @@ Object.defineProperty(exports, "resolveLicenseById", { enumerable: true, get: fu
 var http_context_1 = require("./acelogic/http-context");
 Object.defineProperty(exports, "getLicenseFromRequest", { enumerable: true, get: function () { return http_context_1.getLicenseFromRequest; } });
 Object.defineProperty(exports, "runtimeIdFromRequest", { enumerable: true, get: function () { return http_context_1.runtimeIdFromRequest; } });
+// Runtime guardrails
+var guards_1 = require("./runtime/guards");
+Object.defineProperty(exports, "assertEnvelopeNotTerminal", { enumerable: true, get: function () { return guards_1.assertEnvelopeNotTerminal; } });
+Object.defineProperty(exports, "assertIdentityContext", { enumerable: true, get: function () { return guards_1.assertIdentityContext; } });
+Object.defineProperty(exports, "assertAgentIdentityContext", { enumerable: true, get: function () { return guards_1.assertAgentIdentityContext; } });
+Object.defineProperty(exports, "assertAgentLease", { enumerable: true, get: function () { return guards_1.assertAgentLease; } });
+Object.defineProperty(exports, "assertClaimOwnership", { enumerable: true, get: function () { return guards_1.assertClaimOwnership; } });
+Object.defineProperty(exports, "assertStepExists", { enumerable: true, get: function () { return guards_1.assertStepExists; } });
+Object.defineProperty(exports, "assertStepNotCompleted", { enumerable: true, get: function () { return guards_1.assertStepNotCompleted; } });
+Object.defineProperty(exports, "assertDependenciesSatisfied", { enumerable: true, get: function () { return guards_1.assertDependenciesSatisfied; } });
+Object.defineProperty(exports, "assertEnvelopeHasSteps", { enumerable: true, get: function () { return guards_1.assertEnvelopeHasSteps; } });
 // Types & constants
 __exportStar(require("./types"), exports);
 __exportStar(require("./constants"), exports);

@@ -17,6 +17,7 @@ exports.releasePerAgentLease = releasePerAgentLease;
 const crypto_1 = require("crypto");
 const db_1 = require("./db");
 const constants_1 = require("./constants");
+const persistence_1 = require("./kernels/persistence");
 const LEASE_MS = 60_000;
 async function acquirePerAgentLease(envelopeId, agentId, instanceId) {
     const db = (0, db_1.getDb)();
@@ -65,6 +66,8 @@ async function acquirePerAgentLease(envelopeId, agentId, instanceId) {
         };
         const authority_leases = { ...(envelope.authority_leases || {}), [agentId]: lease };
         tx.update(ref, { authority_leases, updated_at: nowIso });
+        // 🔬 Trace emission for audit trail
+        await (0, persistence_1.addTrace)(envelopeId, "", agentId, envelope.identity_contexts?.[agentId]?.identity_fingerprint || "unknown", "LEASE_ACQUIRED", { lease_id: leaseId, instance_id: instanceId });
         return lease;
     });
 }

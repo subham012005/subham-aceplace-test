@@ -13,7 +13,6 @@ const db_1 = require("./db");
 const constants_1 = require("./constants");
 const decomposition_1 = require("./decomposition");
 const emitRuntimeMetric_1 = require("./telemetry/emitRuntimeMetric");
-const state_machine_1 = require("./state-machine");
 function createUSMessage(input) {
     return {
         protocol: "#us#",
@@ -35,8 +34,11 @@ async function storeUSMessage(msg) {
         payload: msg.payload,
         created_at: new Date().toISOString(),
     });
-    await db.collection(constants_1.COLLECTIONS.EXECUTION_TRACES).add({
+    const traceId = (0, crypto_1.randomUUID)();
+    await db.collection(constants_1.COLLECTIONS.EXECUTION_TRACES).doc(traceId).set({
+        trace_id: traceId,
         envelope_id: msg.execution.envelope_id,
+        step_id: msg.execution.step_id,
         message_id,
         agent_id: msg.identity.agent_id,
         identity_fingerprint: msg.identity.identity_fingerprint,
@@ -129,7 +131,10 @@ async function handleArtifactProduce(msg, envelope) {
         console.log(`[#us#] Fetching ${AGENT_ENGINE_URL}/execute-step...`);
         const res = await fetch(`${AGENT_ENGINE_URL}/execute-step`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+                "Content-Type": "application/json",
+                "X-Internal-Token": process.env.INTERNAL_SERVICE_TOKEN || ""
+            },
             body: JSON.stringify({
                 envelope_id: msg.execution.envelope_id,
                 step_id: msg.execution.step_id,
@@ -148,12 +153,22 @@ async function handleArtifactProduce(msg, envelope) {
             throw new Error(`Agent Engine error: ${errText}`);
         }
         const result = await res.json();
-        console.log(`[#us#] Agent Engine success for ${msg.execution.step_id}:`, result);
         if (!result.success)
             throw new Error(result.error || "Agent Engine execution failed");
         const artifactId = result.artifact_id;
         await attachArtifactToStep(msg.execution.envelope_id, msg.execution.step_id, artifactId);
         await attachArtifactToEnvelope(msg.execution.envelope_id, artifactId);
+        const traceId = (0, crypto_1.randomUUID)();
+        await (0, db_1.getDb)().collection(constants_1.COLLECTIONS.EXECUTION_TRACES).doc(traceId).set({
+            trace_id: traceId,
+            envelope_id: msg.execution.envelope_id,
+            step_id: msg.execution.step_id,
+            agent_id: msg.identity.agent_id,
+            identity_fingerprint: msg.identity.identity_fingerprint,
+            event_type: "#us#.artifact.produce",
+            artifact_id: artifactId,
+            timestamp: new Date().toISOString(),
+        });
     }
     catch (err) {
         console.error(`[#us#] EXCEPTION in handleArtifactProduce:`, err);
@@ -190,7 +205,10 @@ async function handleEvaluation(msg, envelope) {
     // 2. Call the Agent Engine (Grader)
     const res = await fetch(`${AGENT_ENGINE_URL}/execute-step`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+            "Content-Type": "application/json",
+            "X-Internal-Token": process.env.INTERNAL_SERVICE_TOKEN || ""
+        },
         body: JSON.stringify({
             envelope_id: msg.execution.envelope_id,
             step_id: msg.execution.step_id,
@@ -236,14 +254,24 @@ async function handleExecutionComplete(msg) {
         created_at: new Date().toISOString(),
     });
     await attachArtifactToEnvelope(msg.execution.envelope_id, final_artifact_id);
+    const traceId = (0, crypto_1.randomUUID)();
+    await (0, db_1.getDb)().collection(constants_1.COLLECTIONS.EXECUTION_TRACES).doc(traceId).set({
+        trace_id: traceId,
+        envelope_id: msg.execution.envelope_id,
+        step_id: msg.execution.step_id,
+        agent_id: msg.identity.agent_id,
+        identity_fingerprint: msg.identity.identity_fingerprint,
+        event_type: "#us#.execution.complete",
+        artifact_id: final_artifact_id,
+        timestamp: new Date().toISOString(),
+    });
     await (0, emitRuntimeMetric_1.emitRuntimeMetric)({
         event_type: "ARTIFACT_CREATED",
         envelope_id: msg.execution.envelope_id,
         step_id: msg.execution.step_id,
         agent_id: msg.identity.agent_id,
     }).catch(() => undefined);
-    // 🛡️ Belt-and-suspenders: explicitly transition envelope to completed
-    await (0, state_machine_1.transition)(msg.execution.envelope_id, "completed").catch(() => undefined);
+    // 🛡️ Removed early transition: parallel-runner manages terminal states.
     return null;
 }
 function buildWorkerArtifactContent(msg) {

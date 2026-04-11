@@ -45,7 +45,9 @@ def _init_firestore():
         return _db
     if not FIREBASE_CLIENT_EMAIL or not FIREBASE_PRIVATE_KEY:
         raise RuntimeError("Firebase credentials missing in .env")
-    private_key = FIREBASE_PRIVATE_KEY.replace("\\n", "\n")
+    private_key = FIREBASE_PRIVATE_KEY
+    if private_key:
+        private_key = private_key.strip('"\'').replace("\\n", "\n")
     if not firebase_admin._apps:
         cred = credentials.Certificate({
             "type": "service_account",
