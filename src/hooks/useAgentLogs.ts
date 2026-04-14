@@ -11,70 +11,116 @@ import {
   limit,
 } from "firebase/firestore";
 
-export interface AgentLog {
-  log_id: string;
-  envelope_id: string;
-  step_id: string;
-  agent_role: "coo" | "researcher" | "worker" | "grader" | string;
-  agent_id: string;
-  event: "START" | "COMPLETE" | "ERROR" | string;
-  model: string;
-  input_summary: string;
-  output_summary: string;
-  artifact_id: string;
-  error: string;
-  duration_ms: number;
+export interface UnifiedLogEntry {
+  id: string;
+  type: "agent" | "trace";
   timestamp: string;
+  agent_id: string;
+  agent_role: string;
+  event: string;
+  message?: string;
+  summary?: string;
+  error?: string;
+  duration_ms?: number;
+  metadata?: any;
 }
 
 export interface UseAgentLogsReturn {
-  logs: AgentLog[];
+  logs: UnifiedLogEntry[];
   loading: boolean;
   error: string | null;
 }
 
 /**
- * useAgentLogs — Live subscription to agent_logs collection filtered by envelope_id.
- * Powers the Agent Activity panel in the Job Detail page.
+ * useAgentLogs — Live subscription to BOTH agent_logs and execution_traces.
+ * Unifies them into a single chronological stream for the Activity panel.
  */
 export function useAgentLogs(envelopeId: string | null): UseAgentLogsReturn {
-  const [logs, setLogs] = useState<AgentLog[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [agentLogs, setAgentLogs] = useState<AgentLog[]>([]);
+  const [traces, setTraces] = useState<any[]>([]);
+  const [loadingAgent, setLoadingAgent] = useState(true);
+  const [loadingTraces, setLoadingTraces] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!envelopeId) {
-      setLoading(false);
-      setLogs([]);
+      setLoadingAgent(false);
+      setLoadingTraces(false);
+      setAgentLogs([]);
+      setTraces([]);
       return;
     }
 
-    setLoading(true);
+    setLoadingAgent(true);
+    setLoadingTraces(true);
 
-    const q = query(
+    // 1. Subscription to agent_logs
+    const qAgent = query(
       collection(db, "agent_logs"),
       where("envelope_id", "==", envelopeId),
       orderBy("timestamp", "asc"),
       limit(200)
     );
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snap) => {
-        const items: AgentLog[] = snap.docs.map((doc) => doc.data() as AgentLog);
-        setLogs(items);
-        setLoading(false);
-        setError(null);
-      },
-      (err) => {
-        console.error("[useAgentLogs] Snapshot error:", err);
-        setError(err.message);
-        setLoading(false);
-      }
+    const unsubAgent = onSnapshot(qAgent, (snap) => {
+      setAgentLogs(snap.docs.map(d => ({ ...d.data(), log_id: d.id } as AgentLog)));
+      setLoadingAgent(false);
+    }, (err) => {
+      console.error("[useAgentLogs] Agent logs error:", err);
+      setError(err.message);
+      setLoadingAgent(false);
+    });
+
+    // 2. Subscription to execution_traces
+    const qTraces = query(
+      collection(db, "execution_traces"),
+      where("envelope_id", "==", envelopeId),
+      orderBy("timestamp", "asc"),
+      limit(300)
     );
 
-    return () => unsubscribe();
+    const unsubTraces = onSnapshot(qTraces, (snap) => {
+      setTraces(snap.docs.map(d => ({ ...d.data(), trace_id: d.id })));
+      setLoadingTraces(false);
+    }, (err) => {
+      console.error("[useAgentLogs] Trace logs error:", err);
+      setLoadingTraces(false);
+    });
+
+    return () => {
+      unsubAgent();
+      unsubTraces();
+    };
   }, [envelopeId]);
 
-  return { logs, loading, error };
+  // Unified Sort and Map
+  const unifiedLogs: UnifiedLogEntry[] = [
+    ...agentLogs.map(l => ({
+      id: l.log_id,
+      type: "agent" as const,
+      timestamp: l.timestamp,
+      agent_id: l.agent_id,
+      agent_role: l.agent_role,
+      event: l.event,
+      summary: l.event === "COMPLETE" ? l.output_summary : l.input_summary,
+      error: l.error,
+      duration_ms: l.duration_ms,
+    })),
+    ...traces.map(t => ({
+      id: t.trace_id,
+      type: "trace" as const,
+      timestamp: t.timestamp,
+      agent_id: t.agent_id,
+      agent_role: t.agent_role || (t.agent_id === "runtime_worker" ? "system" : "unknown"),
+      event: t.event_type,
+      message: t.message,
+      metadata: t.metadata,
+    }))
+  ].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+  return { 
+    logs: unifiedLogs, 
+    loading: loadingAgent || loadingTraces, 
+    error 
+  };
 }

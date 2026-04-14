@@ -53,6 +53,7 @@ export async function verifyIdentityForAgent(
     return {
       verified: false,
       agent_id: agentId,
+      identity_fingerprint: "",
       reason: "IDENTITY_CONTEXT_MISSING",
       verified_at: new Date().toISOString(),
     };
@@ -86,14 +87,14 @@ export async function verifyIdentity(
     // AUDIT FIX P0#3: No silent bypass — AGENT_NOT_FOUND always quarantines in prod.
     await quarantineEnvelope(envelopeId, "AGENT_NOT_FOUND");
     await logIdentityTrace(envelopeId, agentId, "", "IDENTITY_AGENT_NOT_FOUND");
-    return { verified: false, agent_id: agentId, reason: "AGENT_NOT_FOUND", verified_at: now };
+    return { verified: false, agent_id: agentId, identity_fingerprint: "", reason: "AGENT_NOT_FOUND", verified_at: now };
   }
 
   const agent = agentDoc.data() as AgentIdentity;
 
   if (!agent.canonical_identity_json) {
     await quarantineEnvelope(envelopeId, "IDENTITY_DATA_MISSING");
-    return { verified: false, agent_id: agentId, reason: "IDENTITY_DATA_MISSING", verified_at: now };
+    return { verified: false, agent_id: agentId, identity_fingerprint: "", reason: "IDENTITY_DATA_MISSING", verified_at: now };
   }
 
   // Recompute fingerprint from canonical_identity_json
@@ -108,7 +109,7 @@ export async function verifyIdentity(
   if (!expectedFingerprint) {
     await quarantineEnvelope(envelopeId, "GUARD_IDENTITY_FINGERPRINT_MISSING");
     await logIdentityTrace(envelopeId, agentId, recomputedFingerprint, "IDENTITY_FINGERPRINT_MISSING");
-    return { verified: false, agent_id: agentId, reason: "IDENTITY_FINGERPRINT_MISSING", verified_at: now };
+    return { verified: false, agent_id: agentId, identity_fingerprint: recomputedFingerprint, reason: "IDENTITY_FINGERPRINT_MISSING", verified_at: now };
   }
 
   // AUDIT FIX P0#3: pending_verification is NOT a valid production fingerprint.
@@ -126,6 +127,7 @@ export async function verifyIdentity(
       return {
         verified: false,
         agent_id: agentId,
+        identity_fingerprint: recomputedFingerprint,
         reason: "IDENTITY_NOT_VERIFIED",
         verified_at: now,
       };
@@ -136,6 +138,7 @@ export async function verifyIdentity(
     return {
       verified: false,
       agent_id: agentId,
+      identity_fingerprint: recomputedFingerprint,
       reason: "IDENTITY_FINGERPRINT_MISMATCH",
       verified_at: now,
     };
@@ -149,7 +152,7 @@ export async function verifyIdentity(
 
   await logIdentityTrace(envelopeId, agentId, recomputedFingerprint, "IDENTITY_VERIFIED");
 
-  return { verified: true, agent_id: agentId, verified_at: now };
+  return { verified: true, agent_id: agentId, identity_fingerprint: recomputedFingerprint, verified_at: now };
 }
 
 /**
