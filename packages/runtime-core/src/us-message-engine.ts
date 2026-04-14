@@ -93,9 +93,9 @@ export async function handleUSMessage(msg: USMessage): Promise<USMessage | null>
 
   switch (msg.message_type) {
     case "#us#.task.plan":
-      return handleTaskPlan(msg);
+      return handleTaskPlan(msg, envelope);
     case "#us#.task.assign":
-      return handleTaskAssign(msg);
+      return handleTaskAssign(msg, envelope);
     case "#us#.artifact.produce":
       return handleArtifactProduce(msg, envelope);
     case "#us#.evaluation.score":
@@ -107,16 +107,73 @@ export async function handleUSMessage(msg: USMessage): Promise<USMessage | null>
   }
 }
 
-async function handleTaskPlan(_msg: USMessage): Promise<USMessage | null> {
-  // Dispatch creates the initial plan; extra planning steps can be added here if needed.
+async function handleTaskPlan(msg: USMessage, envelope: ExecutionEnvelope): Promise<USMessage | null> {
+  console.log(`[#us#] Dispatching COO execution to Agent Engine: ${msg.execution.step_id}`);
+  
+  try {
+    const res = await fetch(`${AGENT_ENGINE_URL}/execute-step`, {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "X-Internal-Token": process.env.INTERNAL_SERVICE_TOKEN || ""
+      },
+      body: JSON.stringify({
+        envelope_id: msg.execution.envelope_id,
+        step_id: msg.execution.step_id,
+        step_type: "plan",
+        agent_id: msg.identity.agent_id,
+        prompt: envelope.prompt || "",
+        input_ref: null,
+        message_id: null
+      }),
+    });
+
+    if (!res.ok) throw new Error(`Agent Engine error: ${await res.text()}`);
+    const result = await res.json() as { success: boolean; error?: string; artifact_id: string };
+    if (!result.success) throw new Error(result.error || "Agent Engine failed");
+
+    await attachArtifactToStep(msg.execution.envelope_id, msg.execution.step_id, result.artifact_id);
+    await attachArtifactToEnvelope(msg.execution.envelope_id, result.artifact_id);
+  } catch (err) {
+    console.error(`[#us#] EXCEPTION in handleTaskPlan:`, err);
+    throw err;
+  }
   return null;
 }
 
-async function handleTaskAssign(msg: USMessage): Promise<USMessage | null> {
-  const ref = getDb().collection(COLLECTIONS.EXECUTION_ENVELOPES).doc(msg.execution.envelope_id);
-  const envelopeSnap = await ref.get();
-  if (!envelopeSnap.exists) throw new Error("ENVELOPE_NOT_FOUND");
-  const envelope = envelopeSnap.data() as ExecutionEnvelope;
+async function handleTaskAssign(msg: USMessage, envelope: ExecutionEnvelope): Promise<USMessage | null> {
+  console.log(`[#us#] Dispatching RESEARCHER execution to Agent Engine: ${msg.execution.step_id}`);
+  
+  let richArtifactId: string | null = null;
+  try {
+    const res = await fetch(`${AGENT_ENGINE_URL}/execute-step`, {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "X-Internal-Token": process.env.INTERNAL_SERVICE_TOKEN || ""
+      },
+      body: JSON.stringify({
+        envelope_id: msg.execution.envelope_id,
+        step_id: msg.execution.step_id,
+        step_type: "assign",
+        agent_id: msg.identity.agent_id,
+        prompt: envelope.prompt || "",
+        input_ref: envelope.artifact_refs?.find(id => id.startsWith('art_plan')),
+        message_id: null
+      }),
+    });
+
+    if (res.ok) {
+      const result = await res.json() as { success: boolean; artifact_id: string };
+      if (result.success) {
+        richArtifactId = result.artifact_id;
+        await attachArtifactToStep(msg.execution.envelope_id, msg.execution.step_id, richArtifactId);
+        await attachArtifactToEnvelope(msg.execution.envelope_id, richArtifactId);
+      }
+    }
+  } catch (err) {
+    console.warn(`[#us#] Could not get rich research, falling back to basic decomposition`, err);
+  }
 
   const workerAgentIds = envelope.steps
     .filter((s) => s.role === "Worker" && s.step_type === "produce_artifact")
@@ -132,7 +189,37 @@ async function handleTaskAssign(msg: USMessage): Promise<USMessage | null> {
   await expandWorkerSteps({
     envelope_id: msg.execution.envelope_id,
     decomposition_plan: decompositionPlan,
+    research_artifact_id: richArtifactId || undefined
   });
+
+  // If we didn't get a rich artifact from the agent, create the boilerplate one
+  if (!richArtifactId) {
+    const artifactId = `art_assign_${Date.now()}`;
+    const missionObjective = envelope.prompt || decompositionPlan.work_units[0]?.objective || "mission";
+    const structuredContent = {
+      research_summary: `Mission objective "${missionObjective}" has been successfully decomposed into ${decompositionPlan.work_units.length} tactical work units.`,
+      findings: decompositionPlan.work_units.map(wu => ({
+        title: wu.title,
+        detail: wu.instructions,
+        id: wu.work_unit_id
+      })),
+      raw_plan: decompositionPlan,
+      timestamp: new Date().toISOString()
+    };
+
+    const artifact = {
+      artifact_id: artifactId,
+      execution_id: msg.execution.envelope_id,
+      produced_by_agent: msg.identity.agent_id,
+      identity_fingerprint: msg.identity.identity_fingerprint,
+      artifact_type: "assignment",
+      artifact_content: JSON.stringify(structuredContent),
+      created_at: new Date().toISOString(),
+    };
+    await getDb().collection(COLLECTIONS.ARTIFACTS).doc(artifactId).set(artifact);
+    await attachArtifactToStep(msg.execution.envelope_id, msg.execution.step_id, artifactId);
+    await attachArtifactToEnvelope(msg.execution.envelope_id, artifactId);
+  }
 
   return null;
 }

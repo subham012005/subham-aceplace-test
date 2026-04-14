@@ -11,20 +11,24 @@
 
 import { randomUUID } from "crypto";
 import { getDb } from "./db";
-import { COLLECTIONS, STEP_EXECUTION_MIN_WINDOW_MS } from "./constants";
+import { 
+  COLLECTIONS, 
+  STEP_EXECUTION_MIN_WINDOW_MS, 
+  DEFAULT_LEASE_DURATION_SECONDS 
+} from "./constants";
 import { addTrace } from "./kernels/persistence";
 import type { AgentAuthorityLease, ExecutionEnvelope } from "./types";
-
-const LEASE_MS = 60_000;
 
 export async function acquirePerAgentLease(
   envelopeId: string,
   agentId: string,
   instanceId: string,
-  options?: { forceRenew?: boolean }
+  options?: { forceRenew?: boolean; durationSeconds?: number }
 ): Promise<AgentAuthorityLease> {
   const db = getDb();
   const ref = db.collection(COLLECTIONS.EXECUTION_ENVELOPES).doc(envelopeId);
+  const leaseDurationMs = (options?.durationSeconds ?? DEFAULT_LEASE_DURATION_SECONDS) * 1000;
+
   return db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
     if (!snap.exists) throw new Error("ENVELOPE_NOT_FOUND");
@@ -39,7 +43,7 @@ export async function acquirePerAgentLease(
         if (!options?.forceRenew && (exp - now) >= STEP_EXECUTION_MIN_WINDOW_MS) {
           return existing;
         }
-        const expiresAt = new Date(now + LEASE_MS).toISOString();
+        const expiresAt = new Date(now + leaseDurationMs).toISOString();
         const lease: AgentAuthorityLease = {
           ...existing,
           lease_expires_at: expiresAt,
@@ -53,15 +57,12 @@ export async function acquirePerAgentLease(
         return lease;
       }
       if (exp > now && existing.current_instance_id !== instanceId) {
-        // AUDIT FIX P0#4: Do NOT write quarantined status directly from lease code.
-        // Throw a pure domain error. parallel-runner.ts catches FORK_DETECTED
-        // and calls transition(envelopeId, "quarantined", ...) via the state machine.
         throw new Error("FORK_DETECTED");
       }
     }
 
     const leaseId = `lease_${randomUUID().replace(/-/g, "")}`;
-    const expiresAt = new Date(now + LEASE_MS).toISOString();
+    const expiresAt = new Date(now + leaseDurationMs).toISOString();
     const lease: AgentAuthorityLease = {
       lease_id: leaseId,
       agent_id: agentId,
@@ -74,7 +75,6 @@ export async function acquirePerAgentLease(
     const authority_leases = { ...(envelope.authority_leases || {}), [agentId]: lease };
     tx.update(ref, { authority_leases, updated_at: nowIso });
 
-    // 🔬 Trace emission for audit trail
     await addTrace(
       envelopeId,
       "",
@@ -109,10 +109,13 @@ export function validatePerAgentLease(
 export async function renewPerAgentLease(
   envelopeId: string,
   agentId: string,
-  instanceId: string
+  instanceId: string,
+  durationSeconds: number = DEFAULT_LEASE_DURATION_SECONDS
 ): Promise<AgentAuthorityLease> {
   const db = getDb();
   const ref = db.collection(COLLECTIONS.EXECUTION_ENVELOPES).doc(envelopeId);
+  const leaseDurationMs = durationSeconds * 1000;
+
   return db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
     if (!snap.exists) throw new Error("ENVELOPE_NOT_FOUND");
@@ -123,7 +126,7 @@ export async function renewPerAgentLease(
       throw new Error(`FORK_DETECTED:${agentId}`);
     }
     const nowIso = new Date().toISOString();
-    const expiresAt = new Date(Date.now() + LEASE_MS).toISOString();
+    const expiresAt = new Date(Date.now() + leaseDurationMs).toISOString();
     const lease: AgentAuthorityLease = {
       ...current,
       lease_expires_at: expiresAt,

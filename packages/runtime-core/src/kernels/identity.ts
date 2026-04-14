@@ -177,8 +177,8 @@ export async function buildIdentityContext(agentId: string): Promise<IdentityCon
   return {
     agent_id: agent.agent_id,
     identity_fingerprint: fingerprint,
-    verified: true,
-    verified_at: new Date().toISOString(),
+    verified: agent.last_verified_at != null || (agent as any).verified === true,
+    verified_at: agent.last_verified_at ?? undefined,
   };
 }
 
@@ -234,7 +234,7 @@ export async function registerAgentIdentity(params: {
     mission,
     tier: (tier as unknown) as number, // Compat with existing schema
     created_at: new Date().toISOString(),
-    last_verified_at: null as any,
+    last_verified_at: new Date().toISOString(),
   };
 
   await getDb()

@@ -11,15 +11,36 @@ import {
   limit,
 } from "firebase/firestore";
 
+export interface AgentLog {
+  log_id: string;
+  envelope_id: string;
+  step_id?: string;
+  agent_id: string;
+  agent_role: string;
+  event: string;
+  timestamp: string;
+  input_summary?: string;
+  output_summary?: string;
+  error?: string;
+  duration_ms?: number;
+  metadata?: any;
+}
+
 export interface UnifiedLogEntry {
   id: string;
   type: "agent" | "trace";
   timestamp: string;
+  envelope_id: string;
+  step_id?: string;
+  trace_id?: string;
+  artifact_id?: string;
   agent_id: string;
   agent_role: string;
   event: string;
   message?: string;
   summary?: string;
+  output_summary?: string;
+  input_summary?: string;
   error?: string;
   duration_ms?: number;
   metadata?: any;
@@ -99,17 +120,24 @@ export function useAgentLogs(envelopeId: string | null): UseAgentLogsReturn {
       id: l.log_id,
       type: "agent" as const,
       timestamp: l.timestamp,
+      envelope_id: l.envelope_id,
+      step_id: l.step_id,
       agent_id: l.agent_id,
       agent_role: l.agent_role,
       event: l.event,
       summary: l.event === "COMPLETE" ? l.output_summary : l.input_summary,
       error: l.error,
       duration_ms: l.duration_ms,
+      metadata: l.metadata,
     })),
     ...traces.map(t => ({
       id: t.trace_id,
       type: "trace" as const,
       timestamp: t.timestamp,
+      envelope_id: t.envelope_id,
+      step_id: t.step_id,
+      trace_id: t.trace_id,
+      artifact_id: t.artifact_id || t.metadata?.artifact_id,
       agent_id: t.agent_id,
       agent_role: t.agent_role || (t.agent_id === "runtime_worker" ? "system" : "unknown"),
       event: t.event_type,

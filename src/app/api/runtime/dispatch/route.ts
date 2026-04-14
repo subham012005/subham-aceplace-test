@@ -34,14 +34,23 @@ export async function POST(req: Request) {
 
     const body = (await req.json()) as Record<string, unknown>;
 
-    // 🔐 3. Validate + sanitise every user-supplied field
+    if (!body.prompt || typeof body.prompt !== "string" || body.prompt.trim() === "") {
+      return safeErrorResponse(
+        new Error("INVALID_INPUT: 'prompt' must be a non-empty string."),
+        "DISPATCH",
+        400
+      );
+    }
     const prompt = sanitisePrompt(body.prompt);
 
-    // Optional fields — only pass through if present and string
-    const agentId =
-      typeof body.agent_id === "string" && body.agent_id.trim()
-        ? body.agent_id.trim().slice(0, 128)
-        : undefined;
+    const agentId = typeof body.agent_id === "string" ? body.agent_id.trim() : "";
+    if (agentId === "") {
+      return safeErrorResponse(
+        new Error("INVALID_INPUT: 'agent_id' must be provided."),
+        "DISPATCH",
+        400
+      );
+    }
 
     const jobId =
       typeof body.job_id === "string" && body.job_id.trim()
@@ -49,6 +58,13 @@ export async function POST(req: Request) {
         : `job_${Date.now()}`;
 
     const result = await dispatch({ prompt, userId, jobId, agentId });
+
+    if (!result.success) {
+      return secureJson({
+        error: "IDENTITY_VERIFICATION_FAILED",
+        ...result
+      }, { status: 403 });
+    }
 
     return secureJson(result, { status: 200 });
   } catch (error) {

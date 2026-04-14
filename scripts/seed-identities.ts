@@ -27,7 +27,7 @@ function now(): string {
   return new Date().toISOString();
 }
 
-import { CANONICAL_AGENTS as AGENTS } from "./packages/runtime-core/src/constants/agents";
+import { CANONICAL_AGENTS as AGENTS } from "../packages/runtime-core/src/constants/agents";
 
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -55,6 +55,7 @@ export async function seed() {
                 clientEmail,
                 privateKey: formattedPrivateKey,
             }),
+            projectId,
         });
     }
   }
@@ -90,7 +91,7 @@ export async function seed() {
         fork_flag: false,
       },
       created_at: timestamp,
-      last_verified_at: null,
+      last_verified_at: timestamp,
     };
 
     const collectionName = "agents"; // Phase 2 canonical collection

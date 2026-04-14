@@ -40,6 +40,13 @@ export async function POST(req: Request) {
       agentId,
     });
 
+    if (!result.success) {
+      return secureJson({
+        error: "IDENTITY_VERIFICATION_FAILED",
+        ...result
+      }, { status: 403 });
+    }
+
     return secureJson(result, { status: 200 });
   } catch (error) {
     return safeErrorResponse(error, "DASHBOARD_DISPATCH", 500);

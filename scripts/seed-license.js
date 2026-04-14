@@ -8,15 +8,31 @@
  */
 
 const { initializeApp, cert, applicationDefault } = require("firebase-admin/app");
+require("dotenv").config({ path: ".env.local" });
 const { getFirestore } = require("firebase-admin/firestore");
 
 function init() {
-  try {
+  if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
     initializeApp({ credential: applicationDefault() });
-  } catch {
+    return;
+  }
+
+  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+
+  if (clientEmail && privateKey) {
+    initializeApp({
+      credential: cert({
+        projectId,
+        clientEmail,
+        privateKey: privateKey.replace(/\\n/g, "\n"),
+      }),
+    });
+  } else {
     const key = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
     if (!key) {
-      console.error("Set GOOGLE_APPLICATION_CREDENTIALS or FIREBASE_SERVICE_ACCOUNT_KEY");
+      console.error("Set GOOGLE_APPLICATION_CREDENTIALS, FIREBASE_SERVICE_ACCOUNT_KEY, or FIREBASE_CLIENT_EMAIL/PRIVATE_KEY");
       process.exit(1);
     }
     initializeApp({ credential: cert(JSON.parse(key)) });

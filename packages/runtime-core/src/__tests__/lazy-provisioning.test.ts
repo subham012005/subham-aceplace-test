@@ -1,57 +1,56 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { dispatch } from "../engine";
 import { MemoryDb } from "./memory-db";
 import { setDb } from "../db";
-import { COLLECTIONS } from "../constants";
 
-describe("Lazy Provisioning Fallback — Dev Mode", () => {
+describe("Phase-2 Identity Enforcement — Dispatch Guards", () => {
   let db: MemoryDb;
 
   beforeEach(() => {
     db = new MemoryDb();
     setDb(db as any);
-    
-    // Enable Dev Mode
-    process.env.ACELOGIC_DEV_LICENSE_FALLBACK = "true";
   });
 
-  it("Test: Missing agent → auto-provisioned in Dev Mode", async () => {
-    // 1. Database is empty (wiped)
-    const agentId = "agent_coo";
-    const doc = await db.collection(COLLECTIONS.AGENTS).doc(agentId).get();
-    expect(doc.exists).toBe(false);
-
-    // 2. Dispatch a task
-    const result = await dispatch({
-      prompt: "Auto-provision test",
-      userId: "user_test",
-      orgId: "org_test",
-      agentId: agentId
-    });
-
-    expect(result.success).toBe(true);
-    expect(result.envelope_id).toBeDefined();
-
-    // 3. Verify agent now exists in DB
-    const finalDoc = await db.collection(COLLECTIONS.AGENTS).doc(agentId).get();
-    expect(finalDoc.exists).toBe(true);
-    const agentData = finalDoc.data() as any;
-    expect(agentData.agent_id).toBe(agentId);
-    expect(agentData.identity_fingerprint).toBeDefined();
-    expect(agentData.display_name).toContain("Chief Orchestration Officer");
-  });
-
-  it("Test: Missing agent → hard fail in Production Mode", async () => {
-    // Disable Dev Mode
-    process.env.ACELOGIC_DEV_LICENSE_FALLBACK = "false";
-
-    const agentId = "agent_coo";
-
-    // Dispatch should throw
+  it("Test: Missing agent → hard fail (AGENT_PROVISIONING_FAILED) — Phase 2 always enforces", async () => {
+    // DB is empty — no agents seeded
     await expect(dispatch({
       prompt: "Production fail test",
       userId: "user_test",
-      agentId: agentId
-    })).rejects.toThrow(`AGENT_PROVISIONING_FAILED:Agent '${agentId}' not found in identity store.`);
+      agentId: "agent_unknown_dispatch"
+    })).rejects.toThrow("AGENT_PROVISIONING_FAILED");
+  });
+
+  it("Test: Unverified agent → quarantined envelope (verified=false path)", async () => {
+    const { COLLECTIONS } = await import("../constants");
+
+    // Seed an UNVERIFIED agent (verified = false)
+    await db.collection(COLLECTIONS.AGENTS).doc("agent_coo").set({
+      agent_id: "agent_coo",
+      identity_fingerprint: "fp_coo",
+      canonical_identity_json: JSON.stringify({ agent_id: "agent_coo" }),
+      verified: false,
+    });
+    // Seed all other pipeline agents as verified
+    for (const agentId of ["agent_researcher", "agent_worker", "agent_grader"]) {
+      await db.collection(COLLECTIONS.AGENTS).doc(agentId).set({
+        agent_id: agentId,
+        identity_fingerprint: `fp_${agentId}`,
+        canonical_identity_json: JSON.stringify({ agent_id: agentId }),
+        verified: true,
+      });
+    }
+
+    const result = await dispatch({
+      prompt: "Unverified agent test",
+      userId: "user_test",
+      agentId: "agent_coo",
+    });
+
+    // Should return an envelope in quarantined state
+    expect(result.success).toBe(false);
+    expect(result.envelope_id).toBeDefined();
+    // Verify the envelope is marked quarantined in DB
+    const envDoc = await db.collection(COLLECTIONS.EXECUTION_ENVELOPES).doc(result.envelope_id).get();
+    expect(envDoc.data()?.status).toBe("quarantined");
   });
 });

@@ -16,24 +16,44 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from services.firestore import log_agent_action
 
 
-COO_SYSTEM_PROMPT = """You are the COO agent in the ACEPLACE Phase 2 runtime.
-Your task is to create a deterministic execution plan for the given prompt.
+COO_SYSTEM_PROMPT = """You are the Chief Orchestration Officer (COO) agent in the ACEPLACE Phase 2 runtime.
+Your role is to analyze the user's task and construct a detailed, multi-phase strategic execution plan.
+
+You MUST produce a comprehensive plan that includes:
+1. A detailed strategic overview of the mission
+2. Explicit, actionable task assignments for each agent role (Researcher, Worker, Grader)
+3. Success criteria and expected deliverables
+4. Any known constraints, risks, or dependencies
 
 Return ONLY valid JSON in this exact structure:
 {
-  "plan_summary": "brief description of the plan",
+  "plan_summary": "One-sentence executive summary of the mission",
+  "strategic_objective": "Detailed multi-sentence description of what needs to be accomplished and why",
+  "mission_context": "Background context, scope, and any relevant domain knowledge",
   "assignments": [
     {
       "assignment_id": "assign_1",
       "agent_role": "researcher",
-      "task": "specific research task"
+      "name": "Intelligence Gathering Phase",
+      "task": "Detailed description of exactly what the researcher must investigate and report on",
+      "expected_output": "What the researcher should produce — findings, data, sources, analysis",
+      "priority": "critical|high|medium",
+      "success_criteria": "Specific, measurable outcome that defines task completion"
     },
     {
       "assignment_id": "assign_2",
       "agent_role": "worker",
-      "task": "specific production task"
+      "name": "Execution & Production Phase",
+      "task": "Detailed description of what the worker must produce based on research findings",
+      "expected_output": "What the worker should deliver — document, code, report, analysis",
+      "priority": "critical|high|medium",
+      "success_criteria": "Specific, measurable outcome that defines task completion"
     }
-  ]
+  ],
+  "constraints": ["Any specific constraints or requirements to respect"],
+  "dependencies": "Research must complete before production begins",
+  "estimated_complexity": "low|medium|high",
+  "quality_bar": "Explicit definition of acceptable quality for this mission"
 }"""
 
 

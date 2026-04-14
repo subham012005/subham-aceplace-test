@@ -3,7 +3,8 @@
 import React from "react";
 import { 
   Activity, CheckCircle2, XCircle, Clock, Cpu, Search, 
-  GraduationCap, Zap, ShieldCheck, Key, AlertTriangle, Terminal
+  GraduationCap, Zap, ShieldCheck, Key, AlertTriangle, Terminal,
+  Fingerprint
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { UnifiedLogEntry } from "@/hooks/useAgentLogs";
@@ -96,11 +97,14 @@ function formatTimestamp(ts: string): string {
 
 interface AgentLogPanelProps {
   logs: UnifiedLogEntry[];
-  loading: boolean;
+  jobId?: string;
+  envelopeId?: string;
+  agentId?: string;
+  loading?: boolean;
   className?: string;
 }
 
-export function AgentLogPanel({ logs, loading, className }: AgentLogPanelProps) {
+export function AgentLogPanel({ logs, loading, jobId, envelopeId, agentId, className }: AgentLogPanelProps) {
   if (loading && logs.length === 0) {
     return (
       <div className={cn("space-y-3", className)}>
@@ -113,14 +117,46 @@ export function AgentLogPanel({ logs, loading, className }: AgentLogPanelProps) 
 
   if (!loading && logs.length === 0) {
     return (
-      <div className={cn("flex flex-col items-center justify-center py-12 space-y-3", className)}>
-        <Zap className="w-8 h-8 text-slate-700" />
-        <p className="text-slate-600 text-xs uppercase tracking-widest font-bold">
-          Waiting for activity...
-        </p>
-        <p className="text-slate-700 text-[10px]">
-          Execution traces will appear here in real-time.
-        </p>
+      <div className={cn("p-6 border border-dashed border-white/10 bg-white/[0.02] rounded-sm space-y-6", className)}>
+        <div className="flex flex-col items-center justify-center space-y-3 py-4 border-b border-white/5">
+          <Zap className="w-8 h-8 text-cyan-500/40 animate-pulse" />
+          <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest italic">
+            Dimensional Synchronization Active
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Initialization Manifest</p>
+          
+          <div className="grid grid-cols-1 gap-3">
+            <div className="flex flex-col p-3 bg-black/40 border border-white/5 group hover:border-cyan-500/30 transition-colors gap-1.5">
+              <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Job Identity</span>
+              <span className="text-[10px] font-mono text-cyan-400/80 break-all leading-tight">{jobId || "PENDING"}</span>
+            </div>
+
+            <div className="flex flex-col p-3 bg-black/40 border border-white/5 group hover:border-purple-500/30 transition-colors gap-1.5">
+              <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Nexus Envelope</span>
+              <span className="text-[10px] font-mono text-purple-400/80 break-all leading-tight">{envelopeId || "INITIALIZING"}</span>
+            </div>
+
+            <div className="flex flex-col p-3 bg-black/40 border border-white/5 group hover:border-slate-500/30 transition-colors gap-1.5">
+              <div className="flex items-center justify-between w-full mb-1">
+                <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Agent Fingerprint</span>
+                <Fingerprint className="w-3 h-3 text-slate-500" />
+              </div>
+              <span className="text-[10px] font-mono text-slate-400 break-all leading-tight">
+                {agentId || "0x0000000000000000000000000000000000000000000000000000000000000000"}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="pt-4 flex items-center gap-3">
+          <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
+          <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest italic">
+            Awaiting execution traces...
+          </p>
+        </div>
       </div>
     );
   }
@@ -192,12 +228,44 @@ export function AgentLogPanel({ logs, loading, className }: AgentLogPanelProps) 
                   </span>
                 )}
 
-                {/* Agent ID / Metadata snippet */}
-                {log.type === "trace" && (
-                  <span className="text-[8px] text-slate-700 font-mono truncate max-w-[150px]">
-                    {log.agent_id}
-                  </span>
+              {/* ID Chips Container */}
+              <div className="flex flex-wrap items-center gap-1.5 mt-2 mb-1 opacity-70 group-hover:opacity-100 transition-opacity">
+                {/* Envelope ID */}
+                <div className="flex items-center gap-1 bg-white/5 border border-white/10 px-1.5 py-0.5 rounded-[2px]" title={`Envelope ID: ${log.envelope_id}`}>
+                  <span className="text-[7px] font-black text-slate-500 uppercase">ENV</span>
+                  <span className="text-[8px] font-mono text-cyan-500/80 break-all">{log.envelope_id || "SYSTEM"}</span>
+                </div>
+
+                {/* Step ID */}
+                {log.step_id && (
+                  <div className="flex items-center gap-1 bg-white/5 border border-white/10 px-1.5 py-0.5 rounded-[2px]" title={`Step ID: ${log.step_id}`}>
+                    <span className="text-[7px] font-black text-slate-500 uppercase">STP</span>
+                    <span className="text-[8px] font-mono text-purple-400/80 break-all">{log.step_id}</span>
+                  </div>
                 )}
+
+                {/* Trace/Log ID */}
+                <div className="flex items-center gap-1 bg-white/5 border border-white/10 px-1.5 py-0.5 rounded-[2px]" title={`${log.type === "trace" ? "Trace" : "Log"} ID: ${log.id}`}>
+                  <span className="text-[7px] font-black text-slate-500 uppercase">{log.type === "trace" ? "TRC" : "LOG"}</span>
+                  <span className="text-[8px] font-mono text-slate-500 break-all">{log.id}</span>
+                </div>
+
+                {/* Artifact ID */}
+                {(log.artifact_id || log.metadata?.artifact_id) && (
+                  <div className="flex items-center gap-1 bg-emerald-500/5 border border-emerald-500/20 px-1.5 py-0.5 rounded-[2px]" title={`Artifact ID: ${log.artifact_id || log.metadata?.artifact_id}`}>
+                    <span className="text-[7px] font-black text-emerald-500/70 uppercase">ART</span>
+                    <span className="text-[8px] font-mono text-emerald-400/80 break-all">{log.artifact_id || log.metadata?.artifact_id}</span>
+                  </div>
+                )}
+
+                {/* Agent Fingerprint / ID */}
+                {log.agent_id && (
+                  <div className="flex items-center gap-1 bg-white/5 border border-white/10 px-1.5 py-0.5 rounded-[2px] ml-auto" title={`Agent ID: ${log.agent_id}`}>
+                    <Fingerprint className="w-2.5 h-2.5 text-slate-600" />
+                    <span className="text-[8px] font-mono text-slate-500 break-all">{log.agent_id}</span>
+                  </div>
+                )}
+              </div>
 
                 {/* Timestamp */}
                 <span className="ml-auto text-[9px] text-slate-700 font-mono shrink-0">

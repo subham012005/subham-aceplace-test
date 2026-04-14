@@ -281,7 +281,11 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                             </div>
                             <div className="flex items-center gap-3 mt-1">
                                 <span className={cn("text-[8px] font-black uppercase tracking-[0.2em] border px-2 py-0.5", statusColors[displayJob.status] || "text-slate-400")}>
-                                    {displayJob.status}
+                                    {displayJob.status === "quarantined" ? (
+                                        displayJob.reason?.toLowerCase().includes("lease") || displayJob.reason?.toLowerCase().includes("fork") || displayJob.block_reason?.toLowerCase().includes("fork")
+                                            ? "BLOCKED (LEASE CONFLICT)"
+                                            : "QUARANTINED (IDENTITY FAILURE)"
+                                    ) : displayJob.status}
                                 </span>
                                 <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest flex items-center gap-1">
                                     <Clock className="w-3 h-3" />

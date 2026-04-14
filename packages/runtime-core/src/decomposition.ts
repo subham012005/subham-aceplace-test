@@ -39,6 +39,7 @@ export function createDecompositionPlan(params: {
 export async function expandWorkerSteps(params: {
   envelope_id: string;
   decomposition_plan: DecompositionPlan;
+  research_artifact_id?: string;
 }): Promise<void> {
   const ref = getDb().collection(COLLECTIONS.EXECUTION_ENVELOPES).doc(params.envelope_id);
   await getDb().runTransaction(async (tx) => {
@@ -53,7 +54,10 @@ export async function expandWorkerSteps(params: {
       status: "pending",
       depends_on: [plan.parent_step_id],
       assigned_agent_id: plan.worker_agent_ids[i] ?? plan.worker_agent_ids[0],
-      input_ref: { work_unit: wu as unknown as Record<string, unknown> },
+      input_ref: { 
+        work_unit: wu as unknown as Record<string, unknown>,
+        artifact_id: params.research_artifact_id 
+      },
       output_ref: {},
       retry_count: 0,
       max_retries: 2,

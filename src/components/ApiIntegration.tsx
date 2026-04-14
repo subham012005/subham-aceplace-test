@@ -21,7 +21,7 @@ export default function ApiIntegration() {
             const res = await fetch(`/api/user/master-secret?user_id=${userId}`);
             const data = await res.json();
             if (data.exists) {
-                setApiKey(data.full_secret);
+                setApiKey(null); // Explicitly clear any old raw key
                 setMaskedKey(data.masked_secret);
             }
         } catch (err) {
@@ -43,8 +43,8 @@ export default function ApiIntegration() {
             });
             const data = await res.json();
             if (data.success) {
-                setApiKey(data.master_secret);
-                setMaskedKey(null); // Show full secret for first time
+                setApiKey(data.api_key);
+                setMaskedKey(data.masked_secret);
             }
         } catch (err) {
             console.error("Failed to generate API key:", err);

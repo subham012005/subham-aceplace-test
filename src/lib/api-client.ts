@@ -116,15 +116,6 @@ class AceApiClient {
         return this.handleResponse(response);
     }
 
-    /** ACEPLACE ACE → #us#.task.handoff → multi-agent envelope + parallel runner */
-    async submitAceHandoff(payload: Record<string, unknown>) {
-        const response = await this.secureFetch("/api/runtime/handoff", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-        });
-        return this.handleResponse(response);
-    }
 
     async getEnvelope(id: string) {
         const response = await this.secureFetch(`/api/runtime/envelope/${id}`);

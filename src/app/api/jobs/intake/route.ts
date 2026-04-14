@@ -31,8 +31,17 @@ export async function POST(req: Request) {
             agentId: body.requested_agent_id || "agent_coo",
             orgId: "default"
         });
-        console.log(`[INTAKE] Successfully dispatched envelope: ${dispatchResult.envelope_id}`);
 
+        if (!dispatchResult.success) {
+            console.error(`[INTAKE] Dispatch failed. Envelope quarantined: ${dispatchResult.message}`);
+            return NextResponse.json({
+                error: "IDENTITY_VERIFICATION_FAILED",
+                message: dispatchResult.message,
+                envelope_id: dispatchResult.envelope_id
+            }, { status: 403 });
+        }
+
+        console.log(`[INTAKE] Successfully dispatched envelope: ${dispatchResult.envelope_id}`);
 
         return NextResponse.json(result, { status: 200 });
 

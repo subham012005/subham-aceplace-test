@@ -131,7 +131,7 @@ export const STEP_TYPE_CONFIG: Record<string, {
     color: "#94A3B8",
   },
   complete: {
-    label: "Complete",
+    label: "Verification",
     protocol_verb: "#us#.execution.complete",
     agent_role: "coo",
     icon: "CheckCircle",
@@ -151,8 +151,6 @@ export const DEFAULT_STEP_PIPELINE: string[] = [
 ];
 
 // ─── #us# Protocol Verbs ──────────────────────────────────────────────────────
-// ONLY these five verbs are legal. All others MUST be rejected.
-
 export const ALLOWED_PROTOCOL_VERBS: readonly ProtocolVerb[] = [
   "#us#.task.plan",
   "#us#.task.assign",

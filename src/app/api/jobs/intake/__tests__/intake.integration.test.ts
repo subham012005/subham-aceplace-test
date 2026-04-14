@@ -115,7 +115,7 @@ describe("Job Intake API Integration Test", () => {
 
     const body = {
       user_id: "user_integration_02",
-      requested_agent_id: "agent_coo",
+      requested_agent_id: "agent_unknown_non_canonical",
       job_type: "research_task",
       prompt: "This should fail provisioning.",
     };

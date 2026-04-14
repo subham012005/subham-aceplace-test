@@ -30,7 +30,7 @@ export interface Job {
     user_id: string;
     job_type: "coo" | "research" | "worker";
     prompt: string;
-    status: "created" | "queued" | "lease_check" | "in_progress" | "executing" | "coo_planning" | "research_execution" | "worker_execution" | "grading" | "completed" | "graded" | "approved" | "rejected" | "failed" | "resurrected" | "awaiting_approval";
+    status: "created" | "queued" | "lease_check" | "in_progress" | "executing" | "coo_planning" | "research_execution" | "worker_execution" | "grading" | "completed" | "graded" | "approved" | "rejected" | "failed" | "resurrected" | "awaiting_approval" | "quarantined";
     created_at: string;
     updated_at: string;
     completed_at?: string;
@@ -297,9 +297,12 @@ export function useJob(jobId: string | null, userId: string | undefined, onUpdat
                 if (onUpdate) onUpdate(mappedJob);
             }
         } catch (error: any) {
-             if (!error.message?.includes("Job not found")) {
+             const message = error.message || "";
+             if (!message.includes("Job not found")) {
                 console.error("Job refresh failed:", error);
             }
+            // Explicitly set null to indicate non-existence
+            setJob(null);
         } finally {
             setRefreshing(false);
             setLoading(false);
