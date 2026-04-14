@@ -21,6 +21,7 @@ import type {
  * The first step is initialized to "ready"; all others are "pending".
  */
 export function buildEnvelope(params: {
+  envelopeId?: string;
   orgId?: string;
   jobId?: string;
   userId?: string;
@@ -32,7 +33,7 @@ export function buildEnvelope(params: {
   steps?: EnvelopeStep[];         // explicitly mapped steps from the planner
 }): ExecutionEnvelope {
   const now = new Date().toISOString();
-  const envelopeId = `env_${randomUUID().replace(/-/g, "").slice(0, 20)}`;
+  const envelopeId = params.envelopeId ?? `env_${randomUUID().replace(/-/g, "").slice(0, 20)}`;
   const pipeline = params.stepPipeline ?? DEFAULT_STEP_PIPELINE;
 
   const roleAssignments = params.role_assignments ?? {};

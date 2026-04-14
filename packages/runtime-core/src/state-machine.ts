@@ -74,6 +74,18 @@ export async function transition(
       const jobRef = db.collection(COLLECTIONS.JOBS).doc(envelope.job_id);
       tx.set(jobRef, { status: newStatus, updated_at: now }, { merge: true });
     }
+
+    // Sync execution_queue status
+    const queueRef = db.collection(COLLECTIONS.EXECUTION_QUEUE).doc(envelopeId);
+    const terminalStatuses = ["completed", "failed", "quarantined", "rejected"];
+    
+    if (terminalStatuses.includes(newStatus)) {
+      // For terminal states, we can either delete or mark as terminal. 
+      // Mark as terminal is better for audit consistency.
+      tx.set(queueRef, { status: newStatus, updated_at: now }, { merge: true });
+    } else {
+      tx.set(queueRef, { status: newStatus, updated_at: now }, { merge: true });
+    }
   });
 
   // Log the transition

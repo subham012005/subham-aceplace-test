@@ -19,10 +19,14 @@ import { memoryDb } from "../../../../packages/runtime-core/src/__tests__/memory
 vi.setConfig({ testTimeout: 60000 });
 
 // Mock global fetch for Agent Engine simulation
-global.fetch = vi.fn().mockImplementation(async (url: string) => {
+vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url: string) => {
   if (url.includes("/execute-step")) {
     return {
       ok: true,
+      text: async () => JSON.stringify({
+        success: true,
+        artifact_id: `artifact_${Math.random().toString(36).slice(2, 10)}`,
+      }),
       json: async () => ({
         success: true,
         artifact_id: `artifact_${Math.random().toString(36).slice(2, 10)}`,
@@ -30,7 +34,7 @@ global.fetch = vi.fn().mockImplementation(async (url: string) => {
     };
   }
   return { ok: true, json: async () => ({ success: true }) };
-});
+}));
 
 const TEST_WORKER_ID = "test_worker_e2e_001";
 const ORG_ID = "org_e2e_test";
@@ -38,10 +42,10 @@ const USER_ID = "user_e2e_tester";
 
 describe("ACEPLACE Deterministic Runtime — End-to-End", () => {
   
-  it("should process a multi-agent task from handoff to completion", async () => {
+  it("should process a multi-agent task via dispatch to completion", async () => {
     // Dynamically load to ensure the global DB singleton is picked up after it was set
     const { 
-      acceptAceHandoff, 
+      dispatch,
       registerAgentIdentity, 
       COLLECTIONS,
       runEnvelopeParallel,
@@ -50,37 +54,33 @@ describe("ACEPLACE Deterministic Runtime — End-to-End", () => {
 
     memoryDb.reset();
 
-    // 1. Register Agents
-    await registerAgentIdentity({
-      display_name: "Test COO",
-      role: "COO",
-      mission: "Test orchestration",
-      org_id: ORG_ID,
-      agent_id: "agent_coo_e2e"
-    });
-
-    // 2. Trigger Handoff (Web Control Plane Action)
-    const handoffResult = await acceptAceHandoff({
-      protocol: "#us#",
-      message_type: "#us#.task.handoff",
-      execution: {
+    // 1. Register all required agents for multi-agent envelope
+    for (const [agentId, role] of [
+      ["agent_coo_e2e", "COO"],
+      ["agent_researcher", "Researcher"],
+      ["agent_worker", "Worker"],
+      ["agent_grader", "Grader"],
+    ] as const) {
+      await registerAgentIdentity({
+        display_name: `Test ${role}`,
+        role,
+        mission: `Test ${role} mission`,
         org_id: ORG_ID,
-        requested_by_user_id: USER_ID,
-        session_id: "sess_e2e_001",
-        draft_id: "draft_e2e_001",
-      },
-      payload: {
-        task: {
-          description: "E2E Test: Aggregate world news and summarize.",
-        },
-        role_assignments: [
-          { role: "COO", agent_id: "agent_coo_e2e" }
-        ],
-      }
+        agent_id: agentId,
+      });
+    }
+
+    // 2. Dispatch (Phase-2 canonical entry point — no handoff)
+    const dispatchResult = await dispatch({
+      prompt: "E2E Test: Aggregate world news and summarize.",
+      userId: USER_ID,
+      jobId: `job_e2e_${Date.now()}`,
+      orgId: ORG_ID,
+      agentId: "agent_coo_e2e",
     });
 
-    expect(handoffResult.success).toBe(true);
-    const envelopeId = handoffResult.envelope_id;
+    expect(dispatchResult.success).toBe(true);
+    const envelopeId = dispatchResult.envelope_id;
 
     // 3. Worker Claims the Envelope (Execution Plane Action)
     const claimResult = await claimNextEnvelope(TEST_WORKER_ID);
@@ -96,7 +96,7 @@ describe("ACEPLACE Deterministic Runtime — End-to-End", () => {
     const envelopeDoc = await memoryDb.collection(COLLECTIONS.EXECUTION_ENVELOPES).doc(envelopeId).get();
     const envelope = envelopeDoc.data();
     
-    expect(envelope?.status).toBe("completed");
+    expect(envelope?.status).toBe("awaiting_human");
     
     // Verify all steps are completed
     const steps = envelope?.steps || [];
@@ -109,18 +109,26 @@ describe("ACEPLACE Deterministic Runtime — End-to-End", () => {
     const tracesSnap = await memoryDb.collection(COLLECTIONS.EXECUTION_TRACES).get();
     const eventTypes = tracesSnap.docs.map((d: any) => d.data().event_type);
     
-    expect(eventTypes).toContain("HANDOFF_ENVELOPE_CREATED");
+    expect(eventTypes).toContain("ENVELOPE_CREATED");
     expect(eventTypes).toContain("LEASE_ACQUIRED");
     expect(eventTypes).toContain("STEP_COMPLETED");
-    expect(eventTypes).toContain("STATUS_TRANSITION_COMPLETED");
+    expect(eventTypes).toContain("STATUS_TRANSITION_AWAITING_HUMAN");
 
-    // 7. Verify execution_id and identity_fingerprint on every trace
+    // 7. Verify envelope_id on every trace
     const allTraces = tracesSnap.docs.map((d: any) => d.data());
     for (const trace of allTraces) {
       expect(trace.envelope_id, "trace must carry envelope_id").toBeTruthy();
     }
 
-    console.log(`[E2E] Success: Envelope ${envelopeId} fully finalized.`);
+    console.log(`[E2E] Success: Envelope ${envelopeId} fully finalized to awaiting_human.`);
+
+    // 8. Simulate Human Approval
+    const { transition } = await import("@aceplace/runtime-core");
+    await transition(envelopeId, "approved");
+    const finalDoc = await memoryDb.collection(COLLECTIONS.EXECUTION_ENVELOPES).doc(envelopeId).get();
+    expect(finalDoc.data()?.status).toBe("approved");
+
+    console.log(`[E2E] Success: Envelope ${envelopeId} fully finalized to approved.`);
   }, 120000);
 
   it("should fail gracefully if identity verification fails (Quarantine Path)", async () => {

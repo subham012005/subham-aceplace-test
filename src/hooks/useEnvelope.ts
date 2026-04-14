@@ -59,8 +59,26 @@ export function useEnvelope(envelopeId: string | null): UseEnvelopeReturn {
     };
   }, [envelopeId]);
 
-  // Steps come directly from envelope.steps[] — no separate query needed
-  const steps: EnvelopeStep[] = envelope?.steps ?? [];
+  // Deterministic sorting to enforce strict Phase 2 execution order in the UI
+  const PIPELINE_ORDER = [
+    "plan",
+    "assign",
+    "produce_artifact",
+    "artifact_produce", // alias support
+    "evaluate",
+    "evaluation",       // alias support
+    "human_approval",
+    "complete"
+  ];
+
+  const steps: EnvelopeStep[] = (envelope?.steps ?? []).slice().sort((a, b) => {
+    const idxA = PIPELINE_ORDER.indexOf(a.step_type);
+    const idxB = PIPELINE_ORDER.indexOf(b.step_type);
+    if (idxA === -1 && idxB === -1) return 0;
+    if (idxA === -1) return 1;
+    if (idxB === -1) return -1;
+    return idxA - idxB;
+  });
 
   return { envelope, steps, loading, error };
 }

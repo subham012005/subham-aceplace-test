@@ -26,14 +26,22 @@ export async function GET(
         }
 
         const jobsRef = adminDb.collection("jobs");
-        const snapshot = await jobsRef.where("job_id", "==", jobId).limit(1).get();
+        let doc = await jobsRef.doc(jobId).get();
+        let docData = doc.exists ? doc.data() : null;
 
-        if (snapshot.empty) {
+        if (!doc.exists) {
+            // Fallback: search by job_id field
+            const snapshot = await jobsRef.where("job_id", "==", jobId).limit(1).get();
+            if (!snapshot.empty) {
+                doc = snapshot.docs[0];
+                docData = doc.data();
+            }
+        }
+
+        if (!docData) {
             return NextResponse.json({ error: "Job not found" }, { status: 404 });
         }
 
-        const doc = snapshot.docs[0];
-        const docData = doc.data();
 
         // Security: Verify user ownership if userId is provided
         if (userId && docData.user_id !== userId) {

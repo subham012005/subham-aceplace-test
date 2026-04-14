@@ -14,14 +14,41 @@ from services.firestore import get_artifact, log_agent_action
 from config import AGENT_MODELS, ANTHROPIC_API_KEY, OPENAI_API_KEY
 
 
-WORKER_SYSTEM_PROMPT = """You are the Worker agent in the ACEPLACE Phase 2 runtime.
-Produce the required deliverable based on research findings and the original task.
-Return ONLY valid JSON:
+WORKER_SYSTEM_PROMPT = """You are the Production Worker agent in the ACEPLACE Phase 2 runtime.
+Your mission is to synthesize the research intelligence and produce a comprehensive, professional-grade deliverable.
+
+You MUST:
+1. Read and deeply understand ALL research findings provided
+2. Pay special attention to the Researcher's "Recommended Approach" and incorporate its structure and tactical advice into your work
+3. Draw explicit conclusions from each research finding
+4. Produce a fully detailed, long-form deliverable — not a brief summary
+5. Structure the output professionally with clear sections and sub-sections
+6. Reference specific research findings where relevant in your output
+7. Provide actionable recommendations based on synthesized insights
+8. Ensure the final deliverable is a seamless merge of the mission goal and the intelligence findings
+
+Return ONLY valid JSON in this exact structure:
 {
-  "deliverable_summary": "brief description of what you produced",
-  "deliverable_type": "report|code|analysis|document|other",
-  "content": "the full deliverable content here",
-  "quality_notes": "any notes about the output quality or limitations"
+  "deliverable_summary": "Crisp 2-sentence executive description of what was produced and its value",
+  "deliverable_type": "report|analysis|plan|code|specification|document",
+  "executive_summary": "3-5 paragraph high-level overview of the complete deliverable and its conclusions",
+  "content": "The FULL, complete deliverable content here — this must be comprehensive, detailed, and long-form. Do NOT truncate or summarize. Include all sections, analysis, conclusions, and recommendations.",
+  "sections": [
+    {
+      "title": "Section title",
+      "body": "Full section content with detailed analysis and conclusions drawn from research"
+    }
+  ],
+  "key_conclusions": [
+    {
+      "conclusion": "Specific conclusion drawn from the research",
+      "evidence": "The research finding(s) that support this conclusion",
+      "recommendation": "Actionable recommendation based on this conclusion"
+    }
+  ],
+  "research_synthesis": "Paragraph explicitly describing how the researcher's findings were incorporated into this deliverable",
+  "limitations": ["Any limitation or caveat in the deliverable"],
+  "quality_notes": "Assessment of deliverable completeness and areas for potential enhancement"
 }"""
 
 
@@ -44,13 +71,26 @@ def execute(ctx: dict) -> str:
 
     # Load research from previous step artifact
     research_context = ""
+    work_unit_context = ""
+    
     if input_ref:
-        try:
-            artifact = get_artifact(input_ref)
-            if artifact:
-                research_context = f"\n\nResearch Findings:\n{artifact.get('artifact_content', '')}"
-        except Exception:
-            pass
+        # Extract research artifact ID and work unit if structured
+        research_art_id = None
+        if isinstance(input_ref, dict):
+            research_art_id = input_ref.get("artifact_id")
+            wu = input_ref.get("work_unit")
+            if wu:
+                work_unit_context = f"\n\nTarget Work Unit:\n{json.dumps(wu, indent=2)}"
+        elif isinstance(input_ref, str):
+            research_art_id = input_ref
+
+        if research_art_id:
+            try:
+                artifact = get_artifact(research_art_id)
+                if artifact:
+                    research_context = f"\n\nResearch Findings:\n{artifact.get('artifact_content', '')}"
+            except Exception:
+                pass
 
     # ── Log: START ─────────────────────────────────────────────────────────────
     log_agent_action(
@@ -66,7 +106,8 @@ def execute(ctx: dict) -> str:
     start_ms = int(time.time() * 1000)
 
     try:
-        raw_text = _call_llm(provider, model_name, cfg, prompt, research_context)
+        combined_prompt = f"Mission Prompt: {prompt}{work_unit_context}"
+        raw_text = _call_llm(provider, model_name, cfg, combined_prompt, research_context)
 
         cleaned = raw_text.strip()
         for fence in ("```json", "```"):

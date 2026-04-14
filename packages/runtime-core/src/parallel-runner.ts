@@ -229,9 +229,9 @@ async function executeClaimedStep(params: {
 
     // 4. Identity Verified Guard
     assertAgentIdentityVerified(envelope, agentId);
-    await addTrace(envelope_id, step.step_id, agentId, ident.verified_at || "", "IDENTITY_VERIFIED", {
+    await addTrace(envelope_id, step.step_id, agentId, fingerprint, "IDENTITY_VERIFIED", {
       agent_id: agentId,
-      fingerprint,
+      verified_at: ident.verified_at || new Date().toISOString(),
     });
 
     // 5. Execution Guard
@@ -555,8 +555,11 @@ export async function runEnvelopeParallel(params: {
 
         try {
           if (everyStepCompleted) {
-            await transition(envelope_id, "completed");
-            await addTrace(envelope_id, "", "runtime_worker", "00000000", "STATUS_TRANSITION_COMPLETED", {});
+            // 🛡️ HITL HARDENING: Never auto-complete. Transition to awaiting_human for operator sign-off.
+            await transition(envelope_id, "awaiting_human");
+            await addTrace(envelope_id, "", "runtime_worker", "00000000", "STATUS_TRANSITION_AWAITING_HUMAN", {
+               reason: "All steps finished. Verification required."
+            });
             await emitSafe({
               event_type: "ENVELOPE_COMPLETED",
               envelope_id,

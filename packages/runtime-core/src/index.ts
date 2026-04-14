@@ -89,11 +89,6 @@ export {
   storeUSMessage,
 } from "./us-message-engine";
 export {
-  acceptAceHandoff,
-  validateAceHandoff,
-  type AceHandoffMessage,
-} from "./ace-handoff";
-export {
   aggregateTelemetryWindow,
 } from "./telemetry/aggregateTelemetryWindow";
 

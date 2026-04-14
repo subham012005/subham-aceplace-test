@@ -181,7 +181,8 @@ export default function DashboardPage() {
                 }
                 return 'rejected';
             }
-            if (envStatus === 'failed' || envStatus === 'quarantined') return 'failed';
+            if (envStatus === 'quarantined') return 'quarantined';
+            if (envStatus === 'failed') return 'failed';
             if (envStatus === 'completed') return 'completed';
             // awaiting_human = grading is done, waiting for operator decision
             if (envStatus === 'awaiting_human') return 'graded';
@@ -565,6 +566,9 @@ export default function DashboardPage() {
                             <HUDFrame variant="dark" className="p-0 border-cyan-500/30 overflow-hidden shrink-0" showRefLines={false}>
                                 <Avatar className="h-9 w-9 md:h-10 md:w-10 rounded-none">
                                     <AvatarImage src="/avatar.jpg" />
+                                    <AvatarFallback className="bg-cyan-500/20 text-cyan-400">
+                                      {user?.displayName?.[0] || user?.email?.[0] || 'U'}
+                                    </AvatarFallback>
                                     <AvatarFallback className="bg-cyan-500/10 text-cyan-500">
                                         {user?.email?.substring(0, 2).toUpperCase() || "AD"}
                                     </AvatarFallback>
@@ -644,7 +648,7 @@ export default function DashboardPage() {
                         <div className="space-y-3 pt-1">
                             {completedJobs.length > 0 ? completedJobs.map((job) => (
                                 <div
-                                    key={job.job_id}
+                                    key={job.id || job.job_id}
                                     onClick={() => {
                                         router.push(`/dashboard/jobs/${job.job_id || job.id}`);
                                     }}
@@ -658,7 +662,7 @@ export default function DashboardPage() {
                                         <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-emerald-400 truncate">{job.prompt}</span>
                                         <div className="flex items-center justify-between">
                                             <span className="text-[7px] uppercase font-bold text-slate-600 tracking-tighter italic">Status: {formatStatus(deriveHomeStatus(job))}</span>
-                                            <span className="text-[6px] font-mono text-slate-700 tracking-tighter">ID: {job.job_id.slice(-6)}</span>
+                                            <span className="text-[6px] font-mono text-slate-700 tracking-tighter">ID: {(job.job_id || job.id || "").slice(-6)}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -699,9 +703,9 @@ export default function DashboardPage() {
                                         </div>
                                     </div>
                                 ))
-                            ) : activeJobs.length > 0 ? activeJobs.map((job) => (
+                            ) : activeJobs.length > 0 ? activeJobs.map((job, index) => (
                                 <div
-                                    key={job.job_id}
+                                    key={job.job_id || job.id || `active-job-${index}`}
                                     onClick={() => {
                                         router.push(`/dashboard/jobs/${job.job_id || job.id}`);
                                     }}
@@ -718,7 +722,7 @@ export default function DashboardPage() {
                                         <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-cyan-400 truncate">{job.prompt}</span>
                                         <div className="flex items-center justify-between">
                                             <span className="text-[7px] uppercase font-bold text-slate-600 tracking-tighter italic">Status: {formatStatus(deriveHomeStatus(job))}</span>
-                                            <span className="text-[6px] font-mono text-slate-700 tracking-tighter">ID: {job.job_id.slice(-6)}</span>
+                                            <span className="text-[6px] font-mono text-slate-700 tracking-tighter">ID: {(job.job_id || job.id || "").slice(-6)}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -895,25 +899,29 @@ export default function DashboardPage() {
                             <table className="w-full text-left border-collapse min-w-[500px]">
                                 <thead className="sticky top-0 bg-black/80 z-20">
                                     <tr className="border-b border-white/10">
-                                        <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500">Agent ID</th>
+                                        <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500">Project ID</th>
+                                        <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500">Nexus ID</th>
+                                        <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500">Fingerprint</th>
+                                        <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500">Role</th>
                                         <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500">Task</th>
                                         <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500">Status</th>
-                                        <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500 text-cyan-500/80">Reliability</th>
+                                        <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500 text-cyan-500/80">Compliance</th>
                                         <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500">Timestamp</th>
-                                        <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500">Refreshed</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-white/5">
                                     {isJobsSyncing ? (
                                         Array.from({ length: 6 }).map((_, i) => (
                                             <tr key={i} className="border-b border-cyan-500/10 bg-cyan-950/5 relative overflow-hidden">
-                                                <td colSpan={6} className="p-0">
+                                                <td colSpan={8} className="p-0">
                                                     <div className="flex items-center px-4 py-3 gap-4">
+                                                        <div className="w-12 h-2 bg-cyan-500/20 rounded animate-pulse" />
+                                                        <div className="w-12 h-2 bg-cyan-500/20 rounded animate-pulse" />
+                                                        <div className="w-16 h-2 bg-cyan-500/20 rounded animate-pulse" />
                                                         <div className="w-16 h-2 bg-cyan-500/20 rounded animate-pulse" />
                                                         <div className="flex-1 h-2 bg-cyan-500/10 rounded animate-pulse" />
                                                         <div className="w-12 h-4 border border-cyan-500/20 bg-cyan-500/5 rounded animate-pulse" />
                                                         <div className="w-8 h-2 bg-cyan-500/20 rounded animate-pulse" />
-                                                        <div className="w-12 h-2 bg-cyan-500/20 rounded animate-pulse" />
                                                         <div className="w-12 h-2 bg-cyan-500/20 rounded animate-pulse" />
                                                     </div>
                                                 </td>
@@ -927,8 +935,21 @@ export default function DashboardPage() {
                                             }}
                                             className="group hover:bg-white/5 transition-colors cursor-pointer cursor-target"
                                         >
-                                            <td className="py-3 text-[10px] font-black text-slate-400 tracking-widest">{job.agent_role || job.job_type || "ORCHESTRATOR"}</td>
-                                            <td className="py-3 text-[10px] font-bold text-slate-300 truncate max-w-[150px]">{job.prompt}</td>
+                                            <td className="py-3 text-[10px] font-mono text-cyan-500/80 tracking-tighter">
+                                                {(job.job_id || job.id || "").slice(-6)}
+                                            </td>
+                                            <td className="py-3 text-[10px] font-mono text-purple-400/80 tracking-tighter">
+                                                {(job.execution_id || job.id || "").slice(-6)}
+                                            </td>
+                                            <td className="py-3 text-[10px] font-mono text-slate-500/80 tracking-tighter">
+                                                {(job.identity_fingerprint || job.agent_id || "").slice(-8) || "N/A"}
+                                            </td>
+                                            <td className="py-3 text-[10px] font-black text-slate-400 tracking-widest uppercase">
+                                                {job.agent_role || job.job_type || "CORE"}
+                                            </td>
+                                            <td className="py-3 text-[10px] font-bold text-slate-300 truncate max-w-[120px]">
+                                                {job.prompt}
+                                            </td>
                                             <td className="py-3 text-nowrap">
                                                 <span className={cn(
                                                     "px-2 py-0.5 text-[8px] font-black uppercase tracking-widest border",
@@ -952,7 +973,7 @@ export default function DashboardPage() {
                                                     }
                                                     
                                                     let score = typeof govScoreRaw === 'object' ? (govScoreRaw.value || 0) : Number(govScoreRaw);
-                                                    if (score <= 10 && score > 0) score = score * 10; // Normalize to 100% scale
+                                                    if (score <= 10 && score > 0) score = score * 10;
                                                     
                                                     return (
                                                         <span className={cn(
@@ -969,13 +990,6 @@ export default function DashboardPage() {
                                                     const date = parseFirestoreDate(job.updated_at || job.created_at);
                                                     return date ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Recently";
                                                 })()}
-                                            </td>
-                                            <td className="py-3 text-[9px] font-bold text-slate-500 italic uppercase">
-                                                {viewedJobIds.has(job.job_id || job.id) ? (
-                                                    <span className="text-emerald-500">True</span>
-                                                ) : (
-                                                    <span className="text-rose-500/70">False</span>
-                                                )}
                                             </td>
                                         </tr>
                                     )) : (

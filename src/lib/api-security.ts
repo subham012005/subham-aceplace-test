@@ -137,9 +137,12 @@ export async function verifyUserApiKey(req: Request): Promise<{
     }
 
     // 🛡️ 2. Try API Key / Master Secret (External Agents)
+    const crypto = await import("crypto");
+    const hashedCandidate = crypto.createHash("sha256").update(tokenCandidate).digest("hex");
+
     const snap = await adminDb
       .collection("api_keys")
-      .where("master_secret", "==", tokenCandidate)
+      .where("hashed_secret", "==", hashedCandidate)
       .where("status", "==", "active")
       .limit(1)
       .get();

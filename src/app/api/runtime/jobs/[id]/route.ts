@@ -25,13 +25,23 @@ export async function GET(
     }
 
     // 🔐 2. Fetch the job from Firestore (Server-side)
-    const doc = await adminDb.collection("jobs").doc(id).get();
+    let doc = await adminDb.collection("jobs").doc(id).get();
+    let jobData = doc.exists ? doc.data() : null;
 
     if (!doc.exists) {
+      // Fallback: search by job_id field
+      const snapshot = await adminDb.collection("jobs").where("job_id", "==", id).limit(1).get();
+      if (!snapshot.empty) {
+        doc = snapshot.docs[0];
+        jobData = doc.data();
+      }
+    }
+
+    if (!jobData) {
       return secureJson({ error: "Job not found" }, { status: 404 });
     }
 
-    const job = { id: doc.id, ...doc.data() } as any;
+    const job = { id: doc.id, ...jobData } as any;
 
     // 🔐 3. Ownership check
     if (job.user_id !== userId) {

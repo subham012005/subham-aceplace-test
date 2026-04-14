@@ -25,16 +25,26 @@ export async function GET(
     }
 
     // 🔐 1. Identity Resolution & Ownership check
-    const jobDoc = await adminDb.collection("jobs").doc(jobId).get();
+    let jobDoc = await adminDb.collection("jobs").doc(jobId).get();
+    let jobData = jobDoc.exists ? jobDoc.data() : null;
+
+    if (!jobDoc.exists) {
+        // Fallback: search by job_id field
+        const snapshot = await adminDb.collection("jobs").where("job_id", "==", jobId).limit(1).get();
+        if (!snapshot.empty) {
+            jobDoc = snapshot.docs[0];
+            jobData = jobDoc.data();
+        }
+    }
+
     let searchExecutionId = jobId;
 
-    if (jobDoc.exists) {
-        const job = jobDoc.data();
-        if (job?.user_id !== userId) {
+    if (jobData) {
+        if (jobData.user_id !== userId) {
             return secureJson({ error: "Unauthorized" }, { status: 403 });
         }
-        if (job?.envelope_id) {
-            searchExecutionId = job.envelope_id;
+        if (jobData.envelope_id) {
+            searchExecutionId = jobData.envelope_id;
         }
     } else {
         // Fallback: Check if this is an envelope ID directly

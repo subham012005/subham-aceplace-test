@@ -25,11 +25,21 @@ export async function GET(
     }
 
     // 🔐 2. Resolve internal execution identity (job_id → envelope_id)
-    const jobDoc = await adminDb.collection("jobs").doc(jobId).get();
-    let searchId = jobId;
+    let jobDoc = await adminDb.collection("jobs").doc(jobId).get();
+    let jobData = jobDoc.exists ? jobDoc.data() : null;
 
-    if (jobDoc.exists && jobDoc.data()?.envelope_id) {
-        searchId = jobDoc.data()?.envelope_id;
+    if (!jobDoc.exists) {
+        // Fallback: search by job_id field
+        const snapshot = await adminDb.collection("jobs").where("job_id", "==", jobId).limit(1).get();
+        if (!snapshot.empty) {
+            jobDoc = snapshot.docs[0];
+            jobData = jobDoc.data();
+        }
+    }
+
+    let searchId = jobId;
+    if (jobData?.envelope_id) {
+        searchId = jobData.envelope_id;
     }
 
     // 🔐 3. Fetch traces from modern Phase 2 collection (Server-side)

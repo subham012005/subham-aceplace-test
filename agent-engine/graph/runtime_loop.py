@@ -105,39 +105,48 @@ def run_envelope(envelope_id: str, instance_id: str) -> None:
         # ── Step 4: Find Next Ready Step ──────────────────────────────────────
         step = get_next_ready_step(envelope)
         if step is None:
-            # Check if all steps finished
-            steps = envelope.get("steps", [])
-            all_done = all(s["status"] in ("completed", "failed") for s in steps)
-            if all_done:
-                any_failed = any(s["status"] == "failed" for s in steps)
-                final = "failed" if any_failed else "approved"
-                _safe_transition(envelope_id, final)
-                append_trace(envelope_id, "", agent_id, fingerprint, "EXECUTION_COMPLETED")
-                send_protocol_message(
-                    envelope_id=envelope_id,
-                    step_id="",
-                    verb="#us#.execution.complete",
-                    sender_agent_id=agent_id,
-                    identity_fingerprint=fingerprint,
-                    lease_holder=instance_id,
-                    payload={"final_status": final},
-                )
-                # Sync job to awaiting_approval so UI shows governance controls
-                job_id = envelope.get("job_id")
-                if job_id:
-                    from services.firestore import sync_job_with_envelope
-                    sync_job_with_envelope(
-                        job_id=job_id,
-                        status="awaiting_approval" if not any_failed else "failed",
-                        envelope_id=envelope_id,
-                        extra={
-                            "active_stage": "COMPLETED",
-                            "completed_at": __import__("datetime").datetime.now(
-                                __import__("datetime").timezone.utc
-                            ).isoformat(),
-                        },
+                steps = envelope.get("steps", [])
+                all_done = all(s["status"] in ("completed", "failed") for s in steps)
+                if all_done:
+                    any_failed = any(s["status"] == "failed" for s in steps)
+                    
+                    # Manual Transition Phase: If all steps are successful, yield to human
+                    final = "failed" if any_failed else "awaiting_human"
+                    
+                    _safe_transition(envelope_id, final)
+                    append_trace(
+                        envelope_id=envelope_id, 
+                        step_id="", 
+                        agent_id=agent_id, 
+                        identity_fingerprint=fingerprint, 
+                        event_type="AWAITING_OPERATOR_DECISION" if not any_failed else "EXECUTION_FAILED"
                     )
-            break
+                    
+                    send_protocol_message(
+                        envelope_id=envelope_id,
+                        step_id="",
+                        verb="#us#.execution.complete" if any_failed else "#us#.execution.awaiting_human",
+                        sender_agent_id=agent_id,
+                        identity_fingerprint=fingerprint,
+                        lease_holder=instance_id,
+                        payload={"final_status": final},
+                    )
+                    # Sync job to awaiting_approval so UI shows governance controls
+                    job_id = envelope.get("job_id")
+                    if job_id:
+                        from services.firestore import sync_job_with_envelope
+                        sync_job_with_envelope(
+                            job_id=job_id,
+                            status="awaiting_approval" if not any_failed else "failed",
+                            envelope_id=envelope_id,
+                            extra={
+                                "active_stage": "GOVERNANCE" if not any_failed else "FAILED",
+                                "checkpoint_at": __import__("datetime").datetime.now(
+                                    __import__("datetime").timezone.utc
+                                ).isoformat(),
+                            },
+                        )
+                break
 
         step_id = step["step_id"]
         step_type = step["step_type"]

@@ -15,8 +15,26 @@
  * randomUUID() to guarantee uniqueness and an auditable gapless trace chain.
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { randomUUID } from "crypto";
+
+// 🤖 ALIGNMENT: Mock global fetch to intercept Agent Engine calls in tests
+vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url: string) => {
+  if (url.includes("/execute-step")) {
+    return {
+      ok: true,
+      text: async () => JSON.stringify({
+        success: true,
+        artifact_id: `art_mock_${Math.random().toString(36).slice(2, 9)}`,
+      }),
+      json: async () => ({
+        success: true,
+        artifact_id: `art_mock_${Math.random().toString(36).slice(2, 9)}`,
+      }),
+    };
+  }
+  return { ok: true, json: async () => ({ success: true }) };
+}));
 import { MemoryDb } from "./memory-db";
 import { setDb } from "../db";
 import { computeFingerprint, verifyIdentityForAgent } from "../kernels/identity";

@@ -30,6 +30,7 @@ import {
     GraduationCap,
     FileText,
     ShieldCheck,
+    Shield,
     AlertTriangle,
     Target,
     ExternalLink,
@@ -272,8 +273,8 @@ export default function JobDetailsPage() {
 
         let calculated = 0;
 
-        if (status === 'completed' || status === 'approved') calculated = 10;
-        else if (hasGrading || status === 'graded' || status === 'awaiting_approval') calculated = 9;
+        if (status === 'approved') calculated = 10;
+        else if (status === 'completed' || hasGrading || status === 'graded' || status === 'awaiting_approval') calculated = 9;
         else if (hasWorker || status === 'grading' || status === 'worker_execution') calculated = 8;
         else if (hasResearch || status === 'research_execution') calculated = 7;
         else if (hasPlan || status === 'coo_planning' || status === 'planning') calculated = 6;
@@ -337,8 +338,8 @@ export default function JobDetailsPage() {
         // Since backend now emits accurate status like "coo_planning", we trust it first.
         // If it's a legacy "executing", we loosely fallback to index calculation.
         if (rawStatus === 'executing') {
-            if (currentActiveIndex >= 10) return 'completed';
-            if (currentActiveIndex >= 9) return 'graded'; // was 'grading', mapping to graded for consistency
+            if (currentActiveIndex >= 10) return 'approved';
+            if (currentActiveIndex >= 9) return 'awaiting_approval'; // mapping to awaiting_approval for consistency
             if (currentActiveIndex >= 8) return 'worker_execution';
             if (currentActiveIndex >= 7) return 'research_execution';
             if (currentActiveIndex >= 6) return 'coo_planning';
@@ -731,17 +732,23 @@ export default function JobDetailsPage() {
                 {/* ── GOVERNANCE ACTION BAR ─────────────────────────────────────────── */}
                 {(() => {
                     const status = String(job?.status || '').toLowerCase();
-                    const hasGradingData = governanceScore > 0 || !!evaluationArtifact;
-                    const needsDecision = ['grading', 'graded', 'awaiting_approval'].includes(derivedStatus) && hasGradingData;
                     const isDecided = ['approved', 'rejected'].includes(status);
+                    
+                    // Show the bar if we are in a decision stage OR if we have reached the worker/grading phase
+                    const isLateStage = ['grading', 'graded', 'awaiting_approval', 'worker_execution', 'completed', 'failed', 'approved', 'rejected'].includes(derivedStatus);
+                    
+                    // CRITICAL: Unlock buttons when status is awaiting_human or graded
+                    const needsDecision = (['graded', 'awaiting_approval'].includes(derivedStatus) || status === 'awaiting_human') && !isDecided;
 
-                    if (!needsDecision && !isDecided) return null;
+                    if (!isLateStage && !isDecided) return null;
 
-                    if (isDecided) {
-                        const approved = status === 'approved';
+                    // Show the bar
+                    if (isDecided || (status === 'completed' && !needsDecision)) {
+                        // ── CASE A: Decision already made (Terminal) ──────────────
+                        const approved = status === 'approved' || (status === 'completed' && isPass);
                         return (
                             <div className={cn(
-                                "relative overflow-hidden border flex items-center gap-5 p-5",
+                                "relative overflow-hidden border flex items-center gap-5 p-5 mb-8",
                                 approved
                                     ? "border-emerald-500/40 bg-emerald-500/5 shadow-[0_0_30px_rgba(16,185,129,0.06)]"
                                     : "border-red-500/40 bg-red-500/5 shadow-[0_0_30px_rgba(239,68,68,0.06)]"
@@ -757,7 +764,7 @@ export default function JobDetailsPage() {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <p className={cn("text-[10px] font-black uppercase tracking-[0.3em]", approved ? "text-emerald-400" : "text-red-400")}>
-                                        Governance Decision Logged
+                                        Verification Decision Logged
                                     </p>
                                     <p className="text-white font-bold text-sm mt-0.5">
                                         Artifact <span className={approved ? "text-emerald-400" : "text-red-400"}>{approved ? "Approved" : "Rejected"}</span>
@@ -772,102 +779,105 @@ export default function JobDetailsPage() {
                                 </div>
                             </div>
                         );
-                    }
-
-                    // needsDecision = true
-                    return (
-                        <div className="relative overflow-hidden border border-orange-500/50 bg-orange-500/5 shadow-[0_0_40px_rgba(249,115,22,0.08)]">
-                            {/* animated top border */}
-                            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-orange-400/80 to-transparent" />
-                            <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-red-500/30 to-transparent" />
-
-                            <div className="p-5 sm:p-7 space-y-5">
-                                {/* Header row */}
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="relative w-10 h-10 shrink-0">
-                                            <div className="absolute inset-0 rounded-full bg-orange-500/10 border border-orange-500/40 flex items-center justify-center">
-                                                <div className="absolute inset-0 rounded-full animate-ping opacity-20 bg-orange-400" />
-                                                <AlertTriangle className="w-4 h-4 text-orange-400 relative z-10" />
+                    } else if (needsDecision) {
+                        // ── CASE B: Decision required (Interactive) ───────────────
+                        return (
+                            <div className="relative overflow-hidden border border-orange-500/50 bg-orange-500/5 shadow-[0_0_40px_rgba(249,115,22,0.08)] mb-8">
+                                {/* ... existing buttons container ... */}
+                                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-orange-400/80 to-transparent" />
+                                <div className="p-5 sm:p-7 space-y-5">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="relative w-10 h-10 shrink-0">
+                                                <div className="absolute inset-0 rounded-full bg-orange-500/10 border border-orange-500/40 flex items-center justify-center">
+                                                    <div className="absolute inset-0 rounded-full animate-ping opacity-20 bg-orange-400" />
+                                                    <AlertTriangle className="w-4 h-4 text-orange-400 relative z-10" />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <p className="text-[9px] font-black uppercase tracking-[0.3em] text-orange-400/70">{actionLoading ? "Syncing..." : "Action Required"}</p>
+                                                <h2 className="text-xl font-black text-white italic tracking-tighter uppercase leading-tight">
+                                                    Mission Verification Console
+                                                </h2>
                                             </div>
                                         </div>
+                                        <div className="flex items-center gap-3 shrink-0">
+                                            {evaluationContent?.grade && (
+                                                <div className="text-center">
+                                                    <p className="text-[8px] uppercase font-black text-slate-600 tracking-widest mb-0.5">Grade</p>
+                                                    <div className={cn(
+                                                        "w-12 h-12 flex items-center justify-center border-2 text-2xl font-black italic scifi-clip",
+                                                        isPass ? "border-emerald-500/60 text-emerald-400 bg-emerald-500/10" : "border-amber-500/60 text-amber-400 bg-amber-500/10"
+                                                    )}>
+                                                        {evaluationContent.grade}
+                                                    </div>
+                                                </div>
+                                            )}
+                                            <div className="text-right">
+                                                <p className="text-[8px] uppercase font-black text-slate-600 tracking-widest mb-0.5">AI Integrity Score</p>
+                                                <p className={cn("text-2xl font-black italic", isPass ? "text-emerald-400" : "text-amber-400")}>
+                                                    {governanceScore.toFixed(1)}<span className="text-sm text-slate-600">/10</span>
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-4">
+                                        <button
+                                            onClick={handleApprove}
+                                            disabled={actionLoading}
+                                            className="flex-1 py-4 bg-emerald-500/10 border border-emerald-500/40 text-emerald-400 font-black uppercase tracking-[0.2em] hover:bg-emerald-500/20 transition-all scifi-clip flex items-center justify-center gap-3 shadow-[0_0_30px_rgba(16,185,129,0.1)] group disabled:opacity-50"
+                                        >
+                                            <ShieldCheck className={cn("w-5 h-5 group-hover:scale-110 transition-transform", actionLoading && "animate-spin")} />
+                                            {actionLoading ? "Processing Approval..." : "Approve Artifact"}
+                                        </button>
+                                        <button
+                                            onClick={() => setIsRejectModalOpen(true)}
+                                            disabled={actionLoading}
+                                            className="flex-1 py-4 bg-red-500/5 border border-red-500/30 text-red-500/70 font-black uppercase tracking-[0.2em] hover:bg-red-500/10 hover:text-red-500 transition-all scifi-clip flex items-center justify-center gap-3 group disabled:opacity-50"
+                                        >
+                                            <XCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                                            Reject Release
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    } else if (isLateStage) {
+                        // ── CASE C: Processing or initializing (Wait state) ────────
+                        return (
+                            <div className="relative overflow-hidden border border-white/5 bg-white/[0.02] p-6 mb-8 scifi-clip">
+                                <div className="absolute top-0 left-0 w-24 h-px bg-cyan-500/50" />
+                                <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 rounded-full border border-dashed border-white/20 flex items-center justify-center relative">
+                                            <div className="absolute inset-0 rounded-full animate-spin-slow border-t border-cyan-500/40" />
+                                            <Shield className="w-5 h-5 text-slate-600 animate-pulse" />
+                                        </div>
                                         <div>
-                                            <p className="text-[9px] font-black uppercase tracking-[0.3em] text-orange-400/70">Action Required</p>
-                                            <h2 className="text-lg font-black text-white italic tracking-tighter uppercase leading-tight">
-                                                Governance Review Pending
+                                            <p className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-500 italic animate-pulse">
+                                                Awaiting Certification Stage
+                                            </p>
+                                            <h2 className="text-base font-black text-white/50 italic tracking-tighter uppercase leading-tight">
+                                                Verification HUD Reserved
                                             </h2>
                                         </div>
                                     </div>
-
-                                    {/* Score + grade chips */}
-                                    <div className="flex items-center gap-3 shrink-0">
-                                        {evaluationContent?.grade && (
-                                            <div className="text-center">
-                                                <p className="text-[8px] uppercase font-black text-slate-600 tracking-widest mb-0.5">Grade</p>
-                                                <div className={cn(
-                                                    "w-12 h-12 flex items-center justify-center border-2 text-2xl font-black italic scifi-clip",
-                                                    isPass ? "border-emerald-500/60 text-emerald-400 bg-emerald-500/10" : "border-amber-500/60 text-amber-400 bg-amber-500/10"
-                                                )}>
-                                                    {String(evaluationContent.grade)}
-                                                </div>
-                                            </div>
-                                        )}
-                                        <div className="text-right">
-                                            <p className="text-[8px] uppercase font-black text-slate-600 tracking-widest mb-0.5">Grader Score</p>
-                                            <p className={cn(
-                                                "text-4xl font-black italic tracking-tighter",
-                                                isPass ? "text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.4)]" : "text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.4)]"
-                                            )}>
-                                                {governanceScore.toFixed(1)}
-                                                <span className="text-base text-slate-600 ml-1">/10</span>
-                                            </p>
-                                            {evaluationContent?.recommendation && (
-                                                <div className={cn(
-                                                    "mt-1 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest inline-block scifi-clip-sm border",
-                                                    String(evaluationContent.recommendation).toLowerCase() === 'approve'
-                                                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                                                        : "bg-rose-500/10 text-rose-400 border-rose-500/20"
-                                                )}>
-                                                    AI: ↳ {String(evaluationContent.recommendation)}
-                                                </div>
-                                            )}
+                                    <div className="flex-1 max-w-md hidden md:block">
+                                        <div className="h-1 w-full bg-white/5 overflow-hidden rounded-full">
+                                            <div className="h-full bg-gradient-to-r from-cyan-500/20 via-cyan-500/50 to-cyan-500/20 animate-shimmer-fast" style={{ width: '100%' }} />
                                         </div>
-                                    </div>
-                                </div>
-
-                                {/* Summary line */}
-                                {(evaluationContent?.summary) && (
-                                    <div className="flex items-start gap-2 py-3 border-y border-white/5">
-                                        <GraduationCap className="w-3.5 h-3.5 text-slate-500 shrink-0 mt-0.5" />
-                                        <p className="text-slate-400 text-xs leading-relaxed italic">
-                                            {String(evaluationContent.summary)}
+                                        <p className="text-[8px] uppercase font-black tracking-widest text-slate-700 mt-2 text-center italic">
+                                            Neural Scanning Artifact integrity...
                                         </p>
                                     </div>
-                                )}
-
-                                {/* Action buttons */}
-                                <div className="flex flex-col sm:flex-row gap-3">
-                                    <button
-                                        onClick={handleApprove}
-                                        disabled={actionLoading}
-                                        className="flex-1 py-4 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/50 text-emerald-500 font-black uppercase tracking-[0.15em] transition-all cursor-target flex items-center justify-center gap-2 scifi-clip shadow-[0_0_20px_rgba(16,185,129,0.12)] hover:shadow-[0_0_30px_rgba(16,185,129,0.2)] disabled:opacity-50 text-sm"
-                                    >
-                                        {actionLoading
-                                            ? <RotateCw className="w-4 h-4 animate-spin" />
-                                            : <ShieldCheck className="w-5 h-5" />}
-                                        Approve Artifact
-                                    </button>
-                                    <button
-                                        onClick={() => setIsRejectModalOpen(true)}
-                                        disabled={actionLoading}
-                                        className="flex-1 py-4 bg-red-500/10 hover:bg-red-500/20 border border-red-500/50 text-red-400 font-black uppercase tracking-[0.15em] transition-all cursor-target flex items-center justify-center gap-2 scifi-clip hover:shadow-[0_0_20px_rgba(239,68,68,0.15)] disabled:opacity-50 text-sm"
-                                    >
-                                        <XCircle className="w-5 h-5" /> Reject Artifact
-                                    </button>
+                                    <div className="px-4 py-2 bg-white/5 border border-white/10 text-[9px] font-black text-slate-500 uppercase tracking-widest opacity-50">
+                                        Buttons Pending
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    );
+                        );
+                    }
+                    return null;
                 })()}
 
                 {/* ── UNIFIED MISSION TIMELINE ──────────────────────────────────────── */}
@@ -898,84 +908,131 @@ export default function JobDetailsPage() {
                                                     "px-3 py-1 text-[8px] font-black uppercase tracking-widest scifi-clip-sm",
                                                     (job?.runtime_context?.plan || artifacts.some(a => a.artifact_type === 'plan')) ? "bg-emerald-500/20 text-emerald-500 border border-emerald-500/50" : "bg-blue-500/10 text-blue-500 border border-blue-500/30"
                                                 )}>
-                                                    {(job?.runtime_context?.plan || artifacts.some(a => a.artifact_type === 'plan')) ? "COMPLETE" : "OPERATING"}
+                                                    {(job?.runtime_context?.plan || artifacts.some(a => ['plan', 'task_plan'].includes(a.artifact_type || ''))) ? "COMPLETE" : "OPERATING"}
                                                 </div>
                                             </div>
                                         </AccordionTrigger>
                                         <AccordionContent className="pb-8 space-y-6">
                                             {(() => {
-                                                const artifact = artifacts.find(a => a.artifact_type === 'plan');
+                                                const sortedArtifacts = [...artifacts].sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+                                                const artifact = sortedArtifacts.find(a => ['plan', 'task_plan'].includes(a.artifact_type || ''));
                                                 const plan = job?.runtime_context?.plan || (job as any)?.plan;
                                                 let rawContent = artifact?.artifact_content || plan;
                                                 if (!rawContent) return <div className="text-center py-8 opacity-20 italic text-[10px] uppercase tracking-widest border border-dashed border-white/5">Awaiting strategy formulation...</div>;
 
-                                                // Parse plan content to extract tasks/assignments
                                                 let planData: any = rawContent;
                                                 if (typeof rawContent === 'string') {
                                                     try { planData = JSON.parse(rawContent); } catch(e) { planData = rawContent; }
                                                 }
 
-                                                // Extract tasks/assignments from plan structure
-                                                const tasks: any[] = [];
-                                                if (typeof planData === 'object' && planData !== null) {
-                                                    const taskList = planData.tasks || planData.assignments || planData.roadmap || planData.steps || [];
-                                                    if (Array.isArray(taskList)) {
-                                                        taskList.forEach((t: any) => tasks.push(t));
-                                                    }
-                                                }
-
-                                                const summaryText = typeof planData === 'object' && planData !== null
-                                                    ? (planData.strategic_objective || planData.objective || planData.summary || planData.description || planData.mission || '')
-                                                    : '';
+                                                const strategicObj = typeof planData === 'object' ? (planData.strategic_objective || planData.objective || '') : '';
+                                                const missionCtx = typeof planData === 'object' ? (planData.mission_context || '') : '';
+                                                const constraints = typeof planData === 'object' && Array.isArray(planData.constraints) ? planData.constraints : [];
+                                                const qualityBar = typeof planData === 'object' ? (planData.quality_bar || '') : '';
+                                                const complexity = typeof planData === 'object' ? (planData.estimated_complexity || '') : '';
+                                                const tasks: any[] = typeof planData === 'object' ? (planData.assignments || planData.tasks || []) : [];
 
                                                 return (
                                                     <div className="space-y-6">
-                                                        {/* Strategic objective */}
-                                                        {summaryText && (
+                                                        {/* Executive Summary Row */}
+                                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                                            {complexity && (
+                                                                <div className="p-3 bg-cyan-500/5 border border-cyan-500/20 rounded-sm">
+                                                                    <p className="text-[8px] uppercase font-black tracking-widest text-cyan-400 mb-1">Complexity</p>
+                                                                    <p className="text-xs font-bold text-white uppercase">{String(complexity)}</p>
+                                                                </div>
+                                                            )}
+                                                            {tasks.length > 0 && (
+                                                                <div className="p-3 bg-purple-500/5 border border-purple-500/20 rounded-sm">
+                                                                    <p className="text-[8px] uppercase font-black tracking-widest text-purple-400 mb-1">Assignments</p>
+                                                                    <p className="text-xs font-bold text-white">{tasks.length} Tactical Units</p>
+                                                                </div>
+                                                            )}
+                                                            {qualityBar && (
+                                                                <div className="p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-sm">
+                                                                    <p className="text-[8px] uppercase font-black tracking-widest text-emerald-400 mb-1">Quality Bar</p>
+                                                                    <p className="text-xs text-slate-300 leading-relaxed">{String(qualityBar)}</p>
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Strategic Objective */}
+                                                        {strategicObj && (
                                                             <div className="p-4 bg-blue-500/5 border border-blue-500/20 rounded-sm">
                                                                 <p className="text-[9px] uppercase font-black tracking-widest text-blue-400 mb-2">Strategic Objective</p>
-                                                                <p className="text-sm text-slate-300 leading-relaxed">{String(summaryText)}</p>
+                                                                <p className="text-sm text-slate-300 leading-relaxed">{String(strategicObj)}</p>
                                                             </div>
                                                         )}
 
-                                                        {/* Task grid */}
-                                                        {tasks.length > 0 ? (
+                                                        {/* Mission Context */}
+                                                        {missionCtx && (
+                                                            <div className="p-4 bg-white/[0.02] border border-white/10 rounded-sm">
+                                                                <p className="text-[9px] uppercase font-black tracking-widest text-slate-400 mb-2">Mission Context</p>
+                                                                <p className="text-sm text-slate-400 leading-relaxed">{String(missionCtx)}</p>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Role Assignments */}
+                                                        {tasks.length > 0 && (
                                                             <div className="space-y-3">
-                                                                <p className="text-[9px] uppercase font-black tracking-widest text-slate-500 px-1">Assigned Tasks</p>
+                                                                <p className="text-[9px] uppercase font-black tracking-widest text-slate-500 px-1">Role Assignments</p>
                                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                                                     {tasks.map((task: any, idx: number) => {
-                                                                        const taskName = task.task_name || task.name || task.title || task.id || `Task ${idx + 1}`;
-                                                                        const taskDesc = task.task || task.description || task.detail || task.objective || (typeof task === 'string' ? task : '');
-                                                                        const assignedTo = task.assigned_to || task.agent || task.assignee || task.executor || 'Unassigned';
-                                                                        const priority = task.priority || task.urgency || '';
+                                                                        const taskName = task.name || task.task_name || task.title || `Assignment ${idx + 1}`;
+                                                                        const taskDesc = task.task || task.description || task.detail || '';
+                                                                        const expectedOutput = task.expected_output || '';
+                                                                        const successCriteria = task.success_criteria || '';
+                                                                        const assignedTo = task.assigned_to || task.agent_role || task.agent || task.executor || '';
+                                                                        const priority = task.priority || '';
+                                                                        const priorityColor = priority === 'critical' ? 'bg-red-500/10 border-red-500/30 text-red-400' : priority === 'high' ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : 'bg-slate-500/10 border-slate-500/30 text-slate-400';
                                                                         return (
-                                                                            <div key={idx} className="p-4 bg-white/[0.03] border border-white/10 scifi-clip hover:bg-white/[0.06] transition-colors group">
-                                                                                <div className="flex items-start justify-between gap-2 mb-2">
-                                                                                    <span className="text-[9px] font-black text-cyan-400 uppercase tracking-widest">
-                                                                                        {typeof taskName === 'object' ? JSON.stringify(taskName) : String(taskName)}
-                                                                                    </span>
+                                                                            <div key={idx} className="p-4 bg-white/[0.03] border border-white/10 scifi-clip hover:bg-white/[0.06] transition-colors space-y-3">
+                                                                                <div className="flex items-start justify-between gap-2">
+                                                                                    <span className="text-[9px] font-black text-cyan-400 uppercase tracking-widest">{String(taskName)}</span>
                                                                                     {priority && (
-                                                                                        <span className="text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 bg-amber-500/10 border border-amber-500/30 text-amber-400 shrink-0">
-                                                                                            {String(priority)}
-                                                                                        </span>
+                                                                                        <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 border shrink-0 ${priorityColor}`}>{String(priority)}</span>
                                                                                     )}
                                                                                 </div>
-                                                                                <p className="text-xs text-slate-300 leading-relaxed mb-3">
-                                                                                    {typeof taskDesc === 'object' ? JSON.stringify(taskDesc) : String(taskDesc || 'No description provided.')}
-                                                                                </p>
-                                                                                <div className="flex items-center gap-2 pt-2 border-t border-white/5">
-                                                                                    <User className="w-3 h-3 text-slate-600" />
-                                                                                    <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">
-                                                                                        {typeof assignedTo === 'object' ? JSON.stringify(assignedTo) : String(assignedTo)}
-                                                                                    </span>
-                                                                                </div>
+                                                                                {assignedTo && (
+                                                                                    <div className="flex items-center gap-1.5">
+                                                                                        <User className="w-3 h-3 text-slate-600" />
+                                                                                        <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">{String(assignedTo)}</span>
+                                                                                    </div>
+                                                                                )}
+                                                                                <p className="text-xs text-slate-300 leading-relaxed">{String(taskDesc)}</p>
+                                                                                {expectedOutput && (
+                                                                                    <div className="pt-2 border-t border-white/5">
+                                                                                        <p className="text-[8px] uppercase font-black tracking-widest text-emerald-500/70 mb-1">Expected Output</p>
+                                                                                        <p className="text-[11px] text-slate-400 leading-relaxed">{String(expectedOutput)}</p>
+                                                                                    </div>
+                                                                                )}
+                                                                                {successCriteria && (
+                                                                                    <div className="pt-2 border-t border-white/5">
+                                                                                        <p className="text-[8px] uppercase font-black tracking-widest text-blue-500/70 mb-1">Success Criteria</p>
+                                                                                        <p className="text-[11px] text-slate-400 leading-relaxed">{String(successCriteria)}</p>
+                                                                                    </div>
+                                                                                )}
                                                                             </div>
                                                                         );
                                                                     })}
                                                                 </div>
                                                             </div>
-                                                        ) : (
-                                                            // Fallback: render raw text if no structured tasks found
+                                                        )}
+
+                                                        {/* Constraints */}
+                                                        {constraints.length > 0 && (
+                                                            <div className="p-4 bg-red-500/5 border border-red-500/10 rounded-sm">
+                                                                <p className="text-[9px] uppercase font-black tracking-widest text-red-400/70 mb-3">Constraints & Requirements</p>
+                                                                <div className="flex flex-wrap gap-2">
+                                                                    {constraints.map((c: any, i: number) => (
+                                                                        <span key={i} className="px-2 py-1 bg-red-500/5 border border-red-500/20 text-[10px] text-slate-400">{String(c)}</span>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Fallback */}
+                                                        {!strategicObj && !missionCtx && tasks.length === 0 && (
                                                             <div className="p-4 bg-black/40 border border-white/5 rounded-sm">
                                                                 <MarkdownReport content={typeof rawContent === 'string' ? rawContent : JSON.stringify(rawContent, null, 2)} />
                                                             </div>
@@ -1006,17 +1063,116 @@ export default function JobDetailsPage() {
                                                     "px-3 py-1 text-[8px] font-black uppercase tracking-widest scifi-clip-sm",
                                                     (job?.runtime_context?.research_result || artifacts.some(a => ['research', 'intelligence'].includes(a.artifact_type || ''))) ? "bg-emerald-500/20 text-emerald-500 border border-emerald-500/50" : "bg-white/5 text-slate-600 border border-white/10"
                                                 )}>
-                                                    {(job?.runtime_context?.research_result || artifacts.some(a => ['research', 'intelligence'].includes(a.artifact_type || ''))) ? "COMPLETE" : "IDLE"}
+                                                    {(job?.runtime_context?.research_result || artifacts.some(a => ['assignment', 'assign', 'research', 'intelligence', 'task_assign'].includes(a.artifact_type || ''))) ? "COMPLETE" : "IDLE"}
                                                 </div>
                                             </div>
                                         </AccordionTrigger>
                                         <AccordionContent className="pb-8 space-y-6">
                                             {(() => {
-                                                const artifact = artifacts.find(a => ['assign', 'research', 'intelligence'].includes(a.artifact_type || ''));
+                                                const sortedArtifacts = [...artifacts].sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+                                                const artifact = sortedArtifacts.find(a => ['assignment', 'assign', 'research', 'intelligence', 'task_assign'].includes(a.artifact_type || ''));
                                                 const res = job?.runtime_context?.research_result || (job as any)?.research_intelligence;
-                                                const content = artifact?.artifact_content || res;
-                                                if (!content) return <div className="text-center py-8 opacity-20 italic text-[10px] uppercase tracking-widest border border-dashed border-white/5">Awaiting research retrieval...</div>;
-                                                return <DeliverableItem type="research" title={artifact?.title || "Intelligence Synthesis"} subtitle="Deep Data Retrieval" content={typeof content === 'string' ? content : JSON.stringify(content, null, 2)} />;
+                                                const rawContent = artifact?.artifact_content || res;
+                                                if (!rawContent) return <div className="text-center py-8 opacity-20 italic text-[10px] uppercase tracking-widest border border-dashed border-white/5">Awaiting research retrieval...</div>;
+
+                                                let resData: any = rawContent;
+                                                if (typeof rawContent === 'string') {
+                                                    try { resData = JSON.parse(rawContent); } catch(e) { resData = { research_summary: rawContent }; }
+                                                }
+
+                                                const summary = resData.research_summary || resData.summary || '';
+                                                const findings: any[] = Array.isArray(resData.key_findings) ? resData.key_findings : [];
+                                                const resources: any[] = Array.isArray(resData.resources) ? resData.resources : [];
+                                                const riskFactors: any[] = Array.isArray(resData.risk_factors) ? resData.risk_factors : [];
+                                                const approach = resData.recommended_approach || '';
+                                                const confidence = resData.confidence_level || '';
+
+                                                return (
+                                                    <div className="space-y-6">
+                                                        {/* Summary */}
+                                                        {summary && (
+                                                            <div className="p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-sm">
+                                                                <div className="flex items-center justify-between mb-2">
+                                                                    <p className="text-[9px] uppercase font-black tracking-widest text-emerald-400">Intelligence Summary</p>
+                                                                    {confidence && <span className="text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">{confidence} confidence</span>}
+                                                                </div>
+                                                                <p className="text-sm text-slate-300 leading-relaxed">{String(summary)}</p>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Key Findings */}
+                                                        {findings.length > 0 && (
+                                                            <div className="space-y-3">
+                                                                <p className="text-[9px] uppercase font-black tracking-widest text-slate-500 px-1">Intelligence Findings</p>
+                                                                <div className="space-y-3">
+                                                                    {findings.map((f: any, i: number) => {
+                                                                        const title = typeof f === 'string' ? `Finding ${i+1}` : (f.title || `Finding ${i+1}`);
+                                                                        const detail = typeof f === 'string' ? f : (f.detail || f.description || '');
+                                                                        const significance = typeof f === 'object' ? (f.significance || '') : '';
+                                                                        return (
+                                                                            <div key={i} className="p-4 bg-white/[0.03] border border-white/10 scifi-clip hover:bg-white/[0.06] transition-colors">
+                                                                                <div className="flex items-start gap-3 mb-2">
+                                                                                    <div className="w-5 h-5 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shrink-0 mt-0.5">
+                                                                                        <span className="text-[9px] font-black text-emerald-400">{i+1}</span>
+                                                                                    </div>
+                                                                                    <p className="text-[10px] font-black text-emerald-300 uppercase tracking-wider">{String(title)}</p>
+                                                                                </div>
+                                                                                <p className="text-xs text-slate-300 leading-relaxed pl-8">{String(detail)}</p>
+                                                                                {significance && (
+                                                                                    <div className="mt-3 pl-8">
+                                                                                        <p className="text-[8px] uppercase font-black tracking-widest text-blue-400/70 mb-1">Significance</p>
+                                                                                        <p className="text-[11px] text-blue-300/70 leading-relaxed italic">{String(significance)}</p>
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Resources */}
+                                                        {resources.length > 0 && (
+                                                            <div className="space-y-2">
+                                                                <p className="text-[9px] uppercase font-black tracking-widest text-slate-500 px-1">Resources & References</p>
+                                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                                                    {resources.map((r: any, i: number) => {
+                                                                        const title = typeof r === 'string' ? r : (r.title || r.name || `Resource ${i+1}`);
+                                                                        const type = typeof r === 'object' ? (r.type || '') : '';
+                                                                        const relevance = typeof r === 'object' ? (r.relevance || '') : '';
+                                                                        return (
+                                                                            <div key={i} className="p-3 bg-white/[0.02] border border-white/10 rounded-sm">
+                                                                                <div className="flex items-start justify-between gap-2 mb-1">
+                                                                                    <span className="text-[10px] font-bold text-slate-300">{String(title)}</span>
+                                                                                    {type && <span className="text-[8px] px-1.5 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 font-black uppercase tracking-wider shrink-0">{String(type)}</span>}
+                                                                                </div>
+                                                                                {relevance && <p className="text-[10px] text-slate-500 leading-relaxed">{String(relevance)}</p>}
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Recommended Approach */}
+                                                        {approach && (
+                                                            <div className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-sm">
+                                                                <p className="text-[9px] uppercase font-black tracking-widest text-amber-400 mb-2">Recommended Approach for Worker</p>
+                                                                <p className="text-sm text-slate-300 leading-relaxed">{String(approach)}</p>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Risk Factors */}
+                                                        {riskFactors.length > 0 && (
+                                                            <div className="p-3 bg-red-500/5 border border-red-500/10 rounded-sm">
+                                                                <p className="text-[9px] uppercase font-black tracking-widest text-red-400/70 mb-2">Risk Factors</p>
+                                                                <div className="flex flex-wrap gap-2">
+                                                                    {riskFactors.map((r: any, i: number) => <span key={i} className="px-2 py-1 bg-red-500/5 border border-red-500/20 text-[10px] text-slate-400">{String(r)}</span>)}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
                                             })()}
                                         </AccordionContent>
                                     </AccordionItem>
@@ -1052,66 +1208,115 @@ export default function JobDetailsPage() {
                                                 let rawContent = artifact?.artifact_content || result;
                                                 if (!rawContent) return <div className="text-center py-8 opacity-20 italic text-[10px] uppercase tracking-widest border border-dashed border-white/5">Awaiting final execution...</div>;
 
-                                                // Flatten nested object - extract the best text representation
-                                                let displayContent: string;
+                                                let workerData: any = rawContent;
+                                                if (typeof rawContent === 'string') {
+                                                    try {
+                                                        let clean = (rawContent as string).replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/i, '').trim();
+                                                        workerData = JSON.parse(clean);
+                                                    } catch(e) { workerData = { content: rawContent }; }
+                                                }
 
-                                                const formatObjectAsMarkdown = (obj: any): string => {
-                                                    // Recursively try to parse if obj is a string
-                                                    if (typeof obj === 'string') {
-                                                        try {
-                                                            let cleanStr = obj.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/i, '').trim();
-                                                            const parsed = JSON.parse(cleanStr);
-                                                            if (typeof parsed === 'object' && parsed !== null) {
-                                                                return formatObjectAsMarkdown(parsed);
-                                                            }
-                                                        } catch(e) {
-                                                            return obj;
-                                                        }
-                                                    }
-
-                                                    if (typeof obj !== 'object' || obj === null) return String(obj);
-
-                                                    if (obj.sections && Array.isArray(obj.sections)) {
-                                                        return obj.sections.map((s: any) => `## ${s.title || s.name || ''}\n\n${s.content || s.text || s.body || ''}`).join('\n\n');
-                                                    }
-                                                    
-                                                    // Deep check if any key contains sections
-                                                    for (const key of Object.keys(obj)) {
-                                                        if (obj[key] && obj[key].sections && Array.isArray(obj[key].sections)) {
-                                                            return obj[key].sections.map((s: any) => `## ${s.title || s.name || ''}\n\n${s.content || s.text || s.body || ''}`).join('\n\n');
-                                                        }
-                                                    }
-
-                                                    const bestField = obj.final_output || obj.content || obj.report || obj.article || obj.text ||
-                                                        obj.analysis || obj.deliverable || obj.result ||
-                                                        obj.mission_synthesis || obj.executive_summary;
-                                                        
-                                                    if (bestField) {
-                                                        return typeof bestField === 'object' ? formatObjectAsMarkdown(bestField) : bestField;
-                                                    }
-                                                        
-                                                    return JSON.stringify(obj, null, 2);
-                                                };
-
-                                                displayContent = formatObjectAsMarkdown(rawContent);
-
-                                                const title = artifact?.title || (typeof rawContent === 'object' && (rawContent as any)?.title) || 'Mission Synthesis';
+                                                const execSummary = workerData.executive_summary || workerData.deliverable_summary || '';
+                                                const type = workerData.deliverable_type || '';
+                                                const sections: any[] = Array.isArray(workerData.sections) ? workerData.sections : [];
+                                                const conclusions: any[] = Array.isArray(workerData.key_conclusions) ? workerData.key_conclusions : [];
+                                                const synthesis = workerData.research_synthesis || '';
+                                                const limitations: any[] = Array.isArray(workerData.limitations) ? workerData.limitations : [];
+                                                const content = workerData.content || workerData.report || workerData.text || '';
 
                                                 return (
-                                                    <div className="space-y-4">
-                                                        {/* Header */}
-                                                        <div className="flex items-center gap-3 pb-4 border-b border-white/5">
-                                                            <FileText className="w-5 h-5 text-purple-400" />
-                                                            <div>
-                                                                <span className="text-[9px] uppercase font-black tracking-widest text-purple-400 block">Final Tactical Output</span>
-                                                                <h3 className="text-lg font-black text-white uppercase tracking-tight">{typeof title === 'object' ? JSON.stringify(title) : String(title)}</h3>
+                                                    <div className="space-y-6">
+                                                        {/* Type + Summary header */}
+                                                        <div className="flex items-start gap-4 p-4 bg-purple-500/5 border border-purple-500/20 rounded-sm">
+                                                            <FileText className="w-5 h-5 text-purple-400 shrink-0 mt-0.5" />
+                                                            <div className="space-y-1 flex-1">
+                                                                {type && <span className="text-[8px] font-black uppercase tracking-widest text-purple-400 px-2 py-0.5 bg-purple-500/10 border border-purple-500/20">{type}</span>}
+                                                                <p className="text-sm text-slate-300 leading-relaxed pt-1">{String(execSummary)}</p>
                                                             </div>
                                                         </div>
 
-                                                        {/* Full Content */}
-                                                        <div className="p-6 bg-purple-500/5 border border-purple-500/15 rounded-sm">
-                                                            <MarkdownReport content={typeof displayContent === 'string' ? displayContent : JSON.stringify(displayContent, null, 2)} className="text-sm" />
-                                                        </div>
+                                                        {/* Main content */}
+                                                        {content && (
+                                                            <div className="p-6 bg-black/40 border border-white/5 rounded-sm">
+                                                                <p className="text-[9px] uppercase font-black tracking-widest text-slate-500 mb-4">Full Deliverable Content</p>
+                                                                <MarkdownReport content={String(content)} className="text-sm" />
+                                                            </div>
+                                                        )}
+
+                                                        {/* Sections */}
+                                                        {sections.length > 0 && (
+                                                            <div className="space-y-3">
+                                                                <p className="text-[9px] uppercase font-black tracking-widest text-slate-500 px-1">Report Sections</p>
+                                                                <div className="space-y-3">
+                                                                    {sections.map((s: any, i: number) => {
+                                                                        const sTitle = s.title || s.name || `Section ${i+1}`;
+                                                                        const sBody = s.body || s.content || s.text || '';
+                                                                        return (
+                                                                            <div key={i} className="p-4 bg-white/[0.03] border border-white/10 rounded-sm">
+                                                                                <p className="text-[10px] font-black text-purple-300 uppercase tracking-wider mb-3">§{i+1} — {String(sTitle)}</p>
+                                                                                <MarkdownReport content={String(sBody)} className="text-xs" />
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Key Conclusions */}
+                                                        {conclusions.length > 0 && (
+                                                            <div className="space-y-3">
+                                                                <p className="text-[9px] uppercase font-black tracking-widest text-slate-500 px-1">Key Conclusions</p>
+                                                                <div className="space-y-3">
+                                                                    {conclusions.map((c: any, i: number) => {
+                                                                        const conclusion = c.conclusion || (typeof c === 'string' ? c : '');
+                                                                        const evidence = c.evidence || '';
+                                                                        const recommendation = c.recommendation || '';
+                                                                        return (
+                                                                            <div key={i} className="p-4 bg-white/[0.03] border-l-2 border-l-cyan-500/40 border border-white/5 rounded-sm">
+                                                                                <p className="text-sm font-bold text-slate-200 leading-relaxed mb-3">↳ {String(conclusion)}</p>
+                                                                                {evidence && (
+                                                                                    <div className="mb-2">
+                                                                                        <p className="text-[8px] uppercase font-black tracking-widest text-blue-400/70 mb-1">Research Evidence</p>
+                                                                                        <p className="text-[11px] text-slate-400 leading-relaxed italic">{String(evidence)}</p>
+                                                                                    </div>
+                                                                                )}
+                                                                                {recommendation && (
+                                                                                    <div className="pt-2 border-t border-white/5">
+                                                                                        <p className="text-[8px] uppercase font-black tracking-widest text-emerald-400/70 mb-1">Recommendation</p>
+                                                                                        <p className="text-[11px] text-emerald-300/80 leading-relaxed">{String(recommendation)}</p>
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Research Synthesis */}
+                                                        {synthesis && (
+                                                            <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-sm">
+                                                                <p className="text-[9px] uppercase font-black tracking-widest text-emerald-400 mb-2">Research Synthesis</p>
+                                                                <p className="text-sm text-slate-400 leading-relaxed">{String(synthesis)}</p>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Limitations */}
+                                                        {limitations.length > 0 && (
+                                                            <div className="p-3 bg-amber-500/5 border border-amber-500/10 rounded-sm">
+                                                                <p className="text-[9px] uppercase font-black tracking-widest text-amber-400/70 mb-2">Limitations</p>
+                                                                <div className="flex flex-wrap gap-2">
+                                                                    {limitations.map((l: any, i: number) => <span key={i} className="px-2 py-1 bg-amber-500/5 border border-amber-500/20 text-[10px] text-slate-400">{String(l)}</span>)}
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Fallback: no structured data */}
+                                                        {!execSummary && !content && sections.length === 0 && (
+                                                            <div className="p-6 bg-purple-500/5 border border-purple-500/15 rounded-sm">
+                                                                <MarkdownReport content={typeof rawContent === 'string' ? rawContent : JSON.stringify(rawContent, null, 2)} className="text-sm" />
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 );
                                             })()}
@@ -1339,7 +1544,13 @@ export default function JobDetailsPage() {
                                      <span className="text-[8px] font-mono text-slate-700">{agentLogs.length} EVENTS</span>
                                 </div>
                                 <div className="flex-1 overflow-auto custom-scroll pr-2">
-                                     <AgentLogPanel logs={agentLogs} loading={agentLogsLoading && agentLogs.length === 0} />
+                                     <AgentLogPanel 
+                                        logs={agentLogs} 
+                                        loading={agentLogsLoading && agentLogs.length === 0}
+                                        jobId={job?.job_id || jobId}
+                                        envelopeId={envelopeId}
+                                        agentId={envelope?.identity_context?.identity_fingerprint || job?.identity_fingerprint || job?.agent_id || job?.requested_agent_id}
+                                     />
                                 </div>
                            </div>
                         </HUDFrame>

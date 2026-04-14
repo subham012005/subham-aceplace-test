@@ -17,6 +17,7 @@ import { COLLECTIONS } from "./constants";
 import type { ExecutionEnvelope, DispatchRequest, DispatchResponse, IdentityContext } from "./types";
 import { randomUUID } from "crypto";
 import { CANONICAL_AGENTS } from "./constants/agents";
+import { sha256 } from "./hash";
 
 
 const AGENT_ENGINE_URL = process.env.AGENT_ENGINE_URL || "http://localhost:8001";
@@ -31,123 +32,208 @@ export async function dispatch(params: {
   orgId?: string;
   agentId?: string;
 }): Promise<DispatchResponse> {
+  const db = getDb();
   const agentId = params.agentId || "agent_coo";
-  const instanceId = `inst_${randomUUID().replace(/-/g, "").slice(0, 16)}`;
 
-  // ── Step 0: Idempotency Check ─────────────────────────────────────────────
-  if (params.jobId) {
-    const existingJob = await persistence.getJob(params.jobId);
-    if (existingJob && existingJob.envelope_id) {
-      const existingEnvelope = await persistence.getEnvelope(existingJob.envelope_id);
-      if (existingEnvelope) {
-        return {
-          success: true,
-          envelope_id: existingEnvelope.envelope_id,
-          envelope: existingEnvelope,
-          message: "Existing job found. Returning current state.",
-        };
-      }
-    }
-  }
+  // Deterministic envelope ID for job-based dispatches
+  const suggestedEnvId = params.jobId 
+    ? `env_${sha256(params.jobId).slice(0, 20)}`
+    : undefined;
 
-  // ── Step 1: Identity & Role Resolution ─────────────────────────────────────
-  // Define canonical roles for Phase 2 multi-agent orchestration
-  const role_assignments: Record<string, string> = {
-    COO: agentId,
-    Researcher: "agent_researcher",
-    Worker: "agent_worker",
-    Grader: "agent_grader",
-  };
-
-  const plannedSteps = planEnvelopeSteps({
-    require_human_approval: false,
-    role_assignments,
-  });
-
-  const uniqueAgentIds = [...new Set(plannedSteps.map((s) => s.assigned_agent_id).filter(Boolean))];
-
-  const identity_contexts: Record<string, IdentityContext> = {};
-
-  for (const aid of uniqueAgentIds) {
-    let stored = await identityKernel.buildIdentityContext(aid);
-    
-    if (!stored && process.env.ACELOGIC_DEV_LICENSE_FALLBACK === "true") {
-      // Lazy Provisioning Fallback (Dev Only)
-      const def = CANONICAL_AGENTS.find(a => a.agent_id === aid);
-
-      if (def) {
-        console.warn(`[DEV] Agent '${aid}' missing after database wipe. Lazily provisioning from registry...`);
-        await identityKernel.registerAgentIdentity({
-          agent_id: def.agent_id,
-          display_name: def.display_name,
-          role: def.agent_class,
-          mission: def.mission,
-          org_id: def.owner_org_id,
-          tier: def.tier.toString(),
-        });
-        stored = await identityKernel.buildIdentityContext(aid);
+  return await db.runTransaction(async (tx) => {
+    // ── Step 0: Idempotency Check (Inside Transaction) ────────────────────────
+    if (params.jobId) {
+      const jobRef = db.collection(COLLECTIONS.JOBS).doc(params.jobId);
+      const jobSnap = await tx.get(jobRef);
+      
+      if (jobSnap.exists && jobSnap.data()?.envelope_id) {
+        const envId = jobSnap.data()?.envelope_id;
+        const envRef = db.collection(COLLECTIONS.EXECUTION_ENVELOPES).doc(envId);
+        const envSnap = await tx.get(envRef);
+        
+        if (envSnap.exists) {
+          return {
+            success: true,
+            envelope_id: envId,
+            envelope: envSnap.data() as ExecutionEnvelope,
+            message: "Existing job found. Returning current state.",
+          };
+        }
       }
     }
 
-    if (!stored) {
-      // Hard fail — do not produce unverified envelopes in Phase 2
-      throw new Error(`AGENT_PROVISIONING_FAILED:Agent '${aid}' not found in identity store.`);
-    }
-    identity_contexts[aid] = stored;
-  }
+    // ── Step 1: Identity & Role Resolution ─────────────────────────────────────
+    const role_assignments: Record<string, string> = {
+      COO: agentId,
+      Researcher: "agent_researcher",
+      Worker: "agent_worker",
+      Grader: "agent_grader",
+    };
 
-
-  // ── Step 2: Build Envelope (steps embedded inside) ────────────────────────
-  const envelope = buildEnvelope({
-    orgId: params.orgId ?? "default",
-    jobId: params.jobId,
-    userId: params.userId,
-    prompt: params.prompt,
-    identityContext: identity_contexts[agentId],
-    identity_contexts, 
-    role_assignments,    // Pass explicitly to ensure alignment
-    steps: plannedSteps,
-  });
-
-  console.log(`[PRODUCER] Created envelope ${envelope.envelope_id} for user ${params.userId}.`);
-  console.log(`[PRODUCER] Initial Step (0): type=${envelope.steps[0]?.step_type}, role=${envelope.steps[0]?.role}, assigned=${envelope.steps[0]?.assigned_agent_id}`);
-  console.log(`[PRODUCER] Roles: ${JSON.stringify(envelope.role_assignments)}`);
-  console.log(`[PRODUCER] Identity Contexts (found): ${Object.keys(envelope.identity_contexts || {}).join(", ")}`);
-
-
-  // ── Step 3: Persist Envelope ──────────────────────────────────────────────
-  await persistence.createEnvelope(envelope);
-
-  await persistence.addTrace(
-    envelope.envelope_id, "", agentId, identity_contexts[agentId].identity_fingerprint,
-    "ENVELOPE_CREATED", { step_count: envelope.steps.length }
-  );
-
-  // ── Step 4: Link Job → Envelope (UI pointer only) ─────────────────────────
-  if (params.jobId) {
-    // Write envelope_id into job document immediately so UI can find it
-    await persistence.syncJobStatus(params.jobId, "executing", {
-      envelope_id: envelope.envelope_id,
-      active_stage: "DISPATCHED",
-      assigned_agent_id: agentId,
+    const plannedSteps = planEnvelopeSteps({
+      require_human_approval: false,
+      role_assignments,
     });
-    await persistence.linkJobToEnvelope(params.jobId, envelope.envelope_id);
-  }
 
-  // ── Step 5: Enqueue for runtime-worker ───────────────────────────────────────
-  // AUDIT FIX P0#1: Web tier NEVER executes the runtime loop.
-  // Enqueue the envelope so the dedicated runtime-worker process picks it up.
-  await persistence.enqueueEnvelope(envelope.envelope_id);
+    const uniqueAgentIds = [...new Set(plannedSteps.map((s) => s.assigned_agent_id).filter(Boolean))];
+    const identity_contexts: Record<string, IdentityContext> = {};
+    let identityFailure = false;
+    let identityFailureReason = "";
 
-  return {
-    success: true,
-    envelope_id: envelope.envelope_id,
-    envelope,
-    message: "Envelope created and queued for worker execution.",
-  };
+    for (const aid of uniqueAgentIds) {
+      let stored = await identityKernel.buildIdentityContext(aid);
+
+      // 🛡️ AUTO-PROVISION: If agent not found (e.g. fresh/cleared database), seed it from
+      // the canonical registry and then build the identity context. This prevents
+      // AGENT_PROVISIONING_FAILED on a clean environment without requiring a manual seed step.
+      if (!stored) {
+        const canonical = CANONICAL_AGENTS.find(a => a.agent_id === aid);
+        if (canonical) {
+          console.log(`[engine][auto-provision] Seeding missing canonical agent: ${aid}`);
+          const canonicalBody = {
+            agent_id: canonical.agent_id,
+            display_name: canonical.display_name,
+            role: canonical.agent_class,
+            mission: canonical.mission,
+            org_id: canonical.owner_org_id,
+            created_at: new Date().toISOString(),
+          };
+          const canonicalJson = JSON.stringify(canonicalBody);
+          const { createHash } = await import("crypto");
+          const realFingerprint = createHash("sha256").update(canonicalJson, "utf8").digest("hex");
+          await db.collection(COLLECTIONS.AGENTS).doc(aid).set({
+            agent_id: canonical.agent_id,
+            display_name: canonical.display_name,
+            canonical_identity_json: canonicalJson,
+            identity_fingerprint: realFingerprint,
+            fingerprint: realFingerprint,
+            agent_class: canonical.agent_class,
+            jurisdiction: canonical.jurisdiction,
+            mission: canonical.mission,
+            tier: canonical.tier,
+            acelogic_id: canonical.acelogic_id,
+            owner_org_id: canonical.owner_org_id,
+            created_at: new Date().toISOString(),
+            last_verified_at: new Date().toISOString(),
+          });
+          stored = await identityKernel.buildIdentityContext(aid);
+        }
+      }
+
+      if (!stored) {
+        throw new Error(`AGENT_PROVISIONING_FAILED:Agent '${aid}' not found and is not a canonical agent.`);
+      }
+      if (!stored.verified) {
+        identityFailure = true;
+        identityFailureReason = `Agent '${aid}' is not verified (verified=false).`;
+      }
+      identity_contexts[aid] = stored;
+    }
+
+    // ── Step 2: Build Envelope ────────────────────────────────────────────────
+    const envelope = buildEnvelope({
+      envelopeId: suggestedEnvId,
+      orgId: params.orgId ?? "default",
+      jobId: params.jobId,
+      userId: params.userId,
+      prompt: params.prompt,
+      identityContext: identity_contexts[agentId],
+      identity_contexts, 
+      role_assignments,    
+      steps: plannedSteps,
+    });
+
+    if (identityFailure) {
+      envelope.status = "quarantined";
+      envelope.updated_at = new Date().toISOString();
+    }
+
+    // 🤖 ALIGNMENT: Create initial 'plan' artifact for Mission Strategy visibility
+    const planArtifactId = `art_plan_${Date.now()}`;
+
+    // Map role assignments to UI-friendly task objects
+    const assignments = Object.entries(role_assignments).map(([role, agentId]) => ({
+      name: `${role} Unit`,
+      task: `Perform primary ${role} operations for mission execution.`,
+      assigned_to: agentId,
+      priority: "high"
+    }));
+
+    const planArtifact = {
+      artifact_id: planArtifactId,
+      execution_id: envelope.envelope_id,
+      produced_by_agent: agentId,
+      identity_fingerprint: identity_contexts[agentId].identity_fingerprint,
+      artifact_type: "plan",
+      artifact_content: JSON.stringify({
+        strategic_objective: params.prompt,
+        mission: "ACEPLACE Strategic Execution",
+        assignments: assignments,
+        timestamp: new Date().toISOString()
+      }),
+      created_at: new Date().toISOString(),
+    };
+    envelope.artifact_refs = [planArtifactId];
+
+    // ── Step 3: Persist (Atomically in Transaction) ──────────────────────────
+    const envRef = db.collection(COLLECTIONS.EXECUTION_ENVELOPES).doc(envelope.envelope_id);
+    tx.set(envRef, envelope);
+
+    const artRef = db.collection(COLLECTIONS.ARTIFACTS).doc(planArtifactId);
+    tx.set(artRef, planArtifact);
+
+    if (params.jobId) {
+      const jobRef = db.collection(COLLECTIONS.JOBS).doc(params.jobId);
+      tx.set(jobRef, { 
+        envelope_id: envelope.envelope_id, 
+        user_id: params.userId,
+        prompt: params.prompt,
+        updated_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        status: identityFailure ? "quarantined" : "created"
+      }, { merge: true });
+    }
+
+    // Queue entry
+    const queueRef = db.collection(COLLECTIONS.EXECUTION_QUEUE).doc(envelope.envelope_id);
+    tx.set(queueRef, {
+      envelope_id: envelope.envelope_id,
+      status: identityFailure ? "quarantined" : "queued",
+      created_at: new Date().toISOString(),
+    });
+
+    // Trace
+    const traceId = `trace_envelope_created_${Date.now()}`;
+    const traceRef = db.collection(COLLECTIONS.EXECUTION_TRACES).doc(traceId);
+    tx.set(traceRef, {
+      trace_id: traceId,
+      envelope_id: envelope.envelope_id,
+      step_id: "",
+      agent_id: agentId,
+      identity_fingerprint: identity_contexts[agentId].identity_fingerprint,
+      event_type: "ENVELOPE_CREATED",
+      timestamp: new Date().toISOString(),
+      metadata: { step_count: envelope.steps.length }
+    });
+
+    if (identityFailure) {
+      // Re-fetch status if we want to return the quarantined state
+      return {
+        success: false,
+        envelope_id: envelope.envelope_id,
+        envelope,
+        message: `Quarantined: ${identityFailureReason}`,
+      };
+    }
+
+    return {
+      success: true,
+      envelope_id: envelope.envelope_id,
+      envelope,
+      message: "Task dispatched successfully. Runtime loop active.",
+    };
+  });
 }
-
-
 
 /**
  * Get the current state of an envelope by ID.

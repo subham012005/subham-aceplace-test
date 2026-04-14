@@ -192,11 +192,9 @@ export const workflowEngine = {
             }
 
             // Accept any status that can reasonably have grading data:
-            // The Firestore job doc often lags behind the envelope — it may still say
-            // "executing" or "completed" even though the grader has finished.
-            const validStates = ["AWAITING_APPROVAL", "GRADED", "GRADING", "EXECUTING", "COMPLETED", "IN_PROGRESS"];
+            const validStates = ["AWAITING_APPROVAL", "GRADED", "GRADING", "EXECUTING", "COMPLETED", "IN_PROGRESS", "AWAITING_HUMAN"];
             if (!validStates.includes(String(jobData.status).toUpperCase())) {
-                throw new Error(`INVALID_STATE: Approval allowed only when status is AWAITING_APPROVAL or GRADED, got ${jobData.status}`);
+                throw new Error(`INVALID_STATE: Approval not allowed in state '${jobData.status}'. Requires AWAITING_APPROVAL or AWAITING_HUMAN.`);
             }
 
             await doc.ref.update({
@@ -233,11 +231,9 @@ export const workflowEngine = {
         }
 
         // Accept any status that can reasonably have grading data:
-        // The Firestore job doc often lags behind the envelope — it may still say
-        // "executing" or "completed" even though the grader has finished.
-        const validStates = ["AWAITING_APPROVAL", "GRADED", "GRADING", "EXECUTING", "COMPLETED", "IN_PROGRESS"];
+        const validStates = ["AWAITING_APPROVAL", "GRADED", "GRADING", "EXECUTING", "COMPLETED", "IN_PROGRESS", "AWAITING_HUMAN"];
         if (!validStates.includes(String(jobData.status).toUpperCase())) {
-            throw new Error(`INVALID_STATE: Approval allowed only when status is AWAITING_APPROVAL or GRADED, got ${jobData.status}`);
+            throw new Error(`INVALID_STATE: Approval not allowed in state '${jobData.status}'. Requires AWAITING_APPROVAL or AWAITING_HUMAN.`);
         }
 
         await jobRef.update({
@@ -290,9 +286,9 @@ export const workflowEngine = {
             }
 
             // Accept any status that can reasonably have grading data
-            const validStates = ["AWAITING_APPROVAL", "GRADED", "GRADING", "EXECUTING", "COMPLETED", "IN_PROGRESS"];
+            const validStates = ["AWAITING_APPROVAL", "GRADED", "GRADING", "EXECUTING", "COMPLETED", "IN_PROGRESS", "AWAITING_HUMAN"];
             if (!validStates.includes(String(jobData.status).toUpperCase())) {
-                throw new Error(`INVALID_STATE: Rejection allowed only when status is AWAITING_APPROVAL or GRADED, got ${jobData.status}`);
+                throw new Error(`INVALID_STATE: Rejection not allowed in state '${jobData.status}'. Requires AWAITING_APPROVAL or AWAITING_HUMAN.`);
             }
 
             await jobRef.update({
@@ -330,9 +326,9 @@ export const workflowEngine = {
         }
 
         // Accept any status that can reasonably have grading data
-        const validStates = ["AWAITING_APPROVAL", "GRADED", "GRADING", "EXECUTING", "COMPLETED", "IN_PROGRESS"];
+        const validStates = ["AWAITING_APPROVAL", "GRADED", "GRADING", "EXECUTING", "COMPLETED", "IN_PROGRESS", "AWAITING_HUMAN"];
         if (!validStates.includes(String(jobData.status).toUpperCase())) {
-            throw new Error(`INVALID_STATE: Rejection allowed only when status is AWAITING_APPROVAL or GRADED, got ${jobData.status}`);
+            throw new Error(`INVALID_STATE: Rejection not allowed in state '${jobData.status}'. Requires AWAITING_APPROVAL or AWAITING_HUMAN.`);
         }
 
         await doc.ref.update({
