@@ -3,7 +3,14 @@
  */
 
 class MockDocRef {
-  constructor(public col: string, public id: string, private db: any) {}
+  public col: string;
+  public id: string;
+  private db: any;
+  constructor(col: string, id: string, db: any) {
+    this.col = col;
+    this.id = id;
+    this.db = db;
+  }
   async get() { return this.db._read(this.col, this.id); }
   set(data: any, opts?: any) { return this.db._write(this.col, this.id, data, opts?.merge); }
   update(data: any) { return this.db._patch(this.col, this.id, data); }
@@ -11,12 +18,19 @@ class MockDocRef {
   collection(subCol: string) { return this.db.collection(`${this.col}/${this.id}/${subCol}`); }
 }
 
+
 class MockQuery {
   private filters: any[] = [];
   private _limit: number = 0;
   private _order: any[] = [];
+  private col: string;
+  private db: any;
 
-  constructor(private col: string, private db: any) {}
+  constructor(col: string, db: any) {
+    this.col = col;
+    this.db = db;
+  }
+
 
   where(field: string, op: string, value: any) {
     this.filters.push({ field, op, value });

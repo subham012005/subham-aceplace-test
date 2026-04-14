@@ -122,6 +122,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
         failed: "text-rose-400 border-rose-400/30 bg-rose-400/5",
         resurrected: "text-cyan-400 border-cyan-400/30 bg-cyan-400/5",
         awaiting_approval: "text-amber-400 border-amber-400/30 bg-amber-400/5",
+        quarantined: "text-orange-500 border-orange-500/30 bg-orange-500/5",
     };
 
     const getGraderData = () => {

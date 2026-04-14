@@ -44,9 +44,9 @@ describe("ACEPLACE Deterministic Runtime — End-to-End", () => {
       acceptAceHandoff, 
       registerAgentIdentity, 
       COLLECTIONS,
-      runEnvelopeParallel
+      runEnvelopeParallel,
+      claimNextEnvelope
     } = await import("@aceplace/runtime-core");
-    const { claimNextEnvelope } = await import("../index");
 
     memoryDb.reset();
 
@@ -360,8 +360,8 @@ describe("ACEPLACE Deterministic Runtime — End-to-End", () => {
       created_at: new Date().toISOString(),
     });
 
-    await transition(envelopeId, "leased");
     await transition(envelopeId, "planned");
+    await transition(envelopeId, "leased");
     await transition(envelopeId, "executing");
     await transition(envelopeId, "completed");
 

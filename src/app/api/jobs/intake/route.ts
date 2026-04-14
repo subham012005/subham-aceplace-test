@@ -24,18 +24,15 @@ export async function POST(req: Request) {
 
         // Always dispatch through the deterministic runtime engine (Phase 2) DIRECTLY.
         // This avoids internal fetch overhead and potential auth mismatches.
-        try {
-            const dispatchResult = await dispatch({
-                prompt: body.prompt,
-                userId: body.user_id,
-                jobId: result.job_id,
-                agentId: body.requested_agent_id || "agent_coo",
-                orgId: "default"
-            });
-            console.log(`[INTAKE] Successfully dispatched envelope: ${dispatchResult.envelope_id}`);
-        } catch (err: any) {
-            console.error("[INTAKE] Runtime dispatch trigger failed:", err.message);
-        }
+        const dispatchResult = await dispatch({
+            prompt: body.prompt,
+            userId: body.user_id,
+            jobId: result.job_id,
+            agentId: body.requested_agent_id || "agent_coo",
+            orgId: "default"
+        });
+        console.log(`[INTAKE] Successfully dispatched envelope: ${dispatchResult.envelope_id}`);
+
 
         return NextResponse.json(result, { status: 200 });
 

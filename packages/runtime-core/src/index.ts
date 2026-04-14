@@ -34,6 +34,11 @@ export {
   enqueueEnvelope,
 } from "./kernels/persistence";
 export {
+  claimNextEnvelope,
+  requeueEnvelope,
+  finalizeQueueEntry,
+} from "./kernels/queue";
+export {
   setAgentSecrets,
   getAgentSecrets,
   listSecretNames,
@@ -121,6 +126,7 @@ export {
   assertDependenciesSatisfied,
   assertEnvelopeHasSteps,
 } from "./runtime/guards";
+export { resolveAssignedAgentId } from "./runtime/resolution";
 
 // Types & constants
 export * from "./types";

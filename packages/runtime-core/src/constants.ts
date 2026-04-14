@@ -44,16 +44,16 @@ export const COLLECTIONS = {
 // Strict transitions — MUST be enforced atomically. No skipping allowed.
 
 export const ENVELOPE_STATUS_TRANSITIONS: Record<EnvelopeStatus, EnvelopeStatus[]> = {
-  created:        ["leased", "failed"],
-  leased:         ["planned", "quarantined", "failed"],
-  planned:        ["executing", "failed"],
-  executing:      ["awaiting_human", "approved", "completed", "failed", "quarantined"],
+  created:        ["planned", "leased", "failed", "quarantined"],
+  planned:        ["leased", "executing", "failed", "quarantined"],
+  leased:         ["executing", "failed", "quarantined"],
+  executing:      ["completed", "failed", "quarantined", "awaiting_human"],
   awaiting_human: ["approved", "rejected", "failed"],
-  approved:       [],                         // terminal
-  completed:      [],                         // terminal (canonical success — multi-agent path)
-  rejected:       [],                         // terminal
-  failed:         [],                         // terminal
-  quarantined:    [],                         // terminal — requires manual intervention
+  approved:       [],
+  completed:      [],
+  rejected:       [],
+  failed:         [],
+  quarantined:    [],
 };
 
 // ─── Step Status Transitions ──────────────────────────────────────────────────
@@ -170,9 +170,10 @@ export const PROTOCOL_VERB_LABELS: Record<ProtocolVerb, string> = {
 };
 
 // ─── Lease Configuration ──────────────────────────────────────────────────────
-
+export const STALE_CLAIM_THRESHOLD_MS = 120_000;       // 2 minutes
 export const DEFAULT_LEASE_DURATION_SECONDS = 300;     // 5 minutes
 export const MAX_LEASE_DURATION_SECONDS = 1800;         // 30 minutes
+export const STEP_EXECUTION_MIN_WINDOW_MS = 20_000;    // 20 seconds
 
 // ─── Status Display Config ────────────────────────────────────────────────────
 

@@ -16,6 +16,8 @@ import { getDb } from "./db";
 import { COLLECTIONS } from "./constants";
 import type { ExecutionEnvelope, DispatchRequest, DispatchResponse, IdentityContext } from "./types";
 import { randomUUID } from "crypto";
+import { CANONICAL_AGENTS } from "./constants/agents";
+
 
 const AGENT_ENGINE_URL = process.env.AGENT_ENGINE_URL || "http://localhost:8001";
 
@@ -48,30 +50,52 @@ export async function dispatch(params: {
     }
   }
 
-  // ── Step 1: Plan steps first — derive agent set from step assignments ────────
-  // AUDIT FIX P0#2: identity_contexts MUST be derived from actual planned steps,
-  // not from a hardcoded array. The planner is the authoritative source of agent IDs.
+  // ── Step 1: Identity & Role Resolution ─────────────────────────────────────
+  // Define canonical roles for Phase 2 multi-agent orchestration
+  const role_assignments: Record<string, string> = {
+    COO: agentId,
+    Researcher: "agent_researcher",
+    Worker: "agent_worker",
+    Grader: "agent_grader",
+  };
+
   const plannedSteps = planEnvelopeSteps({
     require_human_approval: false,
-    role_assignments: {
-      COO: agentId,
-      Researcher: "agent_researcher",
-      Worker: "agent_worker",
-      Grader: "agent_grader",
-    },
+    role_assignments,
   });
 
   const uniqueAgentIds = [...new Set(plannedSteps.map((s) => s.assigned_agent_id).filter(Boolean))];
 
   const identity_contexts: Record<string, IdentityContext> = {};
+
   for (const aid of uniqueAgentIds) {
-    try {
-      const stored = await identityKernel.buildIdentityContext(aid);
-      identity_contexts[aid] = stored ?? buildDefaultIdentityContext(aid);
-    } catch {
-      identity_contexts[aid] = buildDefaultIdentityContext(aid);
+    let stored = await identityKernel.buildIdentityContext(aid);
+    
+    if (!stored && process.env.ACELOGIC_DEV_LICENSE_FALLBACK === "true") {
+      // Lazy Provisioning Fallback (Dev Only)
+      const def = CANONICAL_AGENTS.find(a => a.agent_id === aid);
+
+      if (def) {
+        console.warn(`[DEV] Agent '${aid}' missing after database wipe. Lazily provisioning from registry...`);
+        await identityKernel.registerAgentIdentity({
+          agent_id: def.agent_id,
+          display_name: def.display_name,
+          role: def.agent_class,
+          mission: def.mission,
+          org_id: def.owner_org_id,
+          tier: def.tier.toString(),
+        });
+        stored = await identityKernel.buildIdentityContext(aid);
+      }
     }
+
+    if (!stored) {
+      // Hard fail — do not produce unverified envelopes in Phase 2
+      throw new Error(`AGENT_PROVISIONING_FAILED:Agent '${aid}' not found in identity store.`);
+    }
+    identity_contexts[aid] = stored;
   }
+
 
   // ── Step 2: Build Envelope (steps embedded inside) ────────────────────────
   const envelope = buildEnvelope({
@@ -79,10 +103,17 @@ export async function dispatch(params: {
     jobId: params.jobId,
     userId: params.userId,
     prompt: params.prompt,
-    identityContext: identity_contexts[agentId] ?? buildDefaultIdentityContext(agentId),
-    identity_contexts,  // Full multi-agent context map — derived from planner
-    steps: plannedSteps, // Embed exact steps mapped by planner
+    identityContext: identity_contexts[agentId],
+    identity_contexts, 
+    role_assignments,    // Pass explicitly to ensure alignment
+    steps: plannedSteps,
   });
+
+  console.log(`[PRODUCER] Created envelope ${envelope.envelope_id} for user ${params.userId}.`);
+  console.log(`[PRODUCER] Initial Step (0): type=${envelope.steps[0]?.step_type}, role=${envelope.steps[0]?.role}, assigned=${envelope.steps[0]?.assigned_agent_id}`);
+  console.log(`[PRODUCER] Roles: ${JSON.stringify(envelope.role_assignments)}`);
+  console.log(`[PRODUCER] Identity Contexts (found): ${Object.keys(envelope.identity_contexts || {}).join(", ")}`);
+
 
   // ── Step 3: Persist Envelope ──────────────────────────────────────────────
   await persistence.createEnvelope(envelope);

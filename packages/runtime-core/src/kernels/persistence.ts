@@ -17,6 +17,8 @@ import type {
   ExecutionTrace,
   Artifact,
 } from "../types";
+export { claimNextEnvelope } from "./queue";
+
 
 // ─── Envelope Operations ──────────────────────────────────────────────────────
 
@@ -32,7 +34,7 @@ export async function getEnvelope(envelopeId: string): Promise<ExecutionEnvelope
     .collection(COLLECTIONS.EXECUTION_ENVELOPES)
     .doc(envelopeId)
     .get();
-  return doc.exists ? (doc.data() as ExecutionEnvelope) : null;
+    return doc.exists ? (doc.data() as ExecutionEnvelope) : null;
 }
 
 export async function updateEnvelope(
@@ -168,6 +170,45 @@ export async function getArtifact(artifactId: string): Promise<Artifact | null> 
     .doc(artifactId)
     .get();
   return doc.exists ? (doc.data() as Artifact) : null;
+}
+
+/**
+ * Searches for evidence that a step has already been completed.
+ * Checks for STEP_COMPLETED traces and step-type specific artifacts.
+ */
+export async function findStepCompletionEvidence(
+  envelopeId: string, 
+  stepId: string,
+  stepType: string
+): Promise<boolean> {
+  const db = getDb();
+  
+  // 1. Primary Evidence: STEP_COMPLETED trace
+  const traceSnap = await db.collection(COLLECTIONS.EXECUTION_TRACES)
+    .where("envelope_id", "==", envelopeId)
+    .where("step_id", "==", stepId)
+    .where("event_type", "==", "STEP_COMPLETED")
+    .limit(1)
+    .get();
+    
+  if (!traceSnap.empty) return true;
+
+  // 2. Secondary Evidence: Step-type specific artifacts
+  if (stepType === "produce_artifact" || stepType === "artifact_produce") {
+    const artSnap = await db.collection(COLLECTIONS.ARTIFACTS)
+      .where("execution_id", "==", envelopeId)
+      .where("artifact_type", "==", "production")
+      .limit(1)
+      .get();
+    
+    // Check if any artifact content (or a dedicated field) points to this step
+    // For Phase 2, we assume if a production artifact exists for this envelope, 
+    // and we are at the worker step, it's likely completed. 
+    // A more precise check would involve step_id in the artifact doc.
+    if (!artSnap.empty) return true;
+  }
+
+  return false;
 }
 
 // ─── Job Link (UI pointer only — NOT used for execution) ─────────────────────

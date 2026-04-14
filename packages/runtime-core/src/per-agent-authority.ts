@@ -11,7 +11,7 @@
 
 import { randomUUID } from "crypto";
 import { getDb } from "./db";
-import { COLLECTIONS } from "./constants";
+import { COLLECTIONS, STEP_EXECUTION_MIN_WINDOW_MS } from "./constants";
 import { addTrace } from "./kernels/persistence";
 import type { AgentAuthorityLease, ExecutionEnvelope } from "./types";
 
@@ -20,7 +20,8 @@ const LEASE_MS = 60_000;
 export async function acquirePerAgentLease(
   envelopeId: string,
   agentId: string,
-  instanceId: string
+  instanceId: string,
+  options?: { forceRenew?: boolean }
 ): Promise<AgentAuthorityLease> {
   const db = getDb();
   const ref = db.collection(COLLECTIONS.EXECUTION_ENVELOPES).doc(envelopeId);
@@ -35,6 +36,9 @@ export async function acquirePerAgentLease(
     if (existing && existing.status !== "expired" && existing.status !== "revoked") {
       const exp = new Date(existing.lease_expires_at).getTime();
       if (exp > now && existing.current_instance_id === instanceId) {
+        if (!options?.forceRenew && (exp - now) >= STEP_EXECUTION_MIN_WINDOW_MS) {
+          return existing;
+        }
         const expiresAt = new Date(now + LEASE_MS).toISOString();
         const lease: AgentAuthorityLease = {
           ...existing,
@@ -127,7 +131,7 @@ export async function renewPerAgentLease(
       status: "active",
     };
     tx.update(ref, {
-      [`authority_leases.${agentId}`]: lease,
+      authority_leases: { ...(envelope.authority_leases || {}), [agentId]: lease },
       updated_at: nowIso,
     });
     return lease;
@@ -150,7 +154,7 @@ export async function releasePerAgentLease(envelopeId: string, agentId: string):
       last_renewed_at: new Date().toISOString(),
     };
     tx.update(ref, {
-      [`authority_leases.${agentId}`]: released,
+      authority_leases: { ...(envelope.authority_leases || {}), [agentId]: released },
       updated_at: new Date().toISOString(),
     });
   });

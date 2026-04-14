@@ -181,6 +181,9 @@ class AceApiClient {
 
     async getAgentIdentity(agentId: string) {
         const response = await this.secureFetch(`/api/runtime/identity/${agentId}`);
+        if (response.status === 404) {
+            return null;
+        }
         return this.handleResponse(response);
     }
 

@@ -1,7 +1,7 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-/node_modules
+node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -62,3 +62,5 @@ claude_*.json
 claude_*.txt
 antigravity_*.json
 antigravity_*.txt
+envelope_debug.json
+docs/phase2-cert-certrun_*.json

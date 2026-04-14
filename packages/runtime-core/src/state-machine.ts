@@ -37,6 +37,9 @@ export async function transition(
     const envelope = snap.data() as ExecutionEnvelope;
     const currentStatus = envelope.status;
 
+    // Idempotency: if already in the target state, do nothing.
+    if (currentStatus === newStatus) return;
+
     if (!metadata?.agent_id) {
        traceAgentId = envelope.coordinator_agent_id || envelope.identity_context?.agent_id || "runtime_worker";
     }
@@ -48,6 +51,15 @@ export async function transition(
     }
 
     const allowed = ENVELOPE_STATUS_TRANSITIONS[currentStatus];
+    
+    // Hard guard: leased -> planned is strictly forbidden in Phase 2
+    if (currentStatus === "leased" && newStatus === "planned") {
+      throw new Error(
+        `[StateMachine] INVALID_FLOW: leased cannot return to planned. ` +
+        `Current: ${currentStatus}, Requested: ${newStatus}`
+      );
+    }
+
     if (!allowed.includes(newStatus)) {
       throw new Error(
         `[StateMachine] Illegal transition: ${currentStatus} → ${newStatus}. ` +
