@@ -149,7 +149,7 @@ export default function DashboardPage() {
         if (job.rejected_at) return 'rejected';
 
         const rawJobStatus = String(job.status || '').toLowerCase();
-        
+
         // Ensure "graded" state takes precedence so UI doesn't falsely display "rejected" 
         // when the operator hasn't enacted a governance decision yet.
         if (rawJobStatus === 'graded' || rawJobStatus === 'awaiting_approval') {
@@ -170,10 +170,10 @@ export default function DashboardPage() {
             if (envStatus === 'rejected') {
                 // If we have grading data but no manual rejected_at, it's still 'graded'
                 const hasGradeData = !!(
-                    job.grading_result || 
-                    job.runtime_context?.grading_result || 
-                    job.grader_params || 
-                    job.compliance_score || 
+                    job.grading_result ||
+                    job.runtime_context?.grading_result ||
+                    job.grader_params ||
+                    job.compliance_score ||
                     job.grade_score
                 );
                 if (hasGradeData && !job.rejected_at) {
@@ -195,7 +195,7 @@ export default function DashboardPage() {
                     s.status === 'completed'
                 );
                 if (hasEvalDone) return 'graded';
-                
+
                 const hasArtifactDone = steps.some(s =>
                     (s.step_type === 'artifact_produce' || s.step_type === 'produce_artifact') &&
                     s.status === 'completed'
@@ -230,10 +230,10 @@ export default function DashboardPage() {
         if (hasGradingData && !terminalStates.includes(rawStatus)) return 'graded';
 
         if (rawStatus === 'executing') {
-            if (hasGradingData)                         return 'graded';
-            if (job.runtime_context?.worker_result)      return 'worker_execution';
-            if (job.runtime_context?.research_result)    return 'research_execution';
-            if (job.runtime_context?.plan)               return 'coo_planning';
+            if (hasGradingData) return 'graded';
+            if (job.runtime_context?.worker_result) return 'worker_execution';
+            if (job.runtime_context?.research_result) return 'research_execution';
+            if (job.runtime_context?.plan) return 'coo_planning';
         }
 
         return rawStatus;
@@ -262,10 +262,10 @@ export default function DashboardPage() {
             if (["queued", "assigned", "executing", "in_progress", "coo_planning", "research_execution", "worker_execution", "grading", "lease_check"].includes(rawStatus)) {
                 activeAgentCount++;
             }
-            
+
             // Estimate tokens if none are natively persisted (Phase 2 Deterministic Runtime doesn't pass tokens down)
             const steps = (j as any).steps || [];
-            totalEstTokens += steps.filter((s:any) => s.status === 'completed').length * 2400; // Approx 2400 context/completion tokens per agent phase.
+            totalEstTokens += steps.filter((s: any) => s.status === 'completed').length * 2400; // Approx 2400 context/completion tokens per agent phase.
         });
 
         const resurrections = jobs.filter(j => j.status === "resurrected" || j.resurrection_reason).length;
@@ -276,13 +276,13 @@ export default function DashboardPage() {
 
         const completedCount = jobs.filter(j => ["completed", "graded", "approved"].includes(deriveHomeStatus(j))).length;
         const failedCount = jobs.filter(j => ["rejected", "failed"].includes(deriveHomeStatus(j))).length;
-        
+
         let tokens = jobs.reduce((acc, j) => {
             const tu = j.token_usage as any;
             const jTokens = tu?.total_tokens ?? (typeof tu === 'number' ? tu : null) ?? j.runtime_context?.token_usage?.total_tokens;
             return acc + (jTokens ? Number(jTokens) : 0);
         }, 0);
-        
+
         if (tokens === 0) tokens = totalEstTokens;
 
         let cost = jobs.reduce((acc, j) => {
@@ -293,7 +293,7 @@ export default function DashboardPage() {
             }
             return acc;
         }, 0);
-        
+
         if (cost === 0) cost = (tokens / 1000) * 0.002;
 
         return {
@@ -419,10 +419,10 @@ export default function DashboardPage() {
     }, [hasAttemptedInitialFetch, lastSyncFailed, errorStatus, isJobsSyncing, userUid, handleGlobalRefresh, retryCount, maxRetries, addLog]);
 
     // Filter active jobs for the Mission Queue
-    const activeJobs = jobs.filter(j => 
+    const activeJobs = jobs.filter(j =>
         ["queued", "assigned", "in_progress", "executing", "awaiting_approval", "resurrected", "created"].includes(j.status)
     );
-    const completedJobs = jobs.filter(j => 
+    const completedJobs = jobs.filter(j =>
         ["completed", "graded", "approved", "rejected", "failed"].includes(j.status)
     );
 
@@ -567,7 +567,7 @@ export default function DashboardPage() {
                                 <Avatar className="h-9 w-9 md:h-10 md:w-10 rounded-none">
                                     <AvatarImage src="/avatar.jpg" />
                                     <AvatarFallback className="bg-cyan-500/20 text-cyan-400">
-                                      {user?.displayName?.[0] || user?.email?.[0] || 'U'}
+                                        {user?.displayName?.[0] || user?.email?.[0] || 'U'}
                                     </AvatarFallback>
                                     <AvatarFallback className="bg-cyan-500/10 text-cyan-500">
                                         {user?.email?.substring(0, 2).toUpperCase() || "AD"}
@@ -738,7 +738,7 @@ export default function DashboardPage() {
                 <div className="col-span-1 md:col-span-12 lg:col-span-7 space-y-4 flex flex-col h-auto lg:h-[800px] lg:h-full lg:overflow-hidden order-1 lg:order-2">
 
                     {/* Agent Overview Grid */}
-                    <HUDFrame title="Agent Overview" subtitle="Live Node View" className="h-auto lg:h-[280px] shrink-0">
+                    <HUDFrame title="Agent Overview" subtitle="Live Node View" className="h-auto lg:h-[320px] lg:min-h-[320px] shrink-0">
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 h-full py-1">
                             {isStatsSyncing ? (
                                 Array.from({ length: 4 }).map((_, i) => (
@@ -753,8 +753,8 @@ export default function DashboardPage() {
                                 { name: "Worker", intel: "OpenAI GPT-4o", gate: "Alpha-X", status: "Active" },
                                 { name: "Grader", intel: "claude-haiku-4-5-20251001", gate: "Delta-VII", status: "Active" }
                             ].map((agent, i) => (
-                                <div 
-                                    key={agent.name} 
+                                <div
+                                    key={agent.name}
                                     className="relative group border border-white/10 bg-black/60 overflow-hidden flex flex-col p-[1px] hover:border-cyan-500/40 transition-colors h-full min-h-[200px] lg:min-h-0 animate-in fade-in zoom-in-[0.5] slide-in-from-bottom-12 duration-1000"
                                     style={{ animationFillMode: 'backwards', animationDelay: `${i * 150}ms` }}
                                     onMouseEnter={() => setHoveredAgent(agent.name)}
@@ -862,16 +862,16 @@ export default function DashboardPage() {
                                             "h-[1.5px] mt-4 transition-all duration-700 relative",
                                             hoveredAgent === agent.name ? "w-full opacity-100" : "w-[80px] opacity-40",
                                             agent.name === "COO" ? "bg-gradient-to-r from-transparent via-blue-500 to-transparent" :
-                                            agent.name === "Researcher" ? "bg-gradient-to-r from-transparent via-purple-500 to-transparent" :
-                                            agent.name === "Worker" ? "bg-gradient-to-r from-transparent via-amber-500 to-transparent" :
-                                            "bg-gradient-to-r from-transparent via-emerald-500 to-transparent"
+                                                agent.name === "Researcher" ? "bg-gradient-to-r from-transparent via-purple-500 to-transparent" :
+                                                    agent.name === "Worker" ? "bg-gradient-to-r from-transparent via-amber-500 to-transparent" :
+                                                        "bg-gradient-to-r from-transparent via-emerald-500 to-transparent"
                                         )}>
                                             <div className={cn(
                                                 "absolute inset-0 blur-[3px] animate-breathing",
                                                 agent.name === "COO" ? "bg-blue-500" :
-                                                agent.name === "Researcher" ? "bg-purple-500" :
-                                                agent.name === "Worker" ? "bg-amber-500" :
-                                                "bg-emerald-500"
+                                                    agent.name === "Researcher" ? "bg-purple-500" :
+                                                        agent.name === "Worker" ? "bg-amber-500" :
+                                                            "bg-emerald-500"
                                             )} />
                                         </div>
                                     </div>
@@ -967,14 +967,14 @@ export default function DashboardPage() {
                                                         job?.compliance_score ??
                                                         job?.grade_score ??
                                                         job?.grader_params?.score;
-                                                        
+
                                                     if (govScoreRaw === undefined || govScoreRaw === null) {
                                                         return <span className="text-[10px] text-slate-700 italic font-bold">--</span>;
                                                     }
-                                                    
+
                                                     let score = typeof govScoreRaw === 'object' ? (govScoreRaw.value || 0) : Number(govScoreRaw);
                                                     if (score <= 10 && score > 0) score = score * 10;
-                                                    
+
                                                     return (
                                                         <span className={cn(
                                                             "text-[10px] font-black italic tracking-tighter",
@@ -1022,7 +1022,7 @@ export default function DashboardPage() {
                     <HUDFrame title="ACEPLACE COMMAND" className="min-h-[300px] lg:min-h-[350px] flex-none shrink-0 flex flex-col relative overflow-hidden group">
                         {/* Background subtle glow */}
                         <div className={cn("absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[180%] h-[180%] bg-cyan-500/10 blur-[80px] rounded-full transition-opacity duration-1000", isSpeaking ? "opacity-100" : "opacity-0")} />
-                        
+
                         <div
                             className="flex-1 flex flex-col items-center justify-center relative z-10 cursor-target p-4"
                             onClick={() => setIsSpeaking(!isSpeaking)}
@@ -1032,7 +1032,7 @@ export default function DashboardPage() {
                                 <div className="w-32 h-32 md:w-40 md:h-40 relative flex items-center justify-center">
                                     {/* Pulse ring when scanning */}
                                     <div className={cn("absolute inset-0 rounded-full border border-cyan-500/30 transition-all duration-1000", isSpeaking ? "scale-125 opacity-0 animate-[ping_3s_cubic-bezier(0,0,0.2,1)_infinite] shadow-[0_0_30px_rgba(6,182,212,0.3)]" : "scale-100 opacity-100")} />
-                                    
+
                                     <AceWaveform
                                         isSpeaking={isSpeaking}
                                         className="w-full h-full"
@@ -1044,7 +1044,7 @@ export default function DashboardPage() {
                             <div className="mt-auto flex flex-col items-center w-full">
                                 <div className="text-center transition-all duration-500 group-hover:drop-shadow-[0_0_10px_rgba(34,211,238,0.5)]">
                                     <h4 className="text-xl md:text-2xl font-black text-white tracking-[0.25em] flex items-baseline justify-center gap-1">
-                                        ACEPLACE<span className="text-[10px] align-top font-bold text-cyan-500/80">™</span>
+                                        ACEPLACE VOICE COMMAND<span className="text-[10px] align-top font-bold text-cyan-500/80">™</span>
                                     </h4>
                                 </div>
 
@@ -1063,7 +1063,7 @@ export default function DashboardPage() {
                                             />
                                         ))}
                                     </div>
-                                    
+
                                     {/* Standby prompt */}
                                     <p className={cn(
                                         "absolute inset-y-0 flex items-center justify-center text-[10px] font-bold tracking-[0.15em] transition-all duration-500 uppercase",
@@ -1142,8 +1142,8 @@ export default function DashboardPage() {
                     </HUDFrame>
 
                     {/* Diagnostic terminal */}
-                    <HUDFrame 
-                        title="Diagnostic Terminal" 
+                    <HUDFrame
+                        title="Diagnostic Terminal"
                         className="h-[250px] flex flex-col overflow-hidden"
                         headerAction={
                             <button
