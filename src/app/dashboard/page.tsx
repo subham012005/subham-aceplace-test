@@ -738,7 +738,7 @@ export default function DashboardPage() {
                 <div className="col-span-1 md:col-span-12 lg:col-span-7 space-y-4 flex flex-col h-auto lg:h-[800px] lg:h-full lg:overflow-hidden order-1 lg:order-2">
 
                     {/* Agent Overview Grid */}
-                    <HUDFrame title="Agent Overview" subtitle="Live Node View" className="h-auto lg:h-[280px] shrink-0">
+                    <HUDFrame title="Agent Overview" subtitle="Live Node View" className="h-auto lg:min-h-[320px] lg:h-[320px] shrink-0">
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 h-full py-1">
                             {isStatsSyncing ? (
                                 Array.from({ length: 4 }).map((_, i) => (
