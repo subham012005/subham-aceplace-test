@@ -1,9 +1,20 @@
 import { NextResponse } from "next/server";
 import { workflowEngine } from "@/lib/workflow-engine";
+import { dispatch } from "@aceplace/runtime-core";
 
 /**
  * Resurrect (Resume) Job by ID
  * POST /api/jobs/[jobId]/resurrect
+ *
+ * Two cases:
+ *   RESUME  — envelope exists, workflowEngine.resurrectJob resets it and
+ *             re-queues the execution_queue entry. The runtime-worker picks
+ *             it up on its next poll cycle.
+ *   RESTART — rejected job, envelope wiped. We call dispatch() to create a
+ *             fresh envelope + queue entry so the worker can claim it.
+ *
+ * The worker decides the compute path at runtime (Python agent-engine or
+ * TypeScript LLM fallback) based on agent-engine availability.
  */
 export async function POST(
     req: Request,
@@ -19,61 +30,16 @@ export async function POST(
             reason,
         });
 
-        const agentEngineUrl = (
-            process.env.AGENT_ENGINE_URL || "http://localhost:8001"
-        ).replace(/\/+$/, "");
-
-        const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
-        const useDeterministic =
-            process.env.NEXT_PUBLIC_USE_DETERMINISTIC_RUNTIME === "true";
-
-        (async () => {
-            if (result.execution_id && result.assigned_instance_id) {
-                const res = await fetch(`${agentEngineUrl}/execute`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        envelope_id: result.execution_id,
-                        instance_id: result.assigned_instance_id,
-                    }),
-                });
-                if (!res.ok) {
-                    const text = await res.text().catch(() => "");
-                    console.warn(
-                        `[RESURRECT] Agent engine /execute returned ${res.status}:`,
-                        text || res.statusText
-                    );
-                }
-                return;
-            }
-
-            if (useDeterministic && result.prompt && result.user_id) {
-                await fetch(`${baseUrl}/api/runtime/dispatch`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        prompt: result.prompt,
-                        user_id: result.user_id,
-                        job_id: jobId,
-                        agent_id: result.requested_agent_id || "agent_coo",
-                    }),
-                });
-                return;
-            }
-
-            console.warn(
-                "[RESURRECT] No execution_id on job — skipped agent-engine /execute. " +
-                    "Start the engine on AGENT_ENGINE_URL for Phase 2 jobs with an envelope, " +
-                    "or set NEXT_PUBLIC_USE_DETERMINISTIC_RUNTIME=true to dispatch anew."
-            );
-        })().catch((e) => {
-            const cause = e instanceof Error ? e.message : String(e);
-            console.warn(
-                `[RESURRECT] Follow-up trigger failed (${agentEngineUrl}). ` +
-                    "Is the agent engine running (e.g. uvicorn on 8001)? " +
-                    cause
-            );
-        });
+        // RESTART path: rejected job had its envelope wiped — create a fresh
+        // envelope + queue entry so the runtime-worker can pick it up.
+        if (!result.execution_id && result.prompt && result.user_id) {
+            await dispatch({
+                prompt: result.prompt,
+                userId: result.user_id,
+                jobId,
+                agentId: result.requested_agent_id || "agent_coo",
+            });
+        }
 
         return NextResponse.json(result);
 

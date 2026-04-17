@@ -411,6 +411,84 @@ export const workflowEngine = {
 
         await jobRef.update(updates);
 
+        // ── Reset envelope so the Python runtime loop can re-enter ───────────────
+        // BUG FIX: Without this, the Python engine sees a "failed" or mid-crash
+        // envelope and immediately aborts. Steps stuck in "executing" are skipped
+        // by get_next_ready_step (which only looks for "ready").
+        const envelopeId = isRejected
+            ? null
+            : ((jobData.execution_id as string | undefined) ||
+               (jobData.envelope_id as string | undefined) ||
+               null);
+
+        if (envelopeId) {
+            try {
+                const envRef = db.collection("execution_envelopes").doc(envelopeId);
+                const envDoc = await envRef.get();
+                if (envDoc.exists) {
+                    const envData = envDoc.data()!;
+
+                    // Reset the crash-point step back to "ready" so the worker
+                    // can pick it up. Two cases need handling:
+                    //   "executing" — server died mid-flight (step never finished)
+                    //   "failed"    — step ran but threw (ECONNREFUSED when
+                    //                 agent-engine was down, LLM timeout, etc.)
+                    // Completed steps are always preserved — never re-run them.
+                    const steps: any[] = envData.steps || [];
+                    const resetSteps = steps.map((s: any) => {
+                        if (s.status === "executing" || s.status === "failed") {
+                            return { ...s, status: "ready" };
+                        }
+                        return s;
+                    });
+
+                    await envRef.update({
+                        // Reset envelope status to "created" so _safe_transition
+                        // can move it through leased → executing cleanly.
+                        status: "created",
+                        // Clear stale / expired lease so acquire_envelope_lease
+                        // can issue a fresh one without fork-detection triggering.
+                        authority_lease: null,
+                        // Also clear authority_leases (TypeScript parallel-runner format)
+                        authority_leases: {},
+                        steps: resetSteps,
+                        updated_at: now,
+                    });
+                }
+
+                // ── BUG FIX #4: Reset the execution_queue entry ──────────────
+                // After a crash, the worker calls finalizeQueueEntry("failed"),
+                // setting execution_queue status to "failed".
+                // claimNextEnvelope's terminal guard treats a "failed" envelope
+                // as permanently dead and the worker NEVER picks it up again.
+                // We must requeue it so the worker poll loop can claim it.
+                const queueRef = db.collection("execution_queue").doc(envelopeId);
+                const queueDoc = await queueRef.get();
+                if (queueDoc.exists) {
+                    await queueRef.update({
+                        status: "queued",
+                        claimed_by: null,
+                        claimed_at: null,
+                        error: null,
+                        finalized_at: null,
+                        updated_at: now,
+                    });
+                } else {
+                    // Queue entry may not exist if the job was handled differently —
+                    // create it fresh so the worker can pick it up.
+                    await queueRef.set({
+                        envelope_id: envelopeId,
+                        status: "queued",
+                        created_at: now,
+                        updated_at: now,
+                    });
+                }
+            } catch (envErr: any) {
+                // Non-fatal: log and continue.
+                console.warn("[RESURRECT] Envelope/queue reset failed:", envErr.message);
+            }
+        }
+
         await db.collection("job_traces").add({
             job_id: input.job_id,
             user_id: jobData.user_id,
