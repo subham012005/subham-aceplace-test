@@ -13,20 +13,20 @@
  * Phase 2 | Deterministic Runtime Architecture
  */
 
+import { loadEnvConfig } from "@next/env";
+loadEnvConfig(process.cwd());
+
 import { randomUUID } from "crypto";
 import * as admin from "firebase-admin";
 
-import { 
-  getDb, 
-  STALE_CLAIM_THRESHOLD_MS, 
+import {
+  getDb,
+  STALE_CLAIM_THRESHOLD_MS,
   COLLECTIONS,
   claimNextEnvelope,
   finalizeQueueEntry,
   type ExecutionEnvelope
 } from "@aceplace/runtime-core";
-
-import { loadEnvConfig } from "@next/env";
-loadEnvConfig(process.cwd());
 
 // ── Firebase init (standalone — no Next.js) ───────────────────────────────────
 let _app: admin.app.App;

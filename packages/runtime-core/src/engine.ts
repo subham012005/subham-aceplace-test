@@ -20,10 +20,8 @@ import { CANONICAL_AGENTS } from "./constants/agents";
 import { sha256 } from "./hash";
 
 
-const AGENT_ENGINE_URL = process.env.AGENT_ENGINE_URL || "http://localhost:8001";
-
 /**
- * Dispatch a new task — creates an envelope and starts the runtime loop.
+ * Dispatch a new task — creates an envelope and enqueues it for the runtime-worker.
  */
 export async function dispatch(params: {
   prompt: string;

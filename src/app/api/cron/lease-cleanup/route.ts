@@ -72,8 +72,67 @@ export async function GET(req: Request) {
       }
     }
 
+    // 3. Detect orphaned queue entries — queued but never claimed (no worker running)
+    const ORPHAN_THRESHOLD_MS = 120_000; // 2 minutes
+    const orphanCutoff = new Date(now.getTime() - ORPHAN_THRESHOLD_MS).toISOString();
+    let orphanedCount = 0;
+
+    const orphanedEntries = await db
+      .collection(COLLECTIONS.EXECUTION_QUEUE)
+      .where("status", "==", "queued")
+      .where("created_at", "<", orphanCutoff)
+      .limit(50)
+      .get();
+
+    for (const qDoc of orphanedEntries.docs) {
+      const qData = qDoc.data();
+      const envId = qData.envelope_id;
+      if (!envId) continue;
+
+      try {
+        const envRef = db.collection(COLLECTIONS.EXECUTION_ENVELOPES).doc(envId);
+        const envSnap = await envRef.get();
+        if (!envSnap.exists) continue;
+
+        const envData = envSnap.data() as ExecutionEnvelope;
+        const preExecution = ["created", "planned", "queued"];
+        if (!preExecution.includes(envData.status)) continue;
+
+        await transition(envId, "failed", {
+          reason: "NO_WORKER_AVAILABLE: No runtime worker claimed this job within the timeout window.",
+        });
+        await addTrace(envId, "", "cron", "", "ORPHAN_QUEUE_FAILURE", {
+          reason: "No runtime-worker process is running to execute this job.",
+          queued_at: qData.created_at,
+        });
+
+        await qDoc.ref.update({
+          status: "failed",
+          error: "NO_WORKER_AVAILABLE",
+          finalized_at: new Date().toISOString(),
+        });
+
+        // Sync the job doc so the dashboard shows "failed"
+        const jobId = envData.job_id || (envData as any).root_task_id;
+        if (jobId) {
+          await db.collection(COLLECTIONS.JOBS).doc(jobId).update({
+            status: "failed",
+            failure_reason: "No runtime worker is running. Start the worker with 'npm run worker' and use Continuity Restore.",
+            updated_at: new Date().toISOString(),
+          }).catch(() => {});
+        }
+
+        orphanedCount++;
+      } catch (err) {
+        console.error(
+          `[CRON] Failed to expire orphaned queue entry ${envId}:`,
+          err instanceof Error ? err.message : "UNKNOWN"
+        );
+      }
+    }
+
     console.log(
-      `[CRON] Cleanup done. Expired=${failedCount}, Active=${cleanCount}, MultiRecovered=${multiRecovered}`
+      `[CRON] Cleanup done. Expired=${failedCount}, Active=${cleanCount}, MultiRecovered=${multiRecovered}, Orphaned=${orphanedCount}`
     );
 
     return secureJson({
@@ -81,6 +140,7 @@ export async function GET(req: Request) {
       expired_envelopes: failedCount,
       active_leases: cleanCount,
       multi_agent_steps_recovered: multiRecovered,
+      orphaned_queue_entries: orphanedCount,
     });
   } catch (error) {
     console.error("[CRON] Lease cleanup error:", error instanceof Error ? error.message : String(error));

@@ -62,10 +62,24 @@ def run_envelope(envelope_id: str, instance_id: str) -> None:
         print(f"[RUNTIME] Envelope {envelope_id} not found. Aborting.")
         return
 
-    terminal = {"approved", "rejected", "failed", "quarantined"}
-    if envelope.get("status") in terminal:
-        print(f"[RUNTIME] Envelope {envelope_id} is terminal ({envelope['status']}). Skipping.")
+    # Operator-decided terminal states — do NOT re-enter these.
+    # NOTE: "failed" is intentionally excluded here. After a server crash the
+    # envelope may be left in "failed", but the resurrect route resets it to
+    # "created" before calling /execute. If for any reason the reset didn't
+    # happen, we log a warning but still attempt re-entry so the job isn't
+    # silently dropped.
+    hard_terminal = {"approved", "rejected", "quarantined"}
+    current_status = envelope.get("status", "")
+    if current_status in hard_terminal:
+        print(f"[RUNTIME] Envelope {envelope_id} is in hard-terminal state ({current_status}). Skipping.")
         return
+    if current_status == "failed":
+        print(f"[RUNTIME] Envelope {envelope_id} status is 'failed' (likely a crash artifact). "
+              f"Attempting resume — resetting status to 'created'.")
+        update_envelope(envelope_id, {"status": "created"})
+        envelope = get_envelope(envelope_id)
+        if not envelope:
+            return
 
     # ── Step 2: Verify Identity ────────────────────────────────────────────────
     if not verify_identity(envelope):

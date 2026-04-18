@@ -191,10 +191,26 @@ export const workflowEngine = {
                 throw new Error("UNAUTHORIZED");
             }
 
-            // Accept any status that can reasonably have grading data:
-            const validStates = ["AWAITING_APPROVAL", "GRADED", "GRADING", "EXECUTING", "COMPLETED", "IN_PROGRESS", "AWAITING_HUMAN"];
-            if (!validStates.includes(String(jobData.status).toUpperCase())) {
+            // Accept any status that can reasonably have grading data.
+            // Job status may lag behind envelope status (e.g. after resurrect),
+            // so also check the envelope as source of truth.
+            const validStates = ["AWAITING_APPROVAL", "GRADED", "GRADING", "EXECUTING", "COMPLETED", "IN_PROGRESS", "AWAITING_HUMAN", "QUEUED", "CREATED"];
+            const jobStatus = String(jobData.status).toUpperCase();
+            if (!validStates.includes(jobStatus)) {
                 throw new Error(`INVALID_STATE: Approval not allowed in state '${jobData.status}'. Requires AWAITING_APPROVAL or AWAITING_HUMAN.`);
+            }
+            // For out-of-sync states, verify the envelope is actually ready for approval
+            if (["QUEUED", "CREATED"].includes(jobStatus)) {
+                const envelopeId = jobData.execution_id || jobData.envelope_id;
+                if (envelopeId) {
+                    const envDoc = await db.collection("execution_envelopes").doc(envelopeId).get();
+                    if (envDoc.exists) {
+                        const envStatus = String(envDoc.data()?.status || "").toUpperCase();
+                        if (!["AWAITING_HUMAN", "COMPLETED", "AWAITING_APPROVAL"].includes(envStatus)) {
+                            throw new Error(`INVALID_STATE: Job status is '${jobData.status}' and envelope is '${envStatus}'. Requires envelope in AWAITING_HUMAN.`);
+                        }
+                    }
+                }
             }
 
             await doc.ref.update({
@@ -286,9 +302,22 @@ export const workflowEngine = {
             }
 
             // Accept any status that can reasonably have grading data
-            const validStates = ["AWAITING_APPROVAL", "GRADED", "GRADING", "EXECUTING", "COMPLETED", "IN_PROGRESS", "AWAITING_HUMAN"];
-            if (!validStates.includes(String(jobData.status).toUpperCase())) {
+            const validStates = ["AWAITING_APPROVAL", "GRADED", "GRADING", "EXECUTING", "COMPLETED", "IN_PROGRESS", "AWAITING_HUMAN", "QUEUED", "CREATED"];
+            const rJobStatus = String(jobData.status).toUpperCase();
+            if (!validStates.includes(rJobStatus)) {
                 throw new Error(`INVALID_STATE: Rejection not allowed in state '${jobData.status}'. Requires AWAITING_APPROVAL or AWAITING_HUMAN.`);
+            }
+            if (["QUEUED", "CREATED"].includes(rJobStatus)) {
+                const rEnvelopeId = jobData.execution_id || jobData.envelope_id;
+                if (rEnvelopeId) {
+                    const rEnvDoc = await db.collection("execution_envelopes").doc(rEnvelopeId).get();
+                    if (rEnvDoc.exists) {
+                        const rEnvStatus = String(rEnvDoc.data()?.status || "").toUpperCase();
+                        if (!["AWAITING_HUMAN", "COMPLETED", "AWAITING_APPROVAL"].includes(rEnvStatus)) {
+                            throw new Error(`INVALID_STATE: Job status is '${jobData.status}' and envelope is '${rEnvStatus}'. Requires envelope in AWAITING_HUMAN.`);
+                        }
+                    }
+                }
             }
 
             await jobRef.update({
@@ -410,6 +439,81 @@ export const workflowEngine = {
         }
 
         await jobRef.update(updates);
+
+        // ── Reset envelope so the Python runtime loop can re-enter ───────────────
+        // BUG FIX: Without this, the Python engine sees a "failed" or mid-crash
+        // envelope and immediately aborts. Steps stuck in "executing" are skipped
+        // by get_next_ready_step (which only looks for "ready").
+        const envelopeId = isRejected
+            ? null
+            : ((jobData.execution_id as string | undefined) ||
+               (jobData.envelope_id as string | undefined) ||
+               null);
+
+        if (envelopeId) {
+            try {
+                const envRef = db.collection("execution_envelopes").doc(envelopeId);
+                const envDoc = await envRef.get();
+                if (envDoc.exists) {
+                    const envData = envDoc.data()!;
+
+                    // Reset the crash-point step back to "ready" so the worker
+                    // can pick it up. Two cases need handling:
+                    //   "executing" — server died mid-flight (step never finished)
+                    //   "failed"    — step ran but threw (ECONNREFUSED when
+                    //                 agent-engine was down, LLM timeout, etc.)
+                    // Completed steps are always preserved — never re-run them.
+                    const steps: any[] = envData.steps || [];
+                    const resetSteps = steps.map((s: any) => {
+                        if (s.status === "executing" || s.status === "failed") {
+                            return { ...s, status: "ready" };
+                        }
+                        return s;
+                    });
+
+                    const envResurrectionCount = Number(envData.resurrection_count || 0);
+                    await envRef.update({
+                        status: "created",
+                        authority_lease: null,
+                        authority_leases: {},
+                        resurrection_count: envResurrectionCount + 1,
+                        steps: resetSteps,
+                        updated_at: now,
+                    });
+                }
+
+                // ── BUG FIX #4: Reset the execution_queue entry ──────────────
+                // After a crash, the worker calls finalizeQueueEntry("failed"),
+                // setting execution_queue status to "failed".
+                // claimNextEnvelope's terminal guard treats a "failed" envelope
+                // as permanently dead and the worker NEVER picks it up again.
+                // We must requeue it so the worker poll loop can claim it.
+                const queueRef = db.collection("execution_queue").doc(envelopeId);
+                const queueDoc = await queueRef.get();
+                if (queueDoc.exists) {
+                    await queueRef.update({
+                        status: "queued",
+                        claimed_by: null,
+                        claimed_at: null,
+                        error: null,
+                        finalized_at: null,
+                        updated_at: now,
+                    });
+                } else {
+                    // Queue entry may not exist if the job was handled differently —
+                    // create it fresh so the worker can pick it up.
+                    await queueRef.set({
+                        envelope_id: envelopeId,
+                        status: "queued",
+                        created_at: now,
+                        updated_at: now,
+                    });
+                }
+            } catch (envErr: any) {
+                // Non-fatal: log and continue.
+                console.warn("[RESURRECT] Envelope/queue reset failed:", envErr.message);
+            }
+        }
 
         await db.collection("job_traces").add({
             job_id: input.job_id,

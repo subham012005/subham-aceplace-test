@@ -226,8 +226,9 @@ export default function DashboardPage() {
         );
 
         const terminalStates = ['approved', 'rejected', 'failed', 'completed', 'quarantined'];
+        const preExecutionStates = ['queued', 'created'];
 
-        if (hasGradingData && !terminalStates.includes(rawStatus)) return 'graded';
+        if (hasGradingData && !terminalStates.includes(rawStatus) && !preExecutionStates.includes(rawStatus)) return 'graded';
 
         if (rawStatus === 'executing') {
             if (hasGradingData) return 'graded';
@@ -268,7 +269,7 @@ export default function DashboardPage() {
             totalEstTokens += steps.filter((s: any) => s.status === 'completed').length * 2400; // Approx 2400 context/completion tokens per agent phase.
         });
 
-        const resurrections = jobs.filter(j => j.status === "resurrected" || j.resurrection_reason).length;
+        const resurrections = jobs.reduce((acc, j) => acc + (Number(j.resurrection_count) || 0), 0);
         const gradedJobs = jobs.filter(j => typeof j.grade_score === 'number');
         const avgPass = gradedJobs.length > 0
             ? Math.round(gradedJobs.reduce((acc, j) => acc + (j.grade_score || 0), 0) / gradedJobs.length)
@@ -277,15 +278,13 @@ export default function DashboardPage() {
         const completedCount = jobs.filter(j => ["completed", "graded", "approved"].includes(deriveHomeStatus(j))).length;
         const failedCount = jobs.filter(j => ["rejected", "failed"].includes(deriveHomeStatus(j))).length;
 
-        let tokens = jobs.reduce((acc, j) => {
+        const tokens = jobs.reduce((acc, j) => {
             const tu = j.token_usage as any;
             const jTokens = tu?.total_tokens ?? (typeof tu === 'number' ? tu : null) ?? j.runtime_context?.token_usage?.total_tokens;
             return acc + (jTokens ? Number(jTokens) : 0);
         }, 0);
 
-        if (tokens === 0) tokens = totalEstTokens;
-
-        let cost = jobs.reduce((acc, j) => {
+        const cost = jobs.reduce((acc, j) => {
             const tu = j.token_usage as any;
             const explicitCost = tu?.cost ?? j.runtime_context?.token_usage?.cost ?? j.cost;
             if (explicitCost !== undefined && explicitCost !== null) {
@@ -293,8 +292,6 @@ export default function DashboardPage() {
             }
             return acc;
         }, 0);
-
-        if (cost === 0) cost = (tokens / 1000) * 0.002;
 
         return {
             totalTokens: tokens,
@@ -900,12 +897,11 @@ export default function DashboardPage() {
                                 <thead className="sticky top-0 bg-black/80 z-20">
                                     <tr className="border-b border-white/10">
                                         <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500">Project ID</th>
-                                        <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500">Nexus ID</th>
-                                        <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500">Fingerprint</th>
+                                        <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500">Envelope ID</th>
                                         <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500">Role</th>
                                         <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500">Task</th>
                                         <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500">Status</th>
-                                        <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500 text-cyan-500/80">Compliance</th>
+                                        <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500 text-cyan-500/80">Grader Score</th>
                                         <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500">Timestamp</th>
                                     </tr>
                                 </thead>
@@ -913,11 +909,10 @@ export default function DashboardPage() {
                                     {isJobsSyncing ? (
                                         Array.from({ length: 6 }).map((_, i) => (
                                             <tr key={i} className="border-b border-cyan-500/10 bg-cyan-950/5 relative overflow-hidden">
-                                                <td colSpan={8} className="p-0">
+                                                <td colSpan={7} className="p-0">
                                                     <div className="flex items-center px-4 py-3 gap-4">
                                                         <div className="w-12 h-2 bg-cyan-500/20 rounded animate-pulse" />
-                                                        <div className="w-12 h-2 bg-cyan-500/20 rounded animate-pulse" />
-                                                        <div className="w-16 h-2 bg-cyan-500/20 rounded animate-pulse" />
+                                                        <div className="w-24 h-2 bg-cyan-500/20 rounded animate-pulse" />
                                                         <div className="w-16 h-2 bg-cyan-500/20 rounded animate-pulse" />
                                                         <div className="flex-1 h-2 bg-cyan-500/10 rounded animate-pulse" />
                                                         <div className="w-12 h-4 border border-cyan-500/20 bg-cyan-500/5 rounded animate-pulse" />
@@ -939,10 +934,7 @@ export default function DashboardPage() {
                                                 {(job.job_id || job.id || "").slice(-6)}
                                             </td>
                                             <td className="py-3 text-[10px] font-mono text-purple-400/80 tracking-tighter">
-                                                {(job.execution_id || job.id || "").slice(-6)}
-                                            </td>
-                                            <td className="py-3 text-[10px] font-mono text-slate-500/80 tracking-tighter">
-                                                {(job.identity_fingerprint || job.agent_id || "").slice(-8) || "N/A"}
+                                                {job.execution_id || job.envelope_id || "--"}
                                             </td>
                                             <td className="py-3 text-[10px] font-black text-slate-400 tracking-widest uppercase">
                                                 {job.agent_role || job.job_type || "CORE"}
@@ -960,10 +952,17 @@ export default function DashboardPage() {
                                             </td>
                                             <td className="py-3">
                                                 {(() => {
-                                                    const govScoreRaw = job?.runtime_context?.grading_result?.compliance_score ??
-                                                        job?.runtime_context?.grading_result?.score ??
-                                                        job?.grading_result?.compliance_score ??
-                                                        job?.grading_result?.score ??
+                                                    // Parse grading_result — may be object, stringified JSON, or nested
+                                                    let gr = job?.grading_result;
+                                                    if (typeof gr === 'string') { try { gr = JSON.parse(gr); } catch { gr = null; } }
+                                                    let rtGr = job?.runtime_context?.grading_result;
+                                                    if (typeof rtGr === 'string') { try { rtGr = JSON.parse(rtGr); } catch { rtGr = null; } }
+
+                                                    const govScoreRaw = gr?.overall_score ??
+                                                        rtGr?.overall_score ??
+                                                        gr?.score ??
+                                                        rtGr?.score ??
+                                                        gr?.compliance_score ??
                                                         job?.compliance_score ??
                                                         job?.grade_score ??
                                                         job?.grader_params?.score;
@@ -975,12 +974,14 @@ export default function DashboardPage() {
                                                     let score = typeof govScoreRaw === 'object' ? (govScoreRaw.value || 0) : Number(govScoreRaw);
                                                     if (score <= 10 && score > 0) score = score * 10;
 
+                                                    const gradeLabel = gr?.grade || (score >= 90 ? "A" : score >= 80 ? "B" : score >= 70 ? "C" : score >= 60 ? "D" : "F");
+
                                                     return (
                                                         <span className={cn(
-                                                            "text-[10px] font-black italic tracking-tighter",
-                                                            score >= 70 ? "text-emerald-500" : "text-rose-500"
+                                                            "text-[10px] font-black tracking-tighter",
+                                                            score >= 70 ? "text-emerald-500" : score >= 50 ? "text-amber-500" : "text-rose-500"
                                                         )}>
-                                                            {Math.round(score)}%
+                                                            {Math.round(score)}/100 <span className="text-[8px] opacity-70">({gradeLabel})</span>
                                                         </span>
                                                     );
                                                 })()}
@@ -994,7 +995,7 @@ export default function DashboardPage() {
                                         </tr>
                                     )) : (
                                         <tr key="empty-logs">
-                                            <td colSpan={6} className="py-12 text-center text-[9px] uppercase font-black tracking-[0.3em] text-slate-600 italic">
+                                            <td colSpan={7} className="py-12 text-center text-[9px] uppercase font-black tracking-[0.3em] text-slate-600 italic">
                                                 Trace logs empty. Initialize dimensionality.
                                             </td>
                                         </tr>
@@ -1083,12 +1084,12 @@ export default function DashboardPage() {
                         <div className="space-y-4 pt-5">
                             <div className="flex justify-between items-end">
                                 <span className="text-[9px] uppercase font-black tracking-widest text-slate-500">Total Compute Node</span>
-                                <span className="text-sm font-black text-white italic">{isJobsSyncing ? "--" : realStats.totalAgents} <span className="text-slate-700">/ 100</span></span>
+                                <span className="text-sm font-black text-white italic">{isJobsSyncing ? "--" : realStats.totalRequests} <span className="text-slate-700">/ 100</span></span>
                             </div>
                             <div className="h-1 bg-white/5 border border-white/5 relative overflow-hidden">
                                 <div
                                     className="absolute inset-y-0 left-0 bg-cyan-500 shadow-[0_0_10px_#06b6d4] transition-all duration-500"
-                                    style={{ width: `${isJobsSyncing ? 0 : Math.min(100, (realStats.totalAgents / 100) * 100)}%` }}
+                                    style={{ width: `${isJobsSyncing ? 0 : Math.min(100, (realStats.totalRequests / 100) * 100)}%` }}
                                 />
                             </div>
 
@@ -1100,12 +1101,12 @@ export default function DashboardPage() {
                                             key={i}
                                             className={cn(
                                                 "w-[4px] md:w-[6px] h-3 transition-colors duration-500",
-                                                !isJobsSyncing && i < (realStats.activeAgents / Math.max(1, realStats.totalAgents)) * 15 ? (i < 10 ? "bg-cyan-500 shadow-[0_0_5px_#06b6d2]" : "bg-emerald-500 shadow-[0_0_5px_#10b981]") : "bg-white/5"
+                                                !isJobsSyncing && i < (realStats.activeAgents / Math.max(1, realStats.totalRequests)) * 15 ? (i < 10 ? "bg-cyan-500 shadow-[0_0_5px_#06b6d2]" : "bg-emerald-500 shadow-[0_0_5px_#10b981]") : "bg-white/5"
                                             )}
                                         />
                                     ))}
                                     <span className="text-[9px] md:text-[10px] font-black text-white ml-2 tracking-tighter self-center whitespace-nowrap">
-                                        {isJobsSyncing ? "-- / --" : `${realStats.activeAgents} / ${realStats.totalAgents}`}
+                                        {isJobsSyncing ? "-- / --" : `${realStats.activeAgents} / ${realStats.totalRequests}`}
                                     </span>
                                 </div>
                             </div>

@@ -56,7 +56,7 @@ export interface Job {
     agent_role?: string;
     model_provider?: string;
     model_used?: string;
-    token_usage?: number;
+    token_usage?: number | { total_tokens?: number; input_tokens?: number; output_tokens?: number; cost?: number };
     cost?: number;
     retry_count?: number;
     last_retry_at?: string;
@@ -77,6 +77,7 @@ export interface Job {
         reasoning_summary: string;
     };
     // Continuity Restore
+    resurrection_count?: number;
     resurrection_reason?: string;
     resurrected_by?: string;
     resurrected_at?: string;
@@ -352,6 +353,7 @@ export function useJob(jobId: string | null, userId: string | undefined, onUpdat
             const updated = new Date(job.updated_at).getTime();
             const now = Date.now();
             const ACTIVE_STATUSES = [
+                "created",
                 "queued",
                 "in_progress",
                 "executing",
@@ -364,8 +366,11 @@ export function useJob(jobId: string | null, userId: string | undefined, onUpdat
 
             const status = String(job.status || "").toLowerCase();
 
-            // If active and no update for > 300s (5m), consider it stalled
-            const timeout = 300000; // 5 minutes
+            // "created"/"queued" with no worker means nothing will ever pick it up —
+            // flag quickly (60s). Active execution statuses get a longer window (5m)
+            // since LLM calls legitimately take time.
+            const PRE_EXECUTION = ["created", "queued"];
+            const timeout = PRE_EXECUTION.includes(status) ? 60_000 : 300_000;
             if (ACTIVE_STATUSES.includes(status) && (now - updated) > timeout) {
                 setIsStalled(true);
             } else {

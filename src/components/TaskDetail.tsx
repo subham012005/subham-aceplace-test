@@ -424,11 +424,11 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                     </div>
                                     <div className="space-y-1">
                                         <p className="text-[8px] uppercase font-black tracking-widest text-slate-500">Compute Cost</p>
-                                        <p className="text-xs font-mono text-emerald-500">${Number(displayJob.cost || 0).toFixed(6)}</p>
+                                        <p className="text-xs font-mono text-emerald-500">${Number((typeof displayJob.token_usage === 'object' ? displayJob.token_usage?.cost : null) ?? displayJob.cost ?? 0).toFixed(6)}</p>
                                     </div>
                                     <div className="space-y-1">
                                         <p className="text-[8px] uppercase font-black tracking-widest text-slate-500">Token Usage</p>
-                                        <p className="text-xs font-mono text-slate-400">{Number(displayJob.token_usage || 0).toLocaleString()}</p>
+                                        <p className="text-xs font-mono text-slate-400">{Number(typeof displayJob.token_usage === 'object' ? displayJob.token_usage?.total_tokens ?? 0 : displayJob.token_usage ?? 0).toLocaleString()}</p>
                                     </div>
                                     <div className="space-y-1">
                                         <p className="text-[8px] uppercase font-black tracking-widest text-slate-500">Dimensional ID</p>

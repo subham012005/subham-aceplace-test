@@ -408,6 +408,14 @@ export default function JobDetailsPage() {
         }
     };
 
+    const isAgentEngineFailure = (() => {
+        const reason = String(job?.failure_reason || "").toLowerCase();
+        return reason.includes("econnrefused") ||
+               reason.includes("agent engine") ||
+               reason.includes("fetch failed") ||
+               reason.includes("no_worker_available");
+    })();
+
     const handleApprove = async () => {
         if (!user || actionLoading) return;
         setActionLoading(true);
@@ -534,31 +542,72 @@ export default function JobDetailsPage() {
                 </div>
 
                 {/* ── CRASH / STALL ALERT BANNER ─────────────────────────── */}
-                {isStalled && !['graded', 'awaiting_approval', 'approved', 'completed'].includes(derivedStatus) && (
-                    <div className="relative overflow-hidden border border-amber-500/60 bg-amber-500/5 animate-pulse-slow">
-                        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-400 to-transparent" />
+                {isStalled && !['graded', 'awaiting_approval', 'approved', 'completed'].includes(derivedStatus) && (() => {
+                    const jobStatus = String(job?.status || "").toLowerCase();
+                    const isNoWorker = ["created", "queued"].includes(jobStatus);
+                    return (
+                    <div className={cn(
+                        "relative overflow-hidden animate-pulse-slow",
+                        isNoWorker
+                            ? "border border-rose-500/60 bg-rose-500/5"
+                            : "border border-amber-500/60 bg-amber-500/5"
+                    )}>
+                        <div className={cn(
+                            "absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent to-transparent",
+                            isNoWorker ? "via-rose-400" : "via-amber-400"
+                        )} />
                         <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-red-500/50 to-transparent" />
 
                         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-4 sm:p-6">
                             <div className="flex items-start gap-4">
                                 <div className="relative shrink-0">
-                                    <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/40 flex items-center justify-center">
-                                        <div className="absolute inset-0 rounded-full animate-ping opacity-30 bg-amber-400" />
-                                        <Zap className="w-5 h-5 text-amber-400 relative z-10" />
+                                    <div className={cn(
+                                        "w-12 h-12 rounded-full border flex items-center justify-center",
+                                        isNoWorker
+                                            ? "bg-rose-500/10 border-rose-500/40"
+                                            : "bg-amber-500/10 border-amber-500/40"
+                                    )}>
+                                        <div className={cn(
+                                            "absolute inset-0 rounded-full animate-ping opacity-30",
+                                            isNoWorker ? "bg-rose-400" : "bg-amber-400"
+                                        )} />
+                                        <Zap className={cn(
+                                            "w-5 h-5 relative z-10",
+                                            isNoWorker ? "text-rose-400" : "text-amber-400"
+                                        )} />
                                     </div>
                                 </div>
                                 <div className="space-y-1.5">
                                     <div className="flex flex-wrap items-center gap-2">
-                                        <span className="text-xs font-black text-amber-400 uppercase tracking-[0.3em]">⚡ SERVER CRASH DETECTED</span>
-                                        <span className="px-2 py-0.5 bg-red-500/20 border border-red-500/40 text-red-400 text-[9px] font-black uppercase tracking-widest scifi-clip">
-                                            PIPELINE STALLED
-                                        </span>
+                                        {isNoWorker ? (
+                                            <>
+                                                <span className="text-xs font-black text-rose-400 uppercase tracking-[0.3em]">RUNTIME WORKER OFFLINE</span>
+                                                <span className="px-2 py-0.5 bg-rose-500/20 border border-rose-500/40 text-rose-400 text-[9px] font-black uppercase tracking-widest scifi-clip">
+                                                    NO EXECUTOR
+                                                </span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <span className="text-xs font-black text-amber-400 uppercase tracking-[0.3em]">SERVER CRASH DETECTED</span>
+                                                <span className="px-2 py-0.5 bg-red-500/20 border border-red-500/40 text-red-400 text-[9px] font-black uppercase tracking-widest scifi-clip">
+                                                    PIPELINE STALLED
+                                                </span>
+                                            </>
+                                        )}
                                     </div>
-                                    <p className="text-slate-300 text-sm leading-relaxed max-w-xl">
-                                        The agent-engine process stopped responding during job execution. No updates have been received for{" "}
-                                        <span className="text-amber-400 font-bold font-mono">{staleSinceSeconds}s</span>.
-                                        The job can be restored from its last safe checkpoint.
-                                    </p>
+                                    {isNoWorker ? (
+                                        <p className="text-slate-300 text-sm leading-relaxed max-w-xl">
+                                            No runtime worker is running to execute this job. Start the worker
+                                            process with <code className="px-1.5 py-0.5 bg-slate-800 border border-slate-700 text-rose-300 font-mono text-xs rounded">npm run worker</code> and
+                                            then restore continuity.
+                                        </p>
+                                    ) : (
+                                        <p className="text-slate-300 text-sm leading-relaxed max-w-xl">
+                                            The runtime worker stopped responding during job execution. No updates have been received for{" "}
+                                            <span className="text-amber-400 font-bold font-mono">{staleSinceSeconds}s</span>.
+                                            The job can be restored from its last safe checkpoint.
+                                        </p>
+                                    )}
                                     <div className="flex items-center gap-3 pt-1">
                                         <div className="flex items-center gap-1.5">
                                             <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
@@ -573,11 +622,65 @@ export default function JobDetailsPage() {
                             <div className="shrink-0 flex flex-col gap-2 w-full md:w-auto">
                                 <button
                                     onClick={handleResurrect}
-                                    disabled={actionLoading}
-                                    className="px-6 py-3 bg-amber-500/10 border border-amber-500/50 text-amber-400 font-black uppercase tracking-widest hover:bg-amber-500/20 transition-all scifi-clip flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_20px_rgba(245,158,11,0.15)] w-full md:w-auto"
+                                    disabled={actionLoading || isNoWorker}
+                                    title={isNoWorker ? "Start the runtime worker first (npm run worker)" : undefined}
+                                    className={cn(
+                                        "px-6 py-3 font-black uppercase tracking-widest transition-all scifi-clip flex items-center justify-center gap-2 w-full md:w-auto",
+                                        isNoWorker
+                                            ? "bg-slate-800/50 border border-slate-600/50 text-slate-500 cursor-not-allowed"
+                                            : "bg-amber-500/10 border border-amber-500/50 text-amber-400 hover:bg-amber-500/20 cursor-pointer shadow-[0_0_20px_rgba(245,158,11,0.15)]"
+                                    )}
                                 >
                                     <RefreshCw className={cn("w-4 h-4", actionLoading && "animate-spin")} />
-                                    Continuity Restore
+                                    {isNoWorker ? "Worker Required" : "Continuity Restore"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    );
+                })()}
+
+                {/* ── AGENT ENGINE FAILURE BANNER ────────────────────────────────────── */}
+                {!isStalled && String(job?.status || "").toLowerCase() === "failed" && isAgentEngineFailure && (
+                    <div className="relative overflow-hidden border border-violet-500/60 bg-violet-500/5">
+                        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-violet-400 to-transparent" />
+                        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-violet-500/50 to-transparent" />
+
+                        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-4 sm:p-6">
+                            <div className="flex items-start gap-4">
+                                <div className="relative shrink-0">
+                                    <div className="w-12 h-12 rounded-full bg-violet-500/10 border border-violet-500/40 flex items-center justify-center">
+                                        <Zap className="w-5 h-5 text-violet-400 relative z-10" />
+                                    </div>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className="text-xs font-black text-violet-400 uppercase tracking-[0.3em]">AGENT ENGINE UNAVAILABLE</span>
+                                        <span className="px-2 py-0.5 bg-violet-500/20 border border-violet-500/40 text-violet-400 text-[9px] font-black uppercase tracking-widest scifi-clip">
+                                            AUTO-FALLBACK READY
+                                        </span>
+                                    </div>
+                                    <p className="text-slate-300 text-sm leading-relaxed max-w-xl">
+                                        The Python agent-engine at <code className="px-1.5 py-0.5 bg-slate-800 border border-slate-700 text-violet-300 font-mono text-xs rounded">localhost:8001</code> was
+                                        not reachable. Click <span className="text-cyan-400 font-bold">Restore Continuity</span> — the worker will
+                                        automatically use the built-in TypeScript LLM fallback if the engine is still unavailable.
+                                    </p>
+                                    {job?.failure_reason && (
+                                        <p className="text-[10px] text-slate-500 font-mono mt-1 truncate max-w-xl">
+                                            {String(job.failure_reason)}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="shrink-0 flex flex-col gap-2 w-full md:w-auto">
+                                <button
+                                    onClick={handleResurrect}
+                                    disabled={actionLoading}
+                                    className="px-6 py-3 bg-violet-500/10 border border-violet-500/50 text-violet-400 font-black uppercase tracking-widest hover:bg-violet-500/20 transition-all scifi-clip flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_20px_rgba(139,92,246,0.15)] w-full md:w-auto"
+                                >
+                                    <RefreshCw className={cn("w-4 h-4", actionLoading && "animate-spin")} />
+                                    Restore Continuity
                                 </button>
                             </div>
                         </div>
@@ -601,7 +704,7 @@ export default function JobDetailsPage() {
                                     <span className="text-xs font-black text-cyan-400 uppercase tracking-[0.3em]">⟳ CONTINUITY RESTORE TRIGGERED</span>
                                 </div>
                                 <p className="text-slate-300 text-sm leading-relaxed max-w-xl">
-                                    The agent engine has been signalled. The pipeline will resume momentarily.
+                                    Job has been re-queued. The runtime worker will pick it up on its next poll cycle.
                                 </p>
                             </div>
                         </div>
@@ -711,19 +814,22 @@ export default function JobDetailsPage() {
                             </div>
                         </HUDFrame>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-3 gap-4">
                             <div className="p-4 glass border border-white/5 space-y-2">
-                                <label className="text-[8px] font-black text-slate-600 uppercase tracking-widest block">Neural Strength</label>
-                                <div className="flex items-center gap-2">
-                                    <span className="font-mono text-xs text-emerald-400">98.4%</span>
-                                    <div className="flex-1 h-1 bg-white/5 overflow-hidden rounded-full">
-                                        <div className="h-full bg-emerald-500" style={{ width: '98.4%' }} />
-                                    </div>
-                                </div>
+                                <label className="text-[8px] font-black text-slate-600 uppercase tracking-widest block">Total Tokens</label>
+                                <p className="font-mono text-slate-300 font-bold">{Number(typeof job?.token_usage === 'object' ? job.token_usage?.total_tokens ?? 0 : job?.token_usage ?? 0).toLocaleString()}</p>
                             </div>
                             <div className="p-4 glass border border-white/5 space-y-2">
                                 <label className="text-[8px] font-black text-slate-600 uppercase tracking-widest block">Runtime Cost</label>
-                                <p className="font-mono text-cyan-400 font-bold">$0.0024</p>
+                                <p className="font-mono text-cyan-400 font-bold">${(Number((typeof job?.token_usage === 'object' ? job.token_usage?.cost : null) ?? job?.cost ?? 0)).toFixed(4)}</p>
+                            </div>
+                            <div className="p-4 glass border border-white/5 space-y-2">
+                                <label className="text-[8px] font-black text-slate-600 uppercase tracking-widest block">I/O Breakdown</label>
+                                <div className="flex gap-2 font-mono text-[10px]">
+                                    <span className="text-emerald-400">{Number(typeof job?.token_usage === 'object' ? job.token_usage?.input_tokens ?? 0 : 0).toLocaleString()} in</span>
+                                    <span className="text-slate-600">/</span>
+                                    <span className="text-amber-400">{Number(typeof job?.token_usage === 'object' ? job.token_usage?.output_tokens ?? 0 : 0).toLocaleString()} out</span>
+                                </div>
                             </div>
                         </div>
                     </div>

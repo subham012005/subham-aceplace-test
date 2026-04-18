@@ -123,6 +123,9 @@ export {
 } from "./runtime/guards";
 export { resolveAssignedAgentId } from "./runtime/resolution";
 
+// LLM Fallback (TypeScript-native agent execution)
+export { executeFallbackStep } from "./llm-fallback";
+
 // Types & constants
 export * from "./types";
 export * from "./constants";
