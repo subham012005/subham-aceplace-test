@@ -18,6 +18,7 @@ loadEnvConfig(process.cwd());
 
 import { randomUUID } from "crypto";
 import * as admin from "firebase-admin";
+import * as http from "http";
 
 import {
   getDb,
@@ -27,6 +28,21 @@ import {
   finalizeQueueEntry,
   type ExecutionEnvelope
 } from "@aceplace/runtime-core";
+
+// ── Status Server for Render Free Tier / UptimeRobot ──────────────────────────
+function startHealthCheckServer() {
+  const PORT = process.env.PORT || 3000;
+  const server = http.createServer((req, res) => {
+    res.writeHead(200, { "Content-Type": "text/plain" });
+    res.end("ACEPLACE Worker: Active\n");
+  });
+
+  server.listen(PORT, () => {
+    console.log(`[STATUS] Health check server listening on port ${PORT}`);
+  });
+
+  return server;
+}
 
 // ── Firebase init (standalone — no Next.js) ───────────────────────────────────
 let _app: admin.app.App;
@@ -56,6 +72,9 @@ export function sleep(ms: number): Promise<void> {
 
 // ── Main polling loop ─────────────────────────────────────────────────────────
 export async function runWorker(workerId: string = WORKER_ID) {
+  // Start health check server
+  const healthServer = startHealthCheckServer();
+
   const { runEnvelopeParallel } = await loadRuntime();
 
   console.log(`[WORKER:${workerId}] Polling ${EXECUTION_QUEUE_COLLECTION} every ${POLL_INTERVAL_MS}ms...`);
@@ -67,6 +86,10 @@ export async function runWorker(workerId: string = WORKER_ID) {
   const shutdown = async (signal: string) => {
     console.log(`\n[WORKER:${workerId}] Received ${signal} — shutting down gracefully...`);
     running = false;
+
+    // Close health check server
+    healthServer.close();
+
     if (activeEnvelopeId) {
        console.log(`[WORKER:${workerId}] Active envelope ${activeEnvelopeId} detected. Attempting to re-queue...`);
        try {
@@ -78,6 +101,7 @@ export async function runWorker(workerId: string = WORKER_ID) {
        }
     }
   };
+
 
   process.on("SIGINT", () => shutdown("SIGINT"));
   process.on("SIGTERM", () => shutdown("SIGTERM"));
