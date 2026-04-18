@@ -22,6 +22,12 @@ const AGENT_MODELS = {
   grader:     { provider: "anthropic" as const, model: "claude-haiku-4-5",    temperature: 0.1, maxTokens: 4096 },
 } as const;
 
+// Fallback OpenAI model to use when the primary Anthropic model is unavailable
+const ANTHROPIC_TO_OPENAI_FALLBACK: Record<string, string> = {
+  "claude-sonnet-4-6": "gpt-4o",
+  "claude-haiku-4-5":  "gpt-4o-mini",
+};
+
 // ── System Prompts (byte-identical to Python agent-engine) ───────────────────
 
 const COO_SYSTEM_PROMPT = `You are the Chief Orchestration Officer (COO) agent in the ACEPLACE Phase 2 runtime.
@@ -172,7 +178,7 @@ function getAnthropic(): Anthropic {
 function getOpenAI(): OpenAI {
   if (!_openai) {
     const key = process.env.OPENAI_API_KEY;
-    if (!key) throw new Error("FALLBACK_NO_API_KEY: OPENAI_API_KEY is not set. Cannot run fallback worker execution.");
+    if (!key) throw new Error("FALLBACK_NO_API_KEY: OPENAI_API_KEY is not set. Cannot run OpenAI fallback execution.");
     _openai = new OpenAI({ apiKey: key });
   }
   return _openai;
@@ -194,6 +200,7 @@ const PRICING: Record<string, { input: number; output: number }> = {
   "claude-sonnet-4-6":       { input: 3.0,  output: 15.0 },
   "claude-haiku-4-5":        { input: 0.8,  output: 4.0  },
   "gpt-4o":                  { input: 2.5,  output: 10.0 },
+  "gpt-4o-mini":             { input: 0.15, output: 0.60 },
 };
 
 function calculateCost(model: string, inputTokens: number, outputTokens: number): number {
@@ -272,6 +279,37 @@ async function callOpenAI(params: {
   };
 }
 
+// ── Provider Fallback Helper ─────────────────────────────────────────────────
+// Tries Anthropic first; on ANY error automatically retries with the mapped
+// OpenAI model. This ensures Anthropic quota/rate-limit errors never surface
+// as hard job failures when an OpenAI key is available.
+
+async function callWithAnthropicFallback(params: {
+  model: string;          // primary Anthropic model
+  systemPrompt: string;
+  userMessage: string;
+  temperature: number;
+  maxTokens: number;
+  agentLabel: string;     // used only for log messages
+}): Promise<LLMCallResult> {
+  try {
+    return await callAnthropic(params);
+  } catch (primaryErr) {
+    const fallbackModel = ANTHROPIC_TO_OPENAI_FALLBACK[params.model] ?? "gpt-4o";
+    console.warn(
+      `[FALLBACK:${params.agentLabel}] Anthropic (${params.model}) failed — ` +
+      `switching to OpenAI (${fallbackModel}): ${(primaryErr as Error).message}`
+    );
+    return await callOpenAI({
+      model: fallbackModel,
+      systemPrompt: params.systemPrompt,
+      userMessage: params.userMessage,
+      temperature: params.temperature,
+      maxTokens: params.maxTokens,
+    });
+  }
+}
+
 // ── JSON Parse Helper (mirrors Python _parse_json fallback) ──────────────────
 
 function safeParseJSON(raw: string): Record<string, unknown> {
@@ -320,12 +358,13 @@ async function executeCOO(prompt: string, envelopeId: string, agentId: string, f
   const cfg = AGENT_MODELS.coo;
   console.log(`[FALLBACK:COO] Calling ${cfg.model} for envelope ${envelopeId}`);
 
-  const { text, usage } = await callAnthropic({
+  const { text, usage } = await callWithAnthropicFallback({
     model: cfg.model,
     systemPrompt: COO_SYSTEM_PROMPT,
     userMessage: `User task:\n\n${prompt}\n\nCreate the execution plan.`,
     temperature: cfg.temperature,
     maxTokens: cfg.maxTokens,
+    agentLabel: "COO",
   });
 
   const result = safeParseJSON(text);
@@ -351,12 +390,13 @@ async function executeResearcher(
     if (planContent) planContext = `\n\nExecution Plan:\n${planContent}`;
   }
 
-  const { text, usage } = await callAnthropic({
+  const { text, usage } = await callWithAnthropicFallback({
     model: cfg.model,
     systemPrompt: RESEARCHER_SYSTEM_PROMPT,
     userMessage: `Task:\n\n${prompt}${planContext}\n\nProvide research findings.`,
     temperature: cfg.temperature,
     maxTokens: cfg.maxTokens,
+    agentLabel: "Researcher",
   });
 
   const result = safeParseJSON(text);
@@ -427,12 +467,13 @@ async function executeGrader(
     if (deliverableContent) deliverableContext = `\n\nDeliverable to evaluate:\n${deliverableContent}`;
   }
 
-  const { text, usage } = await callAnthropic({
+  const { text, usage } = await callWithAnthropicFallback({
     model: cfg.model,
     systemPrompt: GRADER_SYSTEM_PROMPT,
     userMessage: `Original task:\n\n${prompt}${deliverableContext}\n\nEvaluate the deliverable.`,
     temperature: cfg.temperature,
     maxTokens: cfg.maxTokens,
+    agentLabel: "Grader",
   });
 
   const result = safeParseJSON(text);
