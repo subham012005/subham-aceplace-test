@@ -4,7 +4,7 @@
  * Replicates the Python agent-engine node logic (coo, researcher, worker, grader)
  * so the runtime-worker can execute jobs when the Python process is unavailable.
  *
- * Activated when envelope.execution_mode === "fallback".
+ * Activated automatically when the Python agent-engine is unreachable.
  */
 
 import Anthropic from "@anthropic-ai/sdk";
@@ -178,7 +178,35 @@ function getOpenAI(): OpenAI {
   return _openai;
 }
 
+// ── Usage Tracking ───────────────────────────────────────────────────────────
+
+export interface LLMUsage {
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  model: string;
+  provider: "anthropic" | "openai";
+  cost: number;
+}
+
+// Per-million-token pricing (input / output)
+const PRICING: Record<string, { input: number; output: number }> = {
+  "claude-sonnet-4-6":       { input: 3.0,  output: 15.0 },
+  "claude-haiku-4-5":        { input: 0.8,  output: 4.0  },
+  "gpt-4o":                  { input: 2.5,  output: 10.0 },
+};
+
+function calculateCost(model: string, inputTokens: number, outputTokens: number): number {
+  const rates = PRICING[model] || { input: 3.0, output: 15.0 };
+  return (inputTokens * rates.input + outputTokens * rates.output) / 1_000_000;
+}
+
 // ── LLM Call Helpers ─────────────────────────────────────────────────────────
+
+interface LLMCallResult {
+  text: string;
+  usage: LLMUsage;
+}
 
 async function callAnthropic(params: {
   model: string;
@@ -186,7 +214,7 @@ async function callAnthropic(params: {
   userMessage: string;
   temperature: number;
   maxTokens: number;
-}): Promise<string> {
+}): Promise<LLMCallResult> {
   const client = getAnthropic();
   const response = await client.messages.create({
     model: params.model,
@@ -196,7 +224,20 @@ async function callAnthropic(params: {
     messages: [{ role: "user", content: params.userMessage }],
   });
   const block = response.content[0];
-  return block.type === "text" ? block.text : JSON.stringify(block);
+  const text = block.type === "text" ? block.text : JSON.stringify(block);
+  const inputTokens = response.usage?.input_tokens || 0;
+  const outputTokens = response.usage?.output_tokens || 0;
+  return {
+    text,
+    usage: {
+      input_tokens: inputTokens,
+      output_tokens: outputTokens,
+      total_tokens: inputTokens + outputTokens,
+      model: params.model,
+      provider: "anthropic",
+      cost: calculateCost(params.model, inputTokens, outputTokens),
+    },
+  };
 }
 
 async function callOpenAI(params: {
@@ -205,7 +246,7 @@ async function callOpenAI(params: {
   userMessage: string;
   temperature: number;
   maxTokens: number;
-}): Promise<string> {
+}): Promise<LLMCallResult> {
   const client = getOpenAI();
   const response = await client.chat.completions.create({
     model: params.model,
@@ -216,7 +257,19 @@ async function callOpenAI(params: {
       { role: "user", content: params.userMessage },
     ],
   });
-  return response.choices[0]?.message?.content || "";
+  const inputTokens = response.usage?.prompt_tokens || 0;
+  const outputTokens = response.usage?.completion_tokens || 0;
+  return {
+    text: response.choices[0]?.message?.content || "",
+    usage: {
+      input_tokens: inputTokens,
+      output_tokens: outputTokens,
+      total_tokens: inputTokens + outputTokens,
+      model: params.model,
+      provider: "openai",
+      cost: calculateCost(params.model, inputTokens, outputTokens),
+    },
+  };
 }
 
 // ── JSON Parse Helper (mirrors Python _parse_json fallback) ──────────────────
@@ -263,11 +316,11 @@ async function loadArtifactContent(artifactId: string): Promise<string> {
 
 // ── Node Implementations ─────────────────────────────────────────────────────
 
-async function executeCOO(prompt: string, envelopeId: string, agentId: string, fingerprint: string): Promise<string> {
+async function executeCOO(prompt: string, envelopeId: string, agentId: string, fingerprint: string): Promise<{ artifactId: string; usage: LLMUsage }> {
   const cfg = AGENT_MODELS.coo;
   console.log(`[FALLBACK:COO] Calling ${cfg.model} for envelope ${envelopeId}`);
 
-  const raw = await callAnthropic({
+  const { text, usage } = await callAnthropic({
     model: cfg.model,
     systemPrompt: COO_SYSTEM_PROMPT,
     userMessage: `User task:\n\n${prompt}\n\nCreate the execution plan.`,
@@ -275,19 +328,20 @@ async function executeCOO(prompt: string, envelopeId: string, agentId: string, f
     maxTokens: cfg.maxTokens,
   });
 
-  const result = safeParseJSON(raw);
+  const result = safeParseJSON(text);
   const content = JSON.stringify(result, null, 2);
 
-  return await createArtifact({
+  const artifactId = await createArtifact({
     envelopeId, agentId, fingerprint,
     artifactType: "plan",
     content,
   });
+  return { artifactId, usage };
 }
 
 async function executeResearcher(
   prompt: string, inputRef: string | null, envelopeId: string, agentId: string, fingerprint: string
-): Promise<string> {
+): Promise<{ artifactId: string; usage: LLMUsage }> {
   const cfg = AGENT_MODELS.researcher;
   console.log(`[FALLBACK:Researcher] Calling ${cfg.model} for envelope ${envelopeId}`);
 
@@ -297,7 +351,7 @@ async function executeResearcher(
     if (planContent) planContext = `\n\nExecution Plan:\n${planContent}`;
   }
 
-  const raw = await callAnthropic({
+  const { text, usage } = await callAnthropic({
     model: cfg.model,
     systemPrompt: RESEARCHER_SYSTEM_PROMPT,
     userMessage: `Task:\n\n${prompt}${planContext}\n\nProvide research findings.`,
@@ -305,19 +359,20 @@ async function executeResearcher(
     maxTokens: cfg.maxTokens,
   });
 
-  const result = safeParseJSON(raw);
+  const result = safeParseJSON(text);
   const content = JSON.stringify(result, null, 2);
 
-  return await createArtifact({
+  const artifactId = await createArtifact({
     envelopeId, agentId, fingerprint,
     artifactType: "assignment",
     content,
   });
+  return { artifactId, usage };
 }
 
 async function executeWorker(
   prompt: string, inputRef: string | null, envelopeId: string, agentId: string, fingerprint: string
-): Promise<string> {
+): Promise<{ artifactId: string; usage: LLMUsage }> {
   const cfg = AGENT_MODELS.worker;
   console.log(`[FALLBACK:Worker] Calling ${cfg.model} for envelope ${envelopeId}`);
 
@@ -328,10 +383,10 @@ async function executeWorker(
   }
 
   const userMessage = `Task:\n\n${prompt}${researchContext}\n\nProduce the deliverable.`;
-  let raw: string;
+  let callResult: LLMCallResult;
 
   try {
-    raw = await callOpenAI({
+    callResult = await callOpenAI({
       model: cfg.model,
       systemPrompt: WORKER_SYSTEM_PROMPT,
       userMessage,
@@ -340,7 +395,7 @@ async function executeWorker(
     });
   } catch (err) {
     console.warn(`[FALLBACK:Worker] OpenAI failed, falling back to Anthropic:`, err);
-    raw = await callAnthropic({
+    callResult = await callAnthropic({
       model: "claude-sonnet-4-6",
       systemPrompt: WORKER_SYSTEM_PROMPT,
       userMessage,
@@ -349,19 +404,20 @@ async function executeWorker(
     });
   }
 
-  const result = safeParseJSON(raw);
+  const result = safeParseJSON(callResult.text);
   const content = JSON.stringify(result, null, 2);
 
-  return await createArtifact({
+  const artifactId = await createArtifact({
     envelopeId, agentId, fingerprint,
     artifactType: "deliverable",
     content,
   });
+  return { artifactId, usage: callResult.usage };
 }
 
 async function executeGrader(
   prompt: string, inputRef: string | null, envelopeId: string, agentId: string, fingerprint: string
-): Promise<string> {
+): Promise<{ artifactId: string; usage: LLMUsage }> {
   const cfg = AGENT_MODELS.grader;
   console.log(`[FALLBACK:Grader] Calling ${cfg.model} for envelope ${envelopeId}`);
 
@@ -371,7 +427,7 @@ async function executeGrader(
     if (deliverableContent) deliverableContext = `\n\nDeliverable to evaluate:\n${deliverableContent}`;
   }
 
-  const raw = await callAnthropic({
+  const { text, usage } = await callAnthropic({
     model: cfg.model,
     systemPrompt: GRADER_SYSTEM_PROMPT,
     userMessage: `Original task:\n\n${prompt}${deliverableContext}\n\nEvaluate the deliverable.`,
@@ -379,14 +435,15 @@ async function executeGrader(
     maxTokens: cfg.maxTokens,
   });
 
-  const result = safeParseJSON(raw);
+  const result = safeParseJSON(text);
   const content = JSON.stringify(result, null, 2);
 
-  return await createArtifact({
+  const artifactId = await createArtifact({
     envelopeId, agentId, fingerprint,
     artifactType: "evaluation",
     content,
   });
+  return { artifactId, usage };
 }
 
 // ── Public Dispatcher ────────────────────────────────────────────────────────
@@ -399,30 +456,55 @@ export async function executeFallbackStep(params: {
   identity_fingerprint: string;
   prompt: string;
   input_ref: string | null;
-}): Promise<{ success: boolean; artifact_id: string }> {
+}): Promise<{ success: boolean; artifact_id: string; usage: LLMUsage }> {
   const { envelope_id, step_type, agent_id, prompt, input_ref } = params;
   const fp = params.identity_fingerprint || "00000000";
 
-  let artifactId: string;
+  let result: { artifactId: string; usage: LLMUsage };
 
   switch (step_type) {
     case "plan":
-      artifactId = await executeCOO(prompt, envelope_id, agent_id, fp);
+      result = await executeCOO(prompt, envelope_id, agent_id, fp);
       break;
     case "assign":
-      artifactId = await executeResearcher(prompt, input_ref, envelope_id, agent_id, fp);
+      result = await executeResearcher(prompt, input_ref, envelope_id, agent_id, fp);
       break;
     case "artifact_produce":
     case "produce_artifact":
-      artifactId = await executeWorker(prompt, input_ref, envelope_id, agent_id, fp);
+      result = await executeWorker(prompt, input_ref, envelope_id, agent_id, fp);
       break;
     case "evaluate":
     case "evaluation":
-      artifactId = await executeGrader(prompt, input_ref, envelope_id, agent_id, fp);
+      result = await executeGrader(prompt, input_ref, envelope_id, agent_id, fp);
       break;
     default:
       throw new Error(`FALLBACK_UNSUPPORTED_STEP: ${step_type}`);
   }
 
-  return { success: true, artifact_id: artifactId };
+  // Persist usage to the job doc for dashboard display
+  try {
+    const envDoc = await getDb().collection(COLLECTIONS.EXECUTION_ENVELOPES).doc(envelope_id).get();
+    const jobId = envDoc.data()?.job_id;
+    if (jobId) {
+      const jobRef = getDb().collection(COLLECTIONS.JOBS).doc(jobId);
+      const jobDoc = await jobRef.get();
+      const existing = jobDoc.data()?.token_usage || {};
+      const prevTokens = existing.total_tokens || 0;
+      const prevCost = existing.cost || 0;
+      await jobRef.set({
+        token_usage: {
+          total_tokens: prevTokens + result.usage.total_tokens,
+          input_tokens: (existing.input_tokens || 0) + result.usage.input_tokens,
+          output_tokens: (existing.output_tokens || 0) + result.usage.output_tokens,
+          cost: prevCost + result.usage.cost,
+        },
+        cost: prevCost + result.usage.cost,
+        updated_at: new Date().toISOString(),
+      }, { merge: true });
+    }
+  } catch (e) {
+    console.warn(`[FALLBACK] Failed to sync usage to job: ${(e as Error).message}`);
+  }
+
+  return { success: true, artifact_id: result.artifactId, usage: result.usage };
 }

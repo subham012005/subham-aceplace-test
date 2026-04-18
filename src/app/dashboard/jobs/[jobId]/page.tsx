@@ -814,19 +814,22 @@ export default function JobDetailsPage() {
                             </div>
                         </HUDFrame>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-3 gap-4">
                             <div className="p-4 glass border border-white/5 space-y-2">
-                                <label className="text-[8px] font-black text-slate-600 uppercase tracking-widest block">Neural Strength</label>
-                                <div className="flex items-center gap-2">
-                                    <span className="font-mono text-xs text-emerald-400">98.4%</span>
-                                    <div className="flex-1 h-1 bg-white/5 overflow-hidden rounded-full">
-                                        <div className="h-full bg-emerald-500" style={{ width: '98.4%' }} />
-                                    </div>
-                                </div>
+                                <label className="text-[8px] font-black text-slate-600 uppercase tracking-widest block">Total Tokens</label>
+                                <p className="font-mono text-slate-300 font-bold">{Number(typeof job?.token_usage === 'object' ? job.token_usage?.total_tokens ?? 0 : job?.token_usage ?? 0).toLocaleString()}</p>
                             </div>
                             <div className="p-4 glass border border-white/5 space-y-2">
                                 <label className="text-[8px] font-black text-slate-600 uppercase tracking-widest block">Runtime Cost</label>
-                                <p className="font-mono text-cyan-400 font-bold">$0.0024</p>
+                                <p className="font-mono text-cyan-400 font-bold">${(Number((typeof job?.token_usage === 'object' ? job.token_usage?.cost : null) ?? job?.cost ?? 0)).toFixed(4)}</p>
+                            </div>
+                            <div className="p-4 glass border border-white/5 space-y-2">
+                                <label className="text-[8px] font-black text-slate-600 uppercase tracking-widest block">I/O Breakdown</label>
+                                <div className="flex gap-2 font-mono text-[10px]">
+                                    <span className="text-emerald-400">{Number(typeof job?.token_usage === 'object' ? job.token_usage?.input_tokens ?? 0 : 0).toLocaleString()} in</span>
+                                    <span className="text-slate-600">/</span>
+                                    <span className="text-amber-400">{Number(typeof job?.token_usage === 'object' ? job.token_usage?.output_tokens ?? 0 : 0).toLocaleString()} out</span>
+                                </div>
                             </div>
                         </div>
                     </div>

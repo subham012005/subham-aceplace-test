@@ -185,6 +185,9 @@ export interface ExecutionEnvelope {
   created_at: string;
   updated_at: string;
 
+  // Continuity tracking
+  resurrection_count?: number;
+
   // Legacy link fields (read-only for UI, not used for execution)
   job_id?: string;
   user_id?: string;

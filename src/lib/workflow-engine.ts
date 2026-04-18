@@ -191,10 +191,26 @@ export const workflowEngine = {
                 throw new Error("UNAUTHORIZED");
             }
 
-            // Accept any status that can reasonably have grading data:
-            const validStates = ["AWAITING_APPROVAL", "GRADED", "GRADING", "EXECUTING", "COMPLETED", "IN_PROGRESS", "AWAITING_HUMAN"];
-            if (!validStates.includes(String(jobData.status).toUpperCase())) {
+            // Accept any status that can reasonably have grading data.
+            // Job status may lag behind envelope status (e.g. after resurrect),
+            // so also check the envelope as source of truth.
+            const validStates = ["AWAITING_APPROVAL", "GRADED", "GRADING", "EXECUTING", "COMPLETED", "IN_PROGRESS", "AWAITING_HUMAN", "QUEUED", "CREATED"];
+            const jobStatus = String(jobData.status).toUpperCase();
+            if (!validStates.includes(jobStatus)) {
                 throw new Error(`INVALID_STATE: Approval not allowed in state '${jobData.status}'. Requires AWAITING_APPROVAL or AWAITING_HUMAN.`);
+            }
+            // For out-of-sync states, verify the envelope is actually ready for approval
+            if (["QUEUED", "CREATED"].includes(jobStatus)) {
+                const envelopeId = jobData.execution_id || jobData.envelope_id;
+                if (envelopeId) {
+                    const envDoc = await db.collection("execution_envelopes").doc(envelopeId).get();
+                    if (envDoc.exists) {
+                        const envStatus = String(envDoc.data()?.status || "").toUpperCase();
+                        if (!["AWAITING_HUMAN", "COMPLETED", "AWAITING_APPROVAL"].includes(envStatus)) {
+                            throw new Error(`INVALID_STATE: Job status is '${jobData.status}' and envelope is '${envStatus}'. Requires envelope in AWAITING_HUMAN.`);
+                        }
+                    }
+                }
             }
 
             await doc.ref.update({
@@ -286,9 +302,22 @@ export const workflowEngine = {
             }
 
             // Accept any status that can reasonably have grading data
-            const validStates = ["AWAITING_APPROVAL", "GRADED", "GRADING", "EXECUTING", "COMPLETED", "IN_PROGRESS", "AWAITING_HUMAN"];
-            if (!validStates.includes(String(jobData.status).toUpperCase())) {
+            const validStates = ["AWAITING_APPROVAL", "GRADED", "GRADING", "EXECUTING", "COMPLETED", "IN_PROGRESS", "AWAITING_HUMAN", "QUEUED", "CREATED"];
+            const rJobStatus = String(jobData.status).toUpperCase();
+            if (!validStates.includes(rJobStatus)) {
                 throw new Error(`INVALID_STATE: Rejection not allowed in state '${jobData.status}'. Requires AWAITING_APPROVAL or AWAITING_HUMAN.`);
+            }
+            if (["QUEUED", "CREATED"].includes(rJobStatus)) {
+                const rEnvelopeId = jobData.execution_id || jobData.envelope_id;
+                if (rEnvelopeId) {
+                    const rEnvDoc = await db.collection("execution_envelopes").doc(rEnvelopeId).get();
+                    if (rEnvDoc.exists) {
+                        const rEnvStatus = String(rEnvDoc.data()?.status || "").toUpperCase();
+                        if (!["AWAITING_HUMAN", "COMPLETED", "AWAITING_APPROVAL"].includes(rEnvStatus)) {
+                            throw new Error(`INVALID_STATE: Job status is '${jobData.status}' and envelope is '${rEnvStatus}'. Requires envelope in AWAITING_HUMAN.`);
+                        }
+                    }
+                }
             }
 
             await jobRef.update({
@@ -442,15 +471,12 @@ export const workflowEngine = {
                         return s;
                     });
 
+                    const envResurrectionCount = Number(envData.resurrection_count || 0);
                     await envRef.update({
-                        // Reset envelope status to "created" so _safe_transition
-                        // can move it through leased → executing cleanly.
                         status: "created",
-                        // Clear stale / expired lease so acquire_envelope_lease
-                        // can issue a fresh one without fork-detection triggering.
                         authority_lease: null,
-                        // Also clear authority_leases (TypeScript parallel-runner format)
                         authority_leases: {},
+                        resurrection_count: envResurrectionCount + 1,
                         steps: resetSteps,
                         updated_at: now,
                     });

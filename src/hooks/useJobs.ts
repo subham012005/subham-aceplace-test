@@ -56,7 +56,7 @@ export interface Job {
     agent_role?: string;
     model_provider?: string;
     model_used?: string;
-    token_usage?: number;
+    token_usage?: number | { total_tokens?: number; input_tokens?: number; output_tokens?: number; cost?: number };
     cost?: number;
     retry_count?: number;
     last_retry_at?: string;
@@ -77,6 +77,7 @@ export interface Job {
         reasoning_summary: string;
     };
     // Continuity Restore
+    resurrection_count?: number;
     resurrection_reason?: string;
     resurrected_by?: string;
     resurrected_at?: string;

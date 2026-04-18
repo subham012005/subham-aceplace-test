@@ -560,6 +560,36 @@ export async function runEnvelopeParallel(params: {
             await addTrace(envelope_id, "", "runtime_worker", "00000000", "STATUS_TRANSITION_AWAITING_HUMAN", {
                reason: "All steps finished. Verification required."
             });
+
+            // Sync grader score to job doc for dashboard display
+            if (envelope.job_id) {
+              try {
+                const evalStep = allSteps.find(s =>
+                  s.step_type === "evaluate" || s.step_type === "evaluation"
+                );
+                const evalArtifactId = evalStep?.output_ref &&
+                  typeof evalStep.output_ref === "object" &&
+                  (evalStep.output_ref as any).artifact_id;
+                if (evalArtifactId) {
+                  const artDoc = await getDb().collection(COLLECTIONS.ARTIFACTS).doc(evalArtifactId).get();
+                  if (artDoc.exists) {
+                    let content = artDoc.data()?.artifact_content;
+                    if (typeof content === "string") {
+                      try { content = JSON.parse(content); } catch { /* keep raw */ }
+                    }
+                    if (content && typeof content === "object") {
+                      await getDb().collection(COLLECTIONS.JOBS).doc(envelope.job_id).set({
+                        grading_result: content,
+                        updated_at: new Date().toISOString(),
+                      }, { merge: true });
+                    }
+                  }
+                }
+              } catch (e) {
+                console.warn(`[RUNTIME] Failed to sync grader score to job: ${(e as Error).message}`);
+              }
+            }
+
             await emitSafe({
               event_type: "ENVELOPE_COMPLETED",
               envelope_id,
