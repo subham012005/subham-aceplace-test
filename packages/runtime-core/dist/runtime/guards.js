@@ -21,6 +21,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.assertEnvelopeNotTerminal = assertEnvelopeNotTerminal;
 exports.assertIdentityContext = assertIdentityContext;
 exports.assertAgentIdentityContext = assertAgentIdentityContext;
+exports.assertAgentIdentityVerified = assertAgentIdentityVerified;
 exports.assertAgentLease = assertAgentLease;
 exports.assertClaimOwnership = assertClaimOwnership;
 exports.assertStepExists = assertStepExists;
@@ -76,6 +77,23 @@ function assertAgentIdentityContext(envelope, agentId) {
     }
 }
 /**
+ * Per-agent identity_context must be present, carry a valid fingerprint,
+ * and be PRECISELY verified. Silent identity failures are prohibited.
+ */
+function assertAgentIdentityVerified(envelope, agentId) {
+    assertAgentIdentityContext(envelope, agentId);
+    const ctx = envelope.multi_agent
+        ? envelope.identity_contexts?.[agentId]
+        : envelope.identity_context;
+    if (!ctx?.verified) {
+        throw new Error(`GUARD_IDENTITY_NOT_VERIFIED:${agentId}`);
+    }
+    // Hard invariant: Verified identity must have a non-empty fingerprint
+    if (!ctx?.identity_fingerprint || ctx.identity_fingerprint === "pending_verification") {
+        throw new Error(`GUARD_IDENTITY_INVALID_FINGERPRINT:${agentId}`);
+    }
+}
+/**
  * Per-agent lease must exist, be active, not expired, and owned by this instance.
  * A missing or expired lease means a step is about to execute without authority —
  * this is an invariant violation that must fail hard.
@@ -91,11 +109,12 @@ function assertAgentLease(envelope, agentId, instanceId) {
     if (lease.status === "expired" || lease.status === "revoked") {
         throw new Error(`GUARD_LEASE_NOT_ACTIVE:${agentId}:${lease.status}`);
     }
-    if (new Date(lease.lease_expires_at).getTime() < Date.now()) {
+    const expiresAt = new Date(lease.lease_expires_at).getTime();
+    if (isNaN(expiresAt) || expiresAt < Date.now()) {
         throw new Error(`GUARD_LEASE_EXPIRED:${agentId}`);
     }
-    if (lease.current_instance_id !== instanceId) {
-        throw new Error(`GUARD_LEASE_INSTANCE_MISMATCH:${agentId}:expected=${instanceId}:actual=${lease.current_instance_id}`);
+    if (!lease.current_instance_id || lease.current_instance_id !== instanceId) {
+        throw new Error(`GUARD_LEASE_INSTANCE_MISMATCH:${agentId}:expected=${instanceId}:actual=${lease.current_instance_id || "NONE"}`);
     }
 }
 /**

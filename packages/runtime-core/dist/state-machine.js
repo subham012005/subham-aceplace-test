@@ -31,6 +31,9 @@ async function transition(envelopeId, newStatus, metadata) {
             throw new Error(`Envelope ${envelopeId} not found`);
         const envelope = snap.data();
         const currentStatus = envelope.status;
+        // Idempotency: if already in the target state, do nothing.
+        if (currentStatus === newStatus)
+            return;
         if (!metadata?.agent_id) {
             traceAgentId = envelope.coordinator_agent_id || envelope.identity_context?.agent_id || "runtime_worker";
         }
@@ -42,6 +45,11 @@ async function transition(envelopeId, newStatus, metadata) {
                 traceFingerprint = fp;
         }
         const allowed = constants_1.ENVELOPE_STATUS_TRANSITIONS[currentStatus];
+        // Hard guard: leased -> planned is strictly forbidden in Phase 2
+        if (currentStatus === "leased" && newStatus === "planned") {
+            throw new Error(`[StateMachine] INVALID_FLOW: leased cannot return to planned. ` +
+                `Current: ${currentStatus}, Requested: ${newStatus}`);
+        }
         if (!allowed.includes(newStatus)) {
             throw new Error(`[StateMachine] Illegal transition: ${currentStatus} → ${newStatus}. ` +
                 `Allowed from ${currentStatus}: [${allowed.join(", ")}]`);
@@ -50,7 +58,22 @@ async function transition(envelopeId, newStatus, metadata) {
         // Sync legacy jobs collection if job_id is present
         if (envelope.job_id) {
             const jobRef = db.collection(constants_1.COLLECTIONS.JOBS).doc(envelope.job_id);
-            tx.set(jobRef, { status: newStatus, updated_at: now }, { merge: true });
+            const jobUpdate = { status: newStatus, updated_at: now };
+            if (newStatus === "failed" && metadata?.reason) {
+                jobUpdate.failure_reason = String(metadata.reason);
+            }
+            tx.set(jobRef, jobUpdate, { merge: true });
+        }
+        // Sync execution_queue status
+        const queueRef = db.collection(constants_1.COLLECTIONS.EXECUTION_QUEUE).doc(envelopeId);
+        const terminalStatuses = ["completed", "failed", "quarantined", "rejected"];
+        if (terminalStatuses.includes(newStatus)) {
+            // For terminal states, we can either delete or mark as terminal. 
+            // Mark as terminal is better for audit consistency.
+            tx.set(queueRef, { status: newStatus, updated_at: now }, { merge: true });
+        }
+        else {
+            tx.set(queueRef, { status: newStatus, updated_at: now }, { merge: true });
         }
     });
     // Log the transition

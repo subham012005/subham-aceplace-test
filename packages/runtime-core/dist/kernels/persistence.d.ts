@@ -7,6 +7,7 @@
  * Phase 2 | Envelope-Driven Runtime
  */
 import type { ExecutionEnvelope, EnvelopeStep, EnvelopeStatus, Artifact } from "../types";
+export { claimNextEnvelope } from "./queue";
 export declare function createEnvelope(envelope: ExecutionEnvelope): Promise<void>;
 export declare function getEnvelope(envelopeId: string): Promise<ExecutionEnvelope | null>;
 export declare function updateEnvelope(envelopeId: string, updates: Partial<ExecutionEnvelope>): Promise<void>;
@@ -30,6 +31,11 @@ export declare function setEnvelopeStatus(envelopeId: string, status: EnvelopeSt
 export declare function addTrace(envelopeId: string, stepId: string, agentId: string, identityFingerprint: string, eventType: string, metadata?: Record<string, unknown>): Promise<void>;
 export declare function createArtifact(artifact: Artifact): Promise<void>;
 export declare function getArtifact(artifactId: string): Promise<Artifact | null>;
+/**
+ * Searches for evidence that a step has already been completed.
+ * Checks for STEP_COMPLETED traces and step-type specific artifacts.
+ */
+export declare function findStepCompletionEvidence(envelopeId: string, stepId: string, stepType: string): Promise<boolean>;
 export declare function linkJobToEnvelope(jobId: string, envelopeId: string): Promise<void>;
 /**
  * Sync the legacy job status with the envelope's current state.

@@ -11,26 +11,47 @@ class LeaseHeartbeatManager {
     start(key, params, intervalMs = 20_000) {
         this.stop(key);
         const timer = setInterval(() => {
-            (0, per_agent_authority_1.renewPerAgentLease)(params.envelope_id, params.agent_id, params.instance_id)
-                .then(() => (0, emitRuntimeMetric_1.emitRuntimeMetric)({
-                event_type: "LEASE_RENEWED",
-                envelope_id: params.envelope_id,
-                agent_id: params.agent_id,
-            }).catch(() => undefined))
-                .catch((err) => {
+            this.renewWithRetry(params.envelope_id, params.agent_id, params.instance_id, key);
+        }, intervalMs);
+        this.timers.set(key, timer);
+    }
+    async renewWithRetry(envelope_id, agent_id, instance_id, key) {
+        let attempt = 0;
+        const maxAttempts = 3;
+        while (attempt < maxAttempts) {
+            try {
+                await (0, per_agent_authority_1.renewPerAgentLease)(envelope_id, agent_id, instance_id);
+                await (0, emitRuntimeMetric_1.emitRuntimeMetric)({
+                    event_type: "LEASE_RENEWED",
+                    envelope_id,
+                    agent_id,
+                }).catch(() => undefined);
+                return;
+            }
+            catch (err) {
+                const msg = String(err?.message || err);
+                if (msg.includes("ABORTED") && attempt < maxAttempts - 1) {
+                    attempt++;
+                    const jitter = Math.random() * 200;
+                    const delay = (500 * attempt) + jitter;
+                    console.warn(`[LEASE_RETRY] Heartbeat contention (ABORTED), retrying ${attempt}/${maxAttempts - 1} in ${Math.round(delay)}ms for ${key}`);
+                    await new Promise(r => setTimeout(r, delay));
+                    continue;
+                }
                 console.error("[LEASE_HEARTBEAT_FAILED]", {
                     key,
-                    error: String(err?.message || err),
+                    error: msg,
+                    exhausted: attempt >= maxAttempts - 1
                 });
                 (0, emitRuntimeMetric_1.emitRuntimeMetric)({
                     event_type: "LEASE_RENEW_FAILED",
-                    envelope_id: params.envelope_id,
-                    agent_id: params.agent_id,
+                    envelope_id,
+                    agent_id,
                 }).catch(() => undefined);
                 this.stop(key);
-            });
-        }, intervalMs);
-        this.timers.set(key, timer);
+                return;
+            }
+        }
     }
     stop(key) {
         const t = this.timers.get(key);

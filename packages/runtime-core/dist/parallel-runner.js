@@ -15,6 +15,7 @@ const constants_1 = require("./constants");
 const db_1 = require("./db");
 const per_agent_authority_1 = require("./per-agent-authority");
 const guards_1 = require("./runtime/guards");
+const resolution_1 = require("./runtime/resolution");
 const persistence_1 = require("./kernels/persistence");
 const us_message_engine_1 = require("./us-message-engine");
 const acelogic_guard_1 = require("./acelogic-guard");
@@ -163,48 +164,89 @@ async function executeClaimedStep(params) {
     if (step.step_type === "human_approval") {
         throw new Error("HUMAN_APPROVAL_USE_PAUSE");
     }
-    const agentId = step.assigned_agent_id;
-    if (!agentId)
-        throw new Error(`STEP_AGENT_MISSING:${step.step_id}`);
-    // ── Hard invariant assertions — fail before touching any runtime state ──
-    (0, guards_1.assertEnvelopeNotTerminal)(envelope);
-    (0, guards_1.assertIdentityContext)(envelope);
-    (0, guards_1.assertAgentIdentityContext)(envelope, agentId);
-    (0, guards_1.assertStepNotCompleted)(step);
-    const ident = await (0, identity_1.verifyIdentityForAgent)(envelope_id, envelope, agentId);
-    if (!ident.verified) {
-        throw new Error(`IDENTITY_FAILED:${ident.reason}`);
+    let agentId;
+    let fingerprint = "00000000";
+    let instanceId = runtime_instance_id;
+    try {
+        // 1. Resolution
+        agentId = (0, resolution_1.resolveAssignedAgentId)(envelope, step);
+        // 2. Pre-Identity Guards
+        (0, guards_1.assertEnvelopeNotTerminal)(envelope);
+        (0, guards_1.assertIdentityContext)(envelope);
+        (0, guards_1.assertAgentIdentityContext)(envelope, agentId);
+        (0, guards_1.assertStepNotCompleted)(step);
+        // 3. Identity Verification
+        const ident = await (0, identity_1.verifyIdentityForAgent)(envelope_id, envelope, agentId);
+        fingerprint = ident.identity_fingerprint || "00000000";
+        if (!ident.verified) {
+            await (0, persistence_1.addTrace)(envelope_id, step.step_id, agentId, fingerprint, "IDENTITY_FAILED", {
+                reason: ident.reason,
+            });
+            throw new Error(`IDENTITY_FAILED:${ident.reason}`);
+        }
+        // 4. Identity Verified Guard
+        (0, guards_1.assertAgentIdentityVerified)(envelope, agentId);
+        await (0, persistence_1.addTrace)(envelope_id, step.step_id, agentId, fingerprint, "IDENTITY_VERIFIED", {
+            agent_id: agentId,
+            verified_at: ident.verified_at || new Date().toISOString(),
+        });
+        // 5. Execution Guard
+        instanceId = resolveInstanceId(envelope, agentId, runtime_instance_id);
+        const licenseId = envelope.license_id || "dev_license";
+        const guard = await (0, acelogic_guard_1.acelogicExecutionGuard)({
+            agent_id: agentId,
+            identity_fingerprint: fingerprint,
+            instance_id: instanceId,
+            org_id: envelope.org_id,
+            license_id: licenseId,
+        });
+        if (!guard.allowed) {
+            throw new Error(`EXECUTION_BLOCKED:${agentId}`);
+        }
+        // 6. Lease Acquisition
+        const forceRenew = step.step_type === "complete";
+        await (0, per_agent_authority_1.acquirePerAgentLease)(envelope_id, agentId, instanceId, { forceRenew });
+        await (0, persistence_1.addTrace)(envelope_id, step.step_id, agentId, fingerprint, "LEASE_ACQUIRED", {
+            instance_id: instanceId,
+        });
+        await emitSafe({
+            event_type: "LEASE_ACQUIRED",
+            envelope_id,
+            step_id: step.step_id,
+            agent_id: agentId,
+            org_id: envelope.org_id,
+        });
+        // 7. Lease Validation Guard
+        const refreshed = (await ref.get()).data();
+        (0, per_agent_authority_1.validatePerAgentLease)(refreshed, agentId, instanceId);
+        (0, guards_1.assertAgentLease)(refreshed, agentId, instanceId);
     }
-    const instanceId = resolveInstanceId(envelope, agentId, runtime_instance_id);
-    const licenseId = envelope.license_id || "dev_license";
-    const guard = await (0, acelogic_guard_1.acelogicExecutionGuard)({
-        agent_id: agentId,
-        identity_fingerprint: envelope.multi_agent && envelope.identity_contexts?.[agentId]
-            ? envelope.identity_contexts[agentId].identity_fingerprint
-            : envelope.identity_context.identity_fingerprint,
-        instance_id: instanceId,
-        org_id: envelope.org_id,
-        license_id: licenseId,
-    });
-    if (!guard.allowed) {
-        throw new Error(`EXECUTION_BLOCKED:${agentId}`);
+    catch (err) {
+        const msg = err.message || String(err);
+        console.error(`[RUNTIME] Preflight failed for step ${step.step_id}: ${msg}`);
+        // Explicitly trace the failure
+        await (0, persistence_1.addTrace)(envelope_id, step.step_id, "runtime_worker", "00000000", "PREFLIGHT_FAILED", {
+            error: msg,
+            step_id: step.step_id,
+            role: step.role,
+        });
+        // Deterministic state machine transition
+        if (msg.includes("AGENT_NOT_FOUND") || msg.includes("IDENTITY_FAILED") || msg.includes("LEASE_")) {
+            await (0, state_machine_1.transition)(envelope_id, "quarantined", {
+                reason: msg,
+                step_id: step.step_id,
+            });
+        }
+        else {
+            await (0, state_machine_1.transition)(envelope_id, "failed", {
+                reason: msg,
+                step_id: step.step_id,
+            });
+        }
+        throw err;
     }
-    await (0, per_agent_authority_1.acquirePerAgentLease)(envelope_id, agentId, instanceId);
-    await emitSafe({
-        event_type: "LEASE_ACQUIRED",
-        envelope_id,
-        step_id: step.step_id,
-        agent_id: agentId,
-        org_id: envelope.org_id,
-    });
-    const refreshed = (await ref.get()).data();
-    (0, per_agent_authority_1.validatePerAgentLease)(refreshed, agentId, instanceId);
-    // Hard guard: lease must be valid, active, and owned by this instance.
-    (0, guards_1.assertAgentLease)(refreshed, agentId, instanceId);
-    const fingerprint = refreshed.multi_agent && refreshed.identity_contexts?.[agentId]
-        ? refreshed.identity_contexts[agentId].identity_fingerprint
-        : refreshed.identity_context.identity_fingerprint;
-    const leaseRow = refreshed.authority_leases?.[agentId];
+    const refreshedLeaseEnv = (await ref.get()).data();
+    const leaseRow = refreshedLeaseEnv.authority_leases?.[agentId];
     const hbKey = `${envelope_id}:${step.step_id}:${agentId}`;
     lease_heartbeat_1.leaseHeartbeatManager.start(hbKey, {
         envelope_id,
@@ -262,12 +304,51 @@ async function executeClaimedStep(params) {
     finally {
         lease_heartbeat_1.leaseHeartbeatManager.stop(hbKey);
         await (0, per_agent_authority_1.releasePerAgentLease)(envelope_id, agentId).catch(() => undefined);
+        await (0, persistence_1.addTrace)(envelope_id, step.step_id, agentId, fingerprint, "LEASE_RELEASED", {
+            instance_id: instanceId,
+        });
         await emitSafe({
             event_type: "LEASE_RELEASED",
             envelope_id,
             step_id: step.step_id,
             agent_id: agentId,
             org_id: envelope.org_id,
+        });
+    }
+}
+/**
+ * Audit all 'executing' steps and resolve them to 'completed' (if evidence exists)
+ * or 'ready' (if stale/dead owner) to allow resumption.
+ */
+async function recoverInterruptedSteps(params) {
+    const { envelope_id, instance_id, envelope } = params;
+    const db = (0, db_1.getDb)();
+    const executingSteps = (envelope.steps || []).filter(s => s.status === "executing");
+    if (!executingSteps.length)
+        return;
+    console.log(`[RUNTIME:RECOVER] Checking ${executingSteps.length} executing steps for envelope ${envelope_id}...`);
+    for (const step of executingSteps) {
+        const owner = step.claimed_by_instance_id;
+        if (owner === instance_id)
+            continue; // We already own it
+        // Evidence check: did it actually finish?
+        const evidence = await (0, persistence_1.findStepCompletionEvidence)(envelope_id, step.step_id, step.step_type);
+        if (evidence) {
+            console.log(`[RUNTIME:RECOVER] Step ${step.step_id} has completion evidence. Auto-healing to 'completed'.`);
+            await (0, persistence_1.updateEnvelopeStep)(envelope_id, step.step_id, {
+                status: "completed",
+                claimed_by_instance_id: null,
+                claimed_at: null,
+            });
+            continue;
+        }
+        // No evidence. Is the owner dead?
+        // In Phase 2, if we have the queue claim, the previous worker is by definition 'dead' for this envelope.
+        console.warn(`[RUNTIME:RECOVER] Step ${step.step_id} (owner: ${owner}) stalled with no evidence. Resetting to 'ready'.`);
+        await (0, persistence_1.updateEnvelopeStep)(envelope_id, step.step_id, {
+            status: "ready",
+            claimed_by_instance_id: null,
+            claimed_at: null,
         });
     }
 }
@@ -291,16 +372,19 @@ async function runEnvelopeParallel(params) {
             (0, guards_1.assertClaimOwnership)(envelope_id, qData.claimed_by, instance_id);
         }
     }
+    // 🛡️ RECLAIM_DEBUG block
+    const stepStats = {
+        total: first.steps.length,
+        completed: first.steps.filter(s => s.status === "completed").length,
+        runnable: getRunnableSteps(first).length,
+        executing: first.steps.filter(s => s.status === "executing").length
+    };
+    console.log(`[RECLAIM_DEBUG] Envelope: ${envelope_id}`);
+    console.log(`[RECLAIM_DEBUG] Queue Status: claimed by ${instance_id}`);
+    console.log(`[RECLAIM_DEBUG] Step Counts: total=${stepStats.total}, completed=${stepStats.completed}, executing=${stepStats.executing}, ready=${stepStats.runnable}`);
+    // 🔬 RECOVERY: Resolve stale steps before starting the loop
+    await recoverInterruptedSteps({ envelope_id, instance_id, envelope: first });
     if (first.status === "created") {
-        try {
-            await (0, state_machine_1.transition)(envelope_id, "leased");
-        }
-        catch (e) {
-            console.error(`[RUNTIME] Transition to leased failed: ${e.message}`);
-        }
-    }
-    const s1 = (await ref.get()).data();
-    if (s1.status === "leased") {
         try {
             await (0, state_machine_1.transition)(envelope_id, "planned");
         }
@@ -308,8 +392,17 @@ async function runEnvelopeParallel(params) {
             console.error(`[RUNTIME] Transition to planned failed: ${e.message}`);
         }
     }
+    const s1 = (await ref.get()).data();
+    if (s1.status === "planned") {
+        try {
+            await (0, state_machine_1.transition)(envelope_id, "leased");
+        }
+        catch (e) {
+            console.error(`[RUNTIME] Transition to leased failed: ${e.message}`);
+        }
+    }
     const s2 = (await ref.get()).data();
-    if (s2.status === "planned") {
+    if (s2.status === "leased") {
         try {
             await (0, state_machine_1.transition)(envelope_id, "executing");
         }
@@ -322,6 +415,15 @@ async function runEnvelopeParallel(params) {
         if (!snap.exists)
             throw new Error("ENVELOPE_NOT_FOUND");
         const envelope = snap.data();
+        // 💓 Queue Heartbeat: Signal that this worker is alive and owns the claim
+        try {
+            await (0, db_1.getDb)().collection(constants_1.COLLECTIONS.EXECUTION_QUEUE).doc(envelope_id).update({
+                updated_at: new Date().toISOString()
+            });
+        }
+        catch {
+            /* ignore heartbeat failures in tests/transient issues */
+        }
         const terminal = [
             "approved",
             "completed",
@@ -341,13 +443,57 @@ async function runEnvelopeParallel(params) {
         }
         const runnableSteps = getRunnableSteps(envelope);
         if (!runnableSteps.length) {
-            const hasRunning = (envelope.steps || []).some((s) => s.status === "executing");
-            const hasPending = (envelope.steps || []).some((s) => s.status === "pending" || s.status === "ready");
+            const allSteps = envelope.steps || [];
+            const hasRunning = allSteps.some((s) => s.status === "executing");
+            const hasPending = allSteps.some((s) => s.status === "pending" || s.status === "ready");
             if (!hasRunning && !hasPending) {
-                const anyFailed = (envelope.steps || []).some((s) => s.status === "failed");
+                // HARD GUARD: Envelope may become completed ONLY if every step.status === "completed"
+                const everyStepCompleted = allSteps.every((s) => s.status === "completed");
+                const anyFailed = allSteps.some((s) => s.status === "failed");
+                const anyQuarantined = envelope.status === "quarantined";
+                if (anyQuarantined) {
+                    await (0, persistence_1.addTrace)(envelope_id, "", "runtime_worker", "00000000", "STATUS_TRANSITION_QUARANTINED", {
+                        reason: "Step failure or resolution error triggered quarantine",
+                    });
+                    return;
+                }
                 try {
-                    await (0, state_machine_1.transition)(envelope_id, anyFailed ? "failed" : "completed");
-                    if (!anyFailed) {
+                    if (everyStepCompleted) {
+                        // 🛡️ HITL HARDENING: Never auto-complete. Transition to awaiting_human for operator sign-off.
+                        await (0, state_machine_1.transition)(envelope_id, "awaiting_human");
+                        await (0, persistence_1.addTrace)(envelope_id, "", "runtime_worker", "00000000", "STATUS_TRANSITION_AWAITING_HUMAN", {
+                            reason: "All steps finished. Verification required."
+                        });
+                        // Sync grader score to job doc for dashboard display
+                        if (envelope.job_id) {
+                            try {
+                                const evalStep = allSteps.find(s => s.step_type === "evaluate" || s.step_type === "evaluation");
+                                const evalArtifactId = evalStep?.output_ref &&
+                                    typeof evalStep.output_ref === "object" &&
+                                    evalStep.output_ref.artifact_id;
+                                if (evalArtifactId) {
+                                    const artDoc = await (0, db_1.getDb)().collection(constants_1.COLLECTIONS.ARTIFACTS).doc(evalArtifactId).get();
+                                    if (artDoc.exists) {
+                                        let content = artDoc.data()?.artifact_content;
+                                        if (typeof content === "string") {
+                                            try {
+                                                content = JSON.parse(content);
+                                            }
+                                            catch { /* keep raw */ }
+                                        }
+                                        if (content && typeof content === "object") {
+                                            await (0, db_1.getDb)().collection(constants_1.COLLECTIONS.JOBS).doc(envelope.job_id).set({
+                                                grading_result: content,
+                                                updated_at: new Date().toISOString(),
+                                            }, { merge: true });
+                                        }
+                                    }
+                                }
+                            }
+                            catch (e) {
+                                console.warn(`[RUNTIME] Failed to sync grader score to job: ${e.message}`);
+                            }
+                        }
                         await emitSafe({
                             event_type: "ENVELOPE_COMPLETED",
                             envelope_id,
@@ -355,16 +501,26 @@ async function runEnvelopeParallel(params) {
                             org_id: envelope.org_id,
                         });
                     }
-                    else {
+                    else if (anyFailed) {
+                        await (0, state_machine_1.transition)(envelope_id, "failed");
+                        await (0, persistence_1.addTrace)(envelope_id, "", "runtime_worker", "00000000", "STATUS_TRANSITION_FAILED", {
+                            reason: "Partial step failure",
+                        });
                         await emitSafe({
                             event_type: "ENVELOPE_FAILED",
                             envelope_id,
                             org_id: envelope.org_id,
                         });
                     }
+                    else {
+                        // This should not be reachable if state machine and guards are correct.
+                        // But if we have blocked/skipped steps, we might need manual quarantine.
+                        console.warn(`[RUNTIME] Envelope ${envelope_id} has neither all completed nor failed steps. Quarantining.`);
+                        await (0, state_machine_1.transition)(envelope_id, "quarantined", { reason: "INCOMPLETE_STEP_GRAPH" });
+                    }
                 }
-                catch {
-                    /* ignore if already terminal */
+                catch (e) {
+                    console.error(`[RUNTIME] Final transition failed: ${e.message}`);
                 }
                 return;
             }

@@ -26,6 +26,8 @@ import {
   COLLECTIONS,
   claimNextEnvelope,
   finalizeQueueEntry,
+  requeueEnvelope,
+  runEnvelopeParallel,
   type ExecutionEnvelope
 } from "@aceplace/runtime-core";
 
@@ -46,12 +48,6 @@ function startHealthCheckServer() {
 
 // ── Firebase init (standalone — no Next.js) ───────────────────────────────────
 let _app: admin.app.App;
-
-// ── Lazy import runtime-core so firebase-admin init runs first ──────────────
-async function loadRuntime() {
-  const runner = await import("@aceplace/runtime-core");
-  return runner;
-}
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const WORKER_ID = `worker_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
@@ -75,8 +71,6 @@ export async function runWorker(workerId: string = WORKER_ID) {
   // Start health check server
   const healthServer = startHealthCheckServer();
 
-  const { runEnvelopeParallel } = await loadRuntime();
-
   console.log(`[WORKER:${workerId}] Polling ${EXECUTION_QUEUE_COLLECTION} every ${POLL_INTERVAL_MS}ms...`);
 
   // Graceful shutdown
@@ -93,7 +87,6 @@ export async function runWorker(workerId: string = WORKER_ID) {
     if (activeEnvelopeId) {
        console.log(`[WORKER:${workerId}] Active envelope ${activeEnvelopeId} detected. Attempting to re-queue...`);
        try {
-         const { requeueEnvelope } = await loadRuntime();
          await requeueEnvelope(activeEnvelopeId);
          console.log(`[WORKER:${workerId}] Successfully re-queued ${activeEnvelopeId}.`);
        } catch (err) {

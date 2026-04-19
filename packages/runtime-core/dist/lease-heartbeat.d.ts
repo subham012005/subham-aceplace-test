@@ -8,6 +8,7 @@ export declare class LeaseHeartbeatManager {
         agent_id: string;
         instance_id: string;
     }, intervalMs?: number): void;
+    private renewWithRetry;
     stop(key: string): void;
     stopAllForEnvelope(envelopeId: string): void;
 }

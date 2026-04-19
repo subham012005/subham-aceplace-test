@@ -13,11 +13,11 @@ declare class MockDocRef {
     collection(subCol: string): any;
 }
 declare class MockQuery {
-    private col;
-    private db;
     private filters;
     private _limit;
     private _order;
+    private col;
+    private db;
     constructor(col: string, db: any);
     where(field: string, op: string, value: any): this;
     orderBy(field: string, dir?: string): this;
