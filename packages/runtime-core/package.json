@@ -3,12 +3,14 @@
   "version": "1.0.0",
   "private": true,
   "description": "Framework-agnostic ACEPLACE deterministic runtime core — envelope, state machine, identity, leases",
-  "main": "dist/index.ts",
-  "types": "dist/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./dist/index.ts",
-    "./*": "./dist/*.ts",
-    "./shared": "./dist/shared.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
   },
   "scripts": {
     "build": "tsc",

@@ -20,11 +20,11 @@ class MockDocRef {
     collection(subCol) { return this.db.collection(`${this.col}/${this.id}/${subCol}`); }
 }
 class MockQuery {
-    col;
-    db;
     filters = [];
     _limit = 0;
     _order = [];
+    col;
+    db;
     constructor(col, db) {
         this.col = col;
         this.db = db;

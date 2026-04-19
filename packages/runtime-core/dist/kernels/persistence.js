@@ -8,6 +8,7 @@
  * Phase 2 | Envelope-Driven Runtime
  */
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.claimNextEnvelope = void 0;
 exports.createEnvelope = createEnvelope;
 exports.getEnvelope = getEnvelope;
 exports.updateEnvelope = updateEnvelope;
@@ -20,6 +21,7 @@ exports.setEnvelopeStatus = setEnvelopeStatus;
 exports.addTrace = addTrace;
 exports.createArtifact = createArtifact;
 exports.getArtifact = getArtifact;
+exports.findStepCompletionEvidence = findStepCompletionEvidence;
 exports.linkJobToEnvelope = linkJobToEnvelope;
 exports.syncJobStatus = syncJobStatus;
 exports.getJob = getJob;
@@ -28,6 +30,8 @@ exports.enqueueEnvelope = enqueueEnvelope;
 const db_1 = require("../db");
 const constants_1 = require("../constants");
 const hash_1 = require("../hash");
+var queue_1 = require("./queue");
+Object.defineProperty(exports, "claimNextEnvelope", { enumerable: true, get: function () { return queue_1.claimNextEnvelope; } });
 // ─── Envelope Operations ──────────────────────────────────────────────────────
 async function createEnvelope(envelope) {
     await (0, db_1.getDb)()
@@ -139,6 +143,37 @@ async function getArtifact(artifactId) {
         .doc(artifactId)
         .get();
     return doc.exists ? doc.data() : null;
+}
+/**
+ * Searches for evidence that a step has already been completed.
+ * Checks for STEP_COMPLETED traces and step-type specific artifacts.
+ */
+async function findStepCompletionEvidence(envelopeId, stepId, stepType) {
+    const db = (0, db_1.getDb)();
+    // 1. Primary Evidence: STEP_COMPLETED trace
+    const traceSnap = await db.collection(constants_1.COLLECTIONS.EXECUTION_TRACES)
+        .where("envelope_id", "==", envelopeId)
+        .where("step_id", "==", stepId)
+        .where("event_type", "==", "STEP_COMPLETED")
+        .limit(1)
+        .get();
+    if (!traceSnap.empty)
+        return true;
+    // 2. Secondary Evidence: Step-type specific artifacts
+    if (stepType === "produce_artifact" || stepType === "artifact_produce") {
+        const artSnap = await db.collection(constants_1.COLLECTIONS.ARTIFACTS)
+            .where("execution_id", "==", envelopeId)
+            .where("artifact_type", "==", "production")
+            .limit(1)
+            .get();
+        // Check if any artifact content (or a dedicated field) points to this step
+        // For Phase 2, we assume if a production artifact exists for this envelope, 
+        // and we are at the worker step, it's likely completed. 
+        // A more precise check would involve step_id in the artifact doc.
+        if (!artSnap.empty)
+            return true;
+    }
+    return false;
 }
 // ─── Job Link (UI pointer only — NOT used for execution) ─────────────────────
 async function linkJobToEnvelope(jobId, envelopeId) {

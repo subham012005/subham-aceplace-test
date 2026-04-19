@@ -8,7 +8,7 @@
  */
 import type { ExecutionEnvelope, DispatchResponse } from "./types";
 /**
- * Dispatch a new task — creates an envelope and starts the runtime loop.
+ * Dispatch a new task — creates an envelope and enqueues it for the runtime-worker.
  */
 export declare function dispatch(params: {
     prompt: string;

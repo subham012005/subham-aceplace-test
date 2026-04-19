@@ -47,27 +47,27 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.sleep = sleep;
+exports.runWorker = runWorker;
+const env_1 = require("@next/env");
+(0, env_1.loadEnvConfig)(process.cwd());
 const crypto_1 = require("crypto");
-const admin = __importStar(require("firebase-admin"));
+const http = __importStar(require("http"));
+const runtime_core_1 = require("@aceplace/runtime-core");
+// ── Status Server for Render Free Tier / UptimeRobot ──────────────────────────
+function startHealthCheckServer() {
+    const PORT = process.env.PORT || 3000;
+    const server = http.createServer((req, res) => {
+        res.writeHead(200, { "Content-Type": "text/plain" });
+        res.end("ACEPLACE Worker: Active\n");
+    });
+    server.listen(PORT, () => {
+        console.log(`[STATUS] Health check server listening on port ${PORT}`);
+    });
+    return server;
+}
 // ── Firebase init (standalone — no Next.js) ───────────────────────────────────
 let _app;
-function initFirebase() {
-    if (_app)
-        return _app;
-    const credential = process.env.FIREBASE_SERVICE_ACCOUNT_JSON
-        ? admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON))
-        : admin.credential.applicationDefault();
-    _app = admin.initializeApp({ credential });
-    return _app;
-}
-function getDb() {
-    return initFirebase().firestore();
-}
-// ── Lazy import runtime-core so firebase-admin init runs first ──────────────
-async function loadRuntime() {
-    const runner = await Promise.resolve().then(() => __importStar(require("@aceplace/runtime-core")));
-    return runner;
-}
 // ── Constants ─────────────────────────────────────────────────────────────────
 const WORKER_ID = `worker_${(0, crypto_1.randomUUID)().replace(/-/g, "").slice(0, 12)}`;
 const POLL_INTERVAL_MS = 1000;
@@ -77,107 +77,84 @@ console.log(`║   ACEPLACE Runtime Worker — Phase 2                    ║`);
 console.log(`║   Worker ID : ${WORKER_ID.padEnd(34)}║`);
 console.log(`║   Role      : execution-plane (not web-tier)      ║`);
 console.log(`╚═══════════════════════════════════════════════════╝\n`);
-// ── Claim function — atomic Firestore update ──────────────────────────────────
-async function claimNextEnvelope() {
-    const db = getDb();
-    const snapshot = await db
-        .collection(EXECUTION_QUEUE_COLLECTION)
-        .where("status", "==", "queued")
-        .orderBy("created_at", "asc")
-        .limit(1)
-        .get();
-    if (snapshot.empty)
-        return null;
-    const doc = snapshot.docs[0];
-    const data = doc.data();
-    // Atomic claim — prevents two workers from racing on the same envelope
-    try {
-        await db.runTransaction(async (tx) => {
-            const current = await tx.get(doc.ref);
-            if (!current.exists)
-                throw new Error("DOC_GONE");
-            if (current.data()?.status !== "queued")
-                throw new Error("ALREADY_CLAIMED");
-            tx.update(doc.ref, {
-                status: "claimed",
-                claimed_by: WORKER_ID,
-                claimed_at: new Date().toISOString(),
-            });
-        });
-    }
-    catch (err) {
-        // Another worker claimed it first — skip silently
-        if (err.message === "ALREADY_CLAIMED" || err.message === "DOC_GONE")
-            return null;
-        throw err;
-    }
-    console.log(`[WORKER:${WORKER_ID}] Claimed envelope: ${data.envelope_id}`);
-    return { envelope_id: data.envelope_id };
-}
-// ── Mark queue entry as done (completed or failed) ────────────────────────────
-async function finalizeQueueEntry(envelopeId, status, error) {
-    const db = getDb();
-    await db
-        .collection(EXECUTION_QUEUE_COLLECTION)
-        .doc(envelopeId)
-        .update({
-        status,
-        finalized_at: new Date().toISOString(),
-        ...(error ? { error } : {}),
-    });
-}
 // ── Sleep helper ──────────────────────────────────────────────────────────────
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 // ── Main polling loop ─────────────────────────────────────────────────────────
-async function main() {
-    initFirebase();
-    const { runEnvelopeParallel } = await loadRuntime();
-    console.log(`[WORKER:${WORKER_ID}] Polling ${EXECUTION_QUEUE_COLLECTION} every ${POLL_INTERVAL_MS}ms...`);
+async function runWorker(workerId = WORKER_ID) {
+    // Start health check server
+    const healthServer = startHealthCheckServer();
+    console.log(`[WORKER:${workerId}] Polling ${EXECUTION_QUEUE_COLLECTION} every ${POLL_INTERVAL_MS}ms...`);
     // Graceful shutdown
     let running = true;
-    process.on("SIGINT", () => {
-        console.log(`\n[WORKER:${WORKER_ID}] Received SIGINT — shutting down gracefully...`);
+    let activeEnvelopeId = null;
+    const shutdown = async (signal) => {
+        console.log(`\n[WORKER:${workerId}] Received ${signal} — shutting down gracefully...`);
         running = false;
-    });
-    process.on("SIGTERM", () => {
-        console.log(`\n[WORKER:${WORKER_ID}] Received SIGTERM — shutting down gracefully...`);
-        running = false;
-    });
+        // Close health check server
+        healthServer.close();
+        if (activeEnvelopeId) {
+            console.log(`[WORKER:${workerId}] Active envelope ${activeEnvelopeId} detected. Attempting to re-queue...`);
+            try {
+                await (0, runtime_core_1.requeueEnvelope)(activeEnvelopeId);
+                console.log(`[WORKER:${workerId}] Successfully re-queued ${activeEnvelopeId}.`);
+            }
+            catch (err) {
+                console.error(`[WORKER:${workerId}] Failed to re-queue:`, err);
+            }
+        }
+    };
+    process.on("SIGINT", () => shutdown("SIGINT"));
+    process.on("SIGTERM", () => shutdown("SIGTERM"));
     while (running) {
         try {
-            const entry = await claimNextEnvelope();
+            const entry = await (0, runtime_core_1.claimNextEnvelope)(workerId);
             if (!entry) {
                 await sleep(POLL_INTERVAL_MS);
                 continue;
             }
             const { envelope_id } = entry;
+            activeEnvelopeId = envelope_id;
             try {
-                console.log(`[WORKER:${WORKER_ID}] Starting runEnvelopeParallel for ${envelope_id}`);
-                await runEnvelopeParallel({
+                console.log(`[WORKER:${workerId}] Starting runEnvelopeParallel for ${envelope_id}`);
+                await (0, runtime_core_1.runEnvelopeParallel)({
                     envelope_id,
-                    instance_id: WORKER_ID,
+                    instance_id: workerId,
                 });
-                console.log(`[WORKER:${WORKER_ID}] Completed envelope: ${envelope_id}`);
-                await finalizeQueueEntry(envelope_id, "completed");
+                // Final status check — ensure we don't log "Completed" for failed/quarantined envelopes
+                const finalEnv = await (0, runtime_core_1.getDb)().collection("execution_envelopes").doc(envelope_id).get();
+                const finalStatus = finalEnv.data()?.status;
+                if (finalStatus === "completed" || finalStatus === "approved") {
+                    console.log(`[WORKER:${workerId}] Successfully completed envelope: ${envelope_id}`);
+                    await (0, runtime_core_1.finalizeQueueEntry)(envelope_id, "completed");
+                }
+                else {
+                    console.warn(`[WORKER:${workerId}] Runner exited with status: ${finalStatus} for ${envelope_id}`);
+                    await (0, runtime_core_1.finalizeQueueEntry)(envelope_id, finalStatus === "failed" ? "failed" : "completed");
+                }
             }
             catch (execErr) {
                 const msg = execErr?.message || String(execErr);
-                console.error(`[WORKER:${WORKER_ID}] Execution failed for ${envelope_id}:`, msg);
-                await finalizeQueueEntry(envelope_id, "failed", msg).catch(() => { });
+                console.error(`[WORKER:${workerId}] Execution failed for ${envelope_id}:`, msg);
+                await (0, runtime_core_1.finalizeQueueEntry)(envelope_id, "failed", msg).catch(() => { });
+            }
+            finally {
+                activeEnvelopeId = null;
             }
         }
         catch (pollErr) {
             // Poll error — log and keep running
-            console.error(`[WORKER:${WORKER_ID}] Poll error:`, pollErr?.message || pollErr);
+            console.error(`[WORKER:${workerId}] Poll error:`, pollErr?.message || pollErr);
             await sleep(POLL_INTERVAL_MS * 2);
         }
     }
-    console.log(`[WORKER:${WORKER_ID}] Worker stopped.`);
-    process.exit(0);
+    console.log(`[WORKER:${workerId}] Worker stopped.`);
 }
-main().catch((err) => {
-    console.error("[WORKER] Fatal startup error:", err);
-    process.exit(1);
-});
+// Only run if this is the main module
+if (require.main === module) {
+    runWorker().catch((err) => {
+        console.error("[WORKER] Fatal startup error:", err);
+        process.exit(1);
+    });
+}

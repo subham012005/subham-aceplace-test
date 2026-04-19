@@ -35,6 +35,11 @@ export declare function assertIdentityContext(envelope: ExecutionEnvelope): void
  */
 export declare function assertAgentIdentityContext(envelope: ExecutionEnvelope, agentId: string): void;
 /**
+ * Per-agent identity_context must be present, carry a valid fingerprint,
+ * and be PRECISELY verified. Silent identity failures are prohibited.
+ */
+export declare function assertAgentIdentityVerified(envelope: ExecutionEnvelope, agentId: string): void;
+/**
  * Per-agent lease must exist, be active, not expired, and owned by this instance.
  * A missing or expired lease means a step is about to execute without authority —
  * this is an invariant violation that must fail hard.

@@ -10,6 +10,7 @@ export declare function createDecompositionPlan(params: {
 export declare function expandWorkerSteps(params: {
     envelope_id: string;
     decomposition_plan: DecompositionPlan;
+    research_artifact_id?: string;
 }): Promise<void>;
 export declare function aggregateArtifacts(artifactIds: string[]): Promise<string>;
 //# sourceMappingURL=decomposition.d.ts.map

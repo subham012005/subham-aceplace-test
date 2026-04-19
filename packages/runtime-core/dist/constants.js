@@ -10,7 +10,7 @@
  * Phase 2 | Envelope-Driven Runtime
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TIER_DEFINITIONS = exports.STEP_STATUS_DISPLAY = exports.ENVELOPE_STATUS_DISPLAY = exports.MAX_LEASE_DURATION_SECONDS = exports.DEFAULT_LEASE_DURATION_SECONDS = exports.PROTOCOL_VERB_LABELS = exports.ALLOWED_PROTOCOL_VERBS = exports.DEFAULT_STEP_PIPELINE = exports.STEP_TYPE_CONFIG = exports.STEP_STATUS_TRANSITIONS = exports.ENVELOPE_STATUS_TRANSITIONS = exports.COLLECTIONS = void 0;
+exports.TIER_DEFINITIONS = exports.STEP_STATUS_DISPLAY = exports.ENVELOPE_STATUS_DISPLAY = exports.STEP_EXECUTION_MIN_WINDOW_MS = exports.MAX_LEASE_DURATION_SECONDS = exports.DEFAULT_LEASE_DURATION_SECONDS = exports.STALE_CLAIM_THRESHOLD_MS = exports.PROTOCOL_VERB_LABELS = exports.ALLOWED_PROTOCOL_VERBS = exports.DEFAULT_STEP_PIPELINE = exports.STEP_TYPE_CONFIG = exports.STEP_STATUS_TRANSITIONS = exports.ENVELOPE_STATUS_TRANSITIONS = exports.COLLECTIONS = void 0;
 // ─── Firestore Collection Names ───────────────────────────────────────────────
 // LEASES and EXECUTION_STEPS are DEPRECATED — data now lives inside the envelope.
 exports.COLLECTIONS = {
@@ -36,16 +36,16 @@ exports.COLLECTIONS = {
 // ─── Envelope Status State Machine ────────────────────────────────────────────
 // Strict transitions — MUST be enforced atomically. No skipping allowed.
 exports.ENVELOPE_STATUS_TRANSITIONS = {
-    created: ["leased", "failed"],
-    leased: ["planned", "quarantined", "failed"],
-    planned: ["executing", "failed"],
-    executing: ["awaiting_human", "approved", "completed", "failed", "quarantined"],
+    created: ["planned", "leased", "failed", "quarantined"],
+    planned: ["leased", "executing", "failed", "quarantined"],
+    leased: ["executing", "failed", "quarantined"],
+    executing: ["completed", "failed", "quarantined", "awaiting_human"],
     awaiting_human: ["approved", "rejected", "failed"],
-    approved: [], // terminal
-    completed: [], // terminal (canonical success — multi-agent path)
-    rejected: [], // terminal
-    failed: [], // terminal
-    quarantined: [], // terminal — requires manual intervention
+    approved: [],
+    completed: [],
+    rejected: [],
+    failed: [],
+    quarantined: [],
 };
 // ─── Step Status Transitions ──────────────────────────────────────────────────
 exports.STEP_STATUS_TRANSITIONS = {
@@ -113,7 +113,7 @@ exports.STEP_TYPE_CONFIG = {
         color: "#94A3B8",
     },
     complete: {
-        label: "Complete",
+        label: "Verification",
         protocol_verb: "#us#.execution.complete",
         agent_role: "coo",
         icon: "CheckCircle",
@@ -130,7 +130,6 @@ exports.DEFAULT_STEP_PIPELINE = [
     "evaluation",
 ];
 // ─── #us# Protocol Verbs ──────────────────────────────────────────────────────
-// ONLY these five verbs are legal. All others MUST be rejected.
 exports.ALLOWED_PROTOCOL_VERBS = [
     "#us#.task.plan",
     "#us#.task.assign",
@@ -146,8 +145,10 @@ exports.PROTOCOL_VERB_LABELS = {
     "#us#.execution.complete": "Execution Complete",
 };
 // ─── Lease Configuration ──────────────────────────────────────────────────────
+exports.STALE_CLAIM_THRESHOLD_MS = 120_000; // 2 minutes
 exports.DEFAULT_LEASE_DURATION_SECONDS = 300; // 5 minutes
 exports.MAX_LEASE_DURATION_SECONDS = 1800; // 30 minutes
+exports.STEP_EXECUTION_MIN_WINDOW_MS = 20_000; // 20 seconds
 // ─── Status Display Config ────────────────────────────────────────────────────
 exports.ENVELOPE_STATUS_DISPLAY = {
     created: { label: "CREATED", color: "text-slate-400", bgColor: "bg-slate-400/10", borderColor: "border-slate-400/50" },
