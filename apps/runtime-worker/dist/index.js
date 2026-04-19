@@ -53,6 +53,7 @@ const env_1 = require("@next/env");
 (0, env_1.loadEnvConfig)(process.cwd());
 const crypto_1 = require("crypto");
 const http = __importStar(require("http"));
+const https = __importStar(require("https"));
 const runtime_core_1 = require("@aceplace/runtime-core");
 // ── Status Server for Render Free Tier / UptimeRobot ──────────────────────────
 function startHealthCheckServer() {
@@ -72,19 +73,41 @@ let _app;
 const WORKER_ID = `worker_${(0, crypto_1.randomUUID)().replace(/-/g, "").slice(0, 12)}`;
 const POLL_INTERVAL_MS = 1000;
 const EXECUTION_QUEUE_COLLECTION = "execution_queue";
+const SELF_PING_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes (Render sleep is 15m)
+const PUBLIC_URL = process.env.PUBLIC_URL || "https://subham-aceplace-test.onrender.com/";
 console.log(`\n╔═══════════════════════════════════════════════════╗`);
 console.log(`║   ACEPLACE Runtime Worker — Phase 2                    ║`);
 console.log(`║   Worker ID : ${WORKER_ID.padEnd(34)}║`);
 console.log(`║   Role      : execution-plane (not web-tier)      ║`);
 console.log(`╚═══════════════════════════════════════════════════╝\n`);
-// ── Sleep helper ──────────────────────────────────────────────────────────────
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
+}
+function startSelfPing(workerId) {
+    if (!PUBLIC_URL) {
+        console.warn(`[WORKER:${workerId}] No PUBLIC_URL provided. Self-ping disabled.`);
+        return null;
+    }
+    console.log(`[WORKER:${workerId}] Self-ping enabled for ${PUBLIC_URL}`);
+    const ping = () => {
+        console.log(`[WORKER:${workerId}] Sending self-ping to ${PUBLIC_URL}...`);
+        const protocol = PUBLIC_URL.startsWith("https") ? https : http;
+        protocol.get(PUBLIC_URL, (res) => {
+            console.log(`[WORKER:${workerId}] Self-ping response: ${res.statusCode}`);
+        }).on("error", (err) => {
+            console.error(`[WORKER:${workerId}] Self-ping failed:`, err.message);
+        });
+    };
+    // Ping immediately then set interval
+    ping();
+    return setInterval(ping, SELF_PING_INTERVAL_MS);
 }
 // ── Main polling loop ─────────────────────────────────────────────────────────
 async function runWorker(workerId = WORKER_ID) {
     // Start health check server
     const healthServer = startHealthCheckServer();
+    // Start self-ping for Render Free Tier
+    const pingInterval = startSelfPing(workerId);
     console.log(`[WORKER:${workerId}] Polling ${EXECUTION_QUEUE_COLLECTION} every ${POLL_INTERVAL_MS}ms...`);
     // Graceful shutdown
     let running = true;
@@ -94,6 +117,9 @@ async function runWorker(workerId = WORKER_ID) {
         running = false;
         // Close health check server
         healthServer.close();
+        // Stop self-ping
+        if (pingInterval)
+            clearInterval(pingInterval);
         if (activeEnvelopeId) {
             console.log(`[WORKER:${workerId}] Active envelope ${activeEnvelopeId} detected. Attempting to re-queue...`);
             try {
