@@ -40,8 +40,10 @@ export declare const STEP_TYPE_CONFIG: Record<string, {
 export declare const DEFAULT_STEP_PIPELINE: string[];
 export declare const ALLOWED_PROTOCOL_VERBS: readonly ProtocolVerb[];
 export declare const PROTOCOL_VERB_LABELS: Record<ProtocolVerb, string>;
+export declare const STALE_CLAIM_THRESHOLD_MS = 120000;
 export declare const DEFAULT_LEASE_DURATION_SECONDS = 300;
 export declare const MAX_LEASE_DURATION_SECONDS = 1800;
+export declare const STEP_EXECUTION_MIN_WINDOW_MS = 20000;
 export declare const ENVELOPE_STATUS_DISPLAY: Record<EnvelopeStatus, {
     label: string;
     color: string;

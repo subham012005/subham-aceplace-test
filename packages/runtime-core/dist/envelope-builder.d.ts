@@ -12,12 +12,14 @@ import type { ExecutionEnvelope, EnvelopeStep, IdentityContext } from "./types";
  * The first step is initialized to "ready"; all others are "pending".
  */
 export declare function buildEnvelope(params: {
+    envelopeId?: string;
     orgId?: string;
     jobId?: string;
     userId?: string;
     prompt?: string;
     identityContext: IdentityContext;
     identity_contexts?: Record<string, IdentityContext>;
+    role_assignments?: Record<string, string>;
     stepPipeline?: string[];
     steps?: EnvelopeStep[];
 }): ExecutionEnvelope;

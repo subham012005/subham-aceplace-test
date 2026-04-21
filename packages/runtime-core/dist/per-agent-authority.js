@@ -18,10 +18,10 @@ const crypto_1 = require("crypto");
 const db_1 = require("./db");
 const constants_1 = require("./constants");
 const persistence_1 = require("./kernels/persistence");
-const LEASE_MS = 60_000;
-async function acquirePerAgentLease(envelopeId, agentId, instanceId) {
+async function acquirePerAgentLease(envelopeId, agentId, instanceId, options) {
     const db = (0, db_1.getDb)();
     const ref = db.collection(constants_1.COLLECTIONS.EXECUTION_ENVELOPES).doc(envelopeId);
+    const leaseDurationMs = (options?.durationSeconds ?? constants_1.DEFAULT_LEASE_DURATION_SECONDS) * 1000;
     return db.runTransaction(async (tx) => {
         const snap = await tx.get(ref);
         if (!snap.exists)
@@ -33,7 +33,10 @@ async function acquirePerAgentLease(envelopeId, agentId, instanceId) {
         if (existing && existing.status !== "expired" && existing.status !== "revoked") {
             const exp = new Date(existing.lease_expires_at).getTime();
             if (exp > now && existing.current_instance_id === instanceId) {
-                const expiresAt = new Date(now + LEASE_MS).toISOString();
+                if (!options?.forceRenew && (exp - now) >= constants_1.STEP_EXECUTION_MIN_WINDOW_MS) {
+                    return existing;
+                }
+                const expiresAt = new Date(now + leaseDurationMs).toISOString();
                 const lease = {
                     ...existing,
                     lease_expires_at: expiresAt,
@@ -47,14 +50,11 @@ async function acquirePerAgentLease(envelopeId, agentId, instanceId) {
                 return lease;
             }
             if (exp > now && existing.current_instance_id !== instanceId) {
-                // AUDIT FIX P0#4: Do NOT write quarantined status directly from lease code.
-                // Throw a pure domain error. parallel-runner.ts catches FORK_DETECTED
-                // and calls transition(envelopeId, "quarantined", ...) via the state machine.
                 throw new Error("FORK_DETECTED");
             }
         }
         const leaseId = `lease_${(0, crypto_1.randomUUID)().replace(/-/g, "")}`;
-        const expiresAt = new Date(now + LEASE_MS).toISOString();
+        const expiresAt = new Date(now + leaseDurationMs).toISOString();
         const lease = {
             lease_id: leaseId,
             agent_id: agentId,
@@ -66,7 +66,6 @@ async function acquirePerAgentLease(envelopeId, agentId, instanceId) {
         };
         const authority_leases = { ...(envelope.authority_leases || {}), [agentId]: lease };
         tx.update(ref, { authority_leases, updated_at: nowIso });
-        // 🔬 Trace emission for audit trail
         await (0, persistence_1.addTrace)(envelopeId, "", agentId, envelope.identity_contexts?.[agentId]?.identity_fingerprint || "unknown", "LEASE_ACQUIRED", { lease_id: leaseId, instance_id: instanceId });
         return lease;
     });
@@ -87,9 +86,10 @@ function validatePerAgentLease(envelope, agentId, instanceId) {
     }
 }
 /** Heartbeat / explicit renew — extends lease_expires_at for active same-instance holder. */
-async function renewPerAgentLease(envelopeId, agentId, instanceId) {
+async function renewPerAgentLease(envelopeId, agentId, instanceId, durationSeconds = constants_1.DEFAULT_LEASE_DURATION_SECONDS) {
     const db = (0, db_1.getDb)();
     const ref = db.collection(constants_1.COLLECTIONS.EXECUTION_ENVELOPES).doc(envelopeId);
+    const leaseDurationMs = durationSeconds * 1000;
     return db.runTransaction(async (tx) => {
         const snap = await tx.get(ref);
         if (!snap.exists)
@@ -102,7 +102,7 @@ async function renewPerAgentLease(envelopeId, agentId, instanceId) {
             throw new Error(`FORK_DETECTED:${agentId}`);
         }
         const nowIso = new Date().toISOString();
-        const expiresAt = new Date(Date.now() + LEASE_MS).toISOString();
+        const expiresAt = new Date(Date.now() + leaseDurationMs).toISOString();
         const lease = {
             ...current,
             lease_expires_at: expiresAt,
@@ -110,7 +110,7 @@ async function renewPerAgentLease(envelopeId, agentId, instanceId) {
             status: "active",
         };
         tx.update(ref, {
-            [`authority_leases.${agentId}`]: lease,
+            authority_leases: { ...(envelope.authority_leases || {}), [agentId]: lease },
             updated_at: nowIso,
         });
         return lease;
@@ -134,7 +134,7 @@ async function releasePerAgentLease(envelopeId, agentId) {
             last_renewed_at: new Date().toISOString(),
         };
         tx.update(ref, {
-            [`authority_leases.${agentId}`]: released,
+            authority_leases: { ...(envelope.authority_leases || {}), [agentId]: released },
             updated_at: new Date().toISOString(),
         });
     });

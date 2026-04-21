@@ -37,9 +37,14 @@ export interface EnvelopeStep {
     step_id: string;
     step_type: StepType;
     status: StepStatus;
+    /**
+     * Canonical role for this step.
+     * Drives deterministic agent binding via envelope.role_assignments[role].
+     */
+    role: RuntimeRole;
+    /** Concrete agent instance bound to this step (resolved from role) */
     assigned_agent_id: string;
     depends_on?: string[];
-    role?: RuntimeRole;
     retry_count?: number;
     max_retries?: number;
     claimed_by_instance_id?: string | null;
@@ -88,6 +93,7 @@ export interface ExecutionEnvelope {
     coordinator_agent_id?: string;
     multi_agent?: boolean;
     identity_contexts?: Record<string, IdentityContext>;
+    role_assignments?: Record<string, string>;
     authority_leases?: Record<string, AgentAuthorityLease | null>;
     decomposition_plan?: DecompositionPlan | null;
     steps: EnvelopeStep[];
@@ -97,6 +103,7 @@ export interface ExecutionEnvelope {
     trace_head_hash: string | null;
     created_at: string;
     updated_at: string;
+    resurrection_count?: number;
     job_id?: string;
     user_id?: string;
     prompt?: string;
@@ -208,6 +215,7 @@ export interface AgentIdentity {
 export interface IdentityVerifyResult {
     verified: boolean;
     agent_id: string;
+    identity_fingerprint?: string;
     reason?: string;
     verified_at: string;
 }

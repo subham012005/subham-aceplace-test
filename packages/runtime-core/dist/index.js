@@ -20,8 +20,8 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.aggregateTelemetryWindow = exports.validateAceHandoff = exports.acceptAceHandoff = exports.storeUSMessage = exports.mapStepTypeToUSMessage = exports.handleUSMessage = exports.createUSMessage = exports.planEnvelopeSteps = exports.buildDefaultIdentityContext = exports.buildEnvelope = exports.emitRuntimeMetric = exports.recoverEnvelopeDeadSteps = exports.recoverGlobalDeadSteps = exports.renewPerAgentLease = exports.validatePerAgentLease = exports.releasePerAgentLease = exports.acquirePerAgentLease = exports.selectParallelStepBatch = exports.getRunnableSteps = exports.finalizeEnvelopeStep = exports.claimEnvelopeStep = exports.runEnvelopeParallel = exports.expireStaleLeases = exports.hasValidLease = exports.releaseLease = exports.acquireLease = exports.removeAgentSecret = exports.listSecretNames = exports.getAgentSecrets = exports.setAgentSecrets = exports.enqueueEnvelope = exports.getJob = exports.syncJobStatus = exports.linkJobToEnvelope = exports.createArtifact = exports.addTrace = exports.getNextReadyStep = exports.getEnvelopeStep = exports.updateEnvelopeStep = exports.updateEnvelope = exports.getEnvelope = exports.createEnvelope = exports.getDb = exports.registerAgentIdentity = exports.computeFingerprint = exports.buildIdentityContext = exports.verifyIdentityForAgent = exports.verifyIdentity = exports.canTransition = exports.transition = void 0;
-exports.assertEnvelopeHasSteps = exports.assertDependenciesSatisfied = exports.assertStepNotCompleted = exports.assertStepExists = exports.assertClaimOwnership = exports.assertAgentLease = exports.assertAgentIdentityContext = exports.assertIdentityContext = exports.assertEnvelopeNotTerminal = exports.runtimeIdFromRequest = exports.getLicenseFromRequest = exports.resolveLicenseById = exports.isLicenseExpired = exports.checkCapability = exports.auditLicenseCheck = exports.aceLogicResurrectionVerify = exports.aceLogicLeaseRelease = exports.aceLogicLeaseRenew = exports.aceLogicLeaseAcquire = exports.aceLogicVerifyIdentity = exports.aceLogicIntrospect = exports.acelogicExecutionGuard = exports.rejectEnvelope = exports.approveEnvelope = exports.getEnvelopeState = exports.dispatch = void 0;
+exports.storeUSMessage = exports.mapStepTypeToUSMessage = exports.handleUSMessage = exports.createUSMessage = exports.planEnvelopeSteps = exports.buildDefaultIdentityContext = exports.buildEnvelope = exports.emitRuntimeMetric = exports.recoverEnvelopeDeadSteps = exports.recoverGlobalDeadSteps = exports.renewPerAgentLease = exports.validatePerAgentLease = exports.releasePerAgentLease = exports.acquirePerAgentLease = exports.selectParallelStepBatch = exports.getRunnableSteps = exports.finalizeEnvelopeStep = exports.claimEnvelopeStep = exports.runEnvelopeParallel = exports.expireStaleLeases = exports.hasValidLease = exports.releaseLease = exports.acquireLease = exports.removeAgentSecret = exports.listSecretNames = exports.getAgentSecrets = exports.setAgentSecrets = exports.finalizeQueueEntry = exports.requeueEnvelope = exports.claimNextEnvelope = exports.enqueueEnvelope = exports.getJob = exports.syncJobStatus = exports.linkJobToEnvelope = exports.createArtifact = exports.addTrace = exports.getNextReadyStep = exports.getEnvelopeStep = exports.updateEnvelopeStep = exports.updateEnvelope = exports.getEnvelope = exports.createEnvelope = exports.getDb = exports.registerAgentIdentity = exports.computeFingerprint = exports.buildIdentityContext = exports.verifyIdentityForAgent = exports.verifyIdentity = exports.canTransition = exports.transition = void 0;
+exports.executeFallbackStep = exports.resolveAssignedAgentId = exports.assertEnvelopeHasSteps = exports.assertDependenciesSatisfied = exports.assertStepNotCompleted = exports.assertStepExists = exports.assertClaimOwnership = exports.assertAgentLease = exports.assertAgentIdentityContext = exports.assertIdentityContext = exports.assertEnvelopeNotTerminal = exports.runtimeIdFromRequest = exports.getLicenseFromRequest = exports.resolveLicenseById = exports.isLicenseExpired = exports.checkCapability = exports.auditLicenseCheck = exports.aceLogicResurrectionVerify = exports.aceLogicLeaseRelease = exports.aceLogicLeaseRenew = exports.aceLogicLeaseAcquire = exports.aceLogicVerifyIdentity = exports.aceLogicIntrospect = exports.acelogicExecutionGuard = exports.rejectEnvelope = exports.approveEnvelope = exports.getEnvelopeState = exports.dispatch = exports.aggregateTelemetryWindow = void 0;
 // State machine
 var state_machine_1 = require("./state-machine");
 Object.defineProperty(exports, "transition", { enumerable: true, get: function () { return state_machine_1.transition; } });
@@ -49,6 +49,10 @@ Object.defineProperty(exports, "linkJobToEnvelope", { enumerable: true, get: fun
 Object.defineProperty(exports, "syncJobStatus", { enumerable: true, get: function () { return persistence_1.syncJobStatus; } });
 Object.defineProperty(exports, "getJob", { enumerable: true, get: function () { return persistence_1.getJob; } });
 Object.defineProperty(exports, "enqueueEnvelope", { enumerable: true, get: function () { return persistence_1.enqueueEnvelope; } });
+var queue_1 = require("./kernels/queue");
+Object.defineProperty(exports, "claimNextEnvelope", { enumerable: true, get: function () { return queue_1.claimNextEnvelope; } });
+Object.defineProperty(exports, "requeueEnvelope", { enumerable: true, get: function () { return queue_1.requeueEnvelope; } });
+Object.defineProperty(exports, "finalizeQueueEntry", { enumerable: true, get: function () { return queue_1.finalizeQueueEntry; } });
 var secrets_1 = require("./kernels/secrets");
 Object.defineProperty(exports, "setAgentSecrets", { enumerable: true, get: function () { return secrets_1.setAgentSecrets; } });
 Object.defineProperty(exports, "getAgentSecrets", { enumerable: true, get: function () { return secrets_1.getAgentSecrets; } });
@@ -91,9 +95,6 @@ Object.defineProperty(exports, "createUSMessage", { enumerable: true, get: funct
 Object.defineProperty(exports, "handleUSMessage", { enumerable: true, get: function () { return us_message_engine_1.handleUSMessage; } });
 Object.defineProperty(exports, "mapStepTypeToUSMessage", { enumerable: true, get: function () { return us_message_engine_1.mapStepTypeToUSMessage; } });
 Object.defineProperty(exports, "storeUSMessage", { enumerable: true, get: function () { return us_message_engine_1.storeUSMessage; } });
-var ace_handoff_1 = require("./ace-handoff");
-Object.defineProperty(exports, "acceptAceHandoff", { enumerable: true, get: function () { return ace_handoff_1.acceptAceHandoff; } });
-Object.defineProperty(exports, "validateAceHandoff", { enumerable: true, get: function () { return ace_handoff_1.validateAceHandoff; } });
 var aggregateTelemetryWindow_1 = require("./telemetry/aggregateTelemetryWindow");
 Object.defineProperty(exports, "aggregateTelemetryWindow", { enumerable: true, get: function () { return aggregateTelemetryWindow_1.aggregateTelemetryWindow; } });
 // Dispatching Engine
@@ -132,6 +133,11 @@ Object.defineProperty(exports, "assertStepExists", { enumerable: true, get: func
 Object.defineProperty(exports, "assertStepNotCompleted", { enumerable: true, get: function () { return guards_1.assertStepNotCompleted; } });
 Object.defineProperty(exports, "assertDependenciesSatisfied", { enumerable: true, get: function () { return guards_1.assertDependenciesSatisfied; } });
 Object.defineProperty(exports, "assertEnvelopeHasSteps", { enumerable: true, get: function () { return guards_1.assertEnvelopeHasSteps; } });
+var resolution_1 = require("./runtime/resolution");
+Object.defineProperty(exports, "resolveAssignedAgentId", { enumerable: true, get: function () { return resolution_1.resolveAssignedAgentId; } });
+// LLM Fallback (TypeScript-native agent execution)
+var llm_fallback_1 = require("./llm-fallback");
+Object.defineProperty(exports, "executeFallbackStep", { enumerable: true, get: function () { return llm_fallback_1.executeFallbackStep; } });
 // Types & constants
 __exportStar(require("./types"), exports);
 __exportStar(require("./constants"), exports);

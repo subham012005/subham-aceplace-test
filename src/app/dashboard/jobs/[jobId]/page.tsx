@@ -306,7 +306,7 @@ export default function JobDetailsPage() {
         if (job?.rejected_at) return 'rejected';
 
         let rawStatus = String(job?.status || 'queued').toLowerCase();
-        
+
         // Translate awaiting_approval to graded conceptually
         if (rawStatus === 'awaiting_approval' || rawStatus === 'graded') {
             return 'graded';
@@ -346,7 +346,7 @@ export default function JobDetailsPage() {
             if (currentActiveIndex >= 5) return 'lease_check';
             if (currentActiveIndex >= 1) return 'initializing';
         }
-        
+
         return rawStatus;
     })();
 
@@ -411,9 +411,9 @@ export default function JobDetailsPage() {
     const isAgentEngineFailure = (() => {
         const reason = String(job?.failure_reason || "").toLowerCase();
         return reason.includes("econnrefused") ||
-               reason.includes("agent engine") ||
-               reason.includes("fetch failed") ||
-               reason.includes("no_worker_available");
+            reason.includes("agent engine") ||
+            reason.includes("fetch failed") ||
+            reason.includes("no_worker_available");
     })();
 
     const handleApprove = async () => {
@@ -489,7 +489,7 @@ export default function JobDetailsPage() {
                             <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" />
                             Return to Dashboard
                         </button>
-                        
+
                         <div className="flex flex-col gap-1">
                             <div className="flex items-center gap-3">
                                 <Activity className="w-5 h-5 text-cyan-500 animate-pulse" />
@@ -546,97 +546,97 @@ export default function JobDetailsPage() {
                     const jobStatus = String(job?.status || "").toLowerCase();
                     const isNoWorker = ["created", "queued"].includes(jobStatus);
                     return (
-                    <div className={cn(
-                        "relative overflow-hidden animate-pulse-slow",
-                        isNoWorker
-                            ? "border border-rose-500/60 bg-rose-500/5"
-                            : "border border-amber-500/60 bg-amber-500/5"
-                    )}>
                         <div className={cn(
-                            "absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent to-transparent",
-                            isNoWorker ? "via-rose-400" : "via-amber-400"
-                        )} />
-                        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-red-500/50 to-transparent" />
+                            "relative overflow-hidden animate-pulse-slow",
+                            isNoWorker
+                                ? "border border-rose-500/60 bg-rose-500/5"
+                                : "border border-amber-500/60 bg-amber-500/5"
+                        )}>
+                            <div className={cn(
+                                "absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent to-transparent",
+                                isNoWorker ? "via-rose-400" : "via-amber-400"
+                            )} />
+                            <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-red-500/50 to-transparent" />
 
-                        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-4 sm:p-6">
-                            <div className="flex items-start gap-4">
-                                <div className="relative shrink-0">
-                                    <div className={cn(
-                                        "w-12 h-12 rounded-full border flex items-center justify-center",
-                                        isNoWorker
-                                            ? "bg-rose-500/10 border-rose-500/40"
-                                            : "bg-amber-500/10 border-amber-500/40"
-                                    )}>
+                            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-4 sm:p-6">
+                                <div className="flex items-start gap-4">
+                                    <div className="relative shrink-0">
                                         <div className={cn(
-                                            "absolute inset-0 rounded-full animate-ping opacity-30",
-                                            isNoWorker ? "bg-rose-400" : "bg-amber-400"
-                                        )} />
-                                        <Zap className={cn(
-                                            "w-5 h-5 relative z-10",
-                                            isNoWorker ? "text-rose-400" : "text-amber-400"
-                                        )} />
+                                            "w-12 h-12 rounded-full border flex items-center justify-center",
+                                            isNoWorker
+                                                ? "bg-rose-500/10 border-rose-500/40"
+                                                : "bg-amber-500/10 border-amber-500/40"
+                                        )}>
+                                            <div className={cn(
+                                                "absolute inset-0 rounded-full animate-ping opacity-30",
+                                                isNoWorker ? "bg-rose-400" : "bg-amber-400"
+                                            )} />
+                                            <Zap className={cn(
+                                                "w-5 h-5 relative z-10",
+                                                isNoWorker ? "text-rose-400" : "text-amber-400"
+                                            )} />
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="space-y-1.5">
-                                    <div className="flex flex-wrap items-center gap-2">
+                                    <div className="space-y-1.5">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            {isNoWorker ? (
+                                                <>
+                                                    <span className="text-xs font-black text-rose-400 uppercase tracking-[0.3em]">RUNTIME WORKER OFFLINE</span>
+                                                    <span className="px-2 py-0.5 bg-rose-500/20 border border-rose-500/40 text-rose-400 text-[9px] font-black uppercase tracking-widest scifi-clip">
+                                                        NO EXECUTOR
+                                                    </span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <span className="text-xs font-black text-amber-400 uppercase tracking-[0.3em]">SERVER CRASH DETECTED</span>
+                                                    <span className="px-2 py-0.5 bg-red-500/20 border border-red-500/40 text-red-400 text-[9px] font-black uppercase tracking-widest scifi-clip">
+                                                        PIPELINE STALLED
+                                                    </span>
+                                                </>
+                                            )}
+                                        </div>
                                         {isNoWorker ? (
-                                            <>
-                                                <span className="text-xs font-black text-rose-400 uppercase tracking-[0.3em]">RUNTIME WORKER OFFLINE</span>
-                                                <span className="px-2 py-0.5 bg-rose-500/20 border border-rose-500/40 text-rose-400 text-[9px] font-black uppercase tracking-widest scifi-clip">
-                                                    NO EXECUTOR
-                                                </span>
-                                            </>
+                                            <p className="text-slate-300 text-sm leading-relaxed max-w-xl">
+                                                No runtime worker is running to execute this job. Start the worker
+                                                process with <code className="px-1.5 py-0.5 bg-slate-800 border border-slate-700 text-rose-300 font-mono text-xs rounded">npm run worker</code> and
+                                                then restore continuity.
+                                            </p>
                                         ) : (
-                                            <>
-                                                <span className="text-xs font-black text-amber-400 uppercase tracking-[0.3em]">SERVER CRASH DETECTED</span>
-                                                <span className="px-2 py-0.5 bg-red-500/20 border border-red-500/40 text-red-400 text-[9px] font-black uppercase tracking-widest scifi-clip">
-                                                    PIPELINE STALLED
-                                                </span>
-                                            </>
+                                            <p className="text-slate-300 text-sm leading-relaxed max-w-xl">
+                                                The runtime worker stopped responding during job execution. No updates have been received for{" "}
+                                                <span className="text-amber-400 font-bold font-mono">{staleSinceSeconds}s</span>.
+                                                The job can be restored from its last safe checkpoint.
+                                            </p>
                                         )}
-                                    </div>
-                                    {isNoWorker ? (
-                                        <p className="text-slate-300 text-sm leading-relaxed max-w-xl">
-                                            No runtime worker is running to execute this job. Start the worker
-                                            process with <code className="px-1.5 py-0.5 bg-slate-800 border border-slate-700 text-rose-300 font-mono text-xs rounded">npm run worker</code> and
-                                            then restore continuity.
-                                        </p>
-                                    ) : (
-                                        <p className="text-slate-300 text-sm leading-relaxed max-w-xl">
-                                            The runtime worker stopped responding during job execution. No updates have been received for{" "}
-                                            <span className="text-amber-400 font-bold font-mono">{staleSinceSeconds}s</span>.
-                                            The job can be restored from its last safe checkpoint.
-                                        </p>
-                                    )}
-                                    <div className="flex items-center gap-3 pt-1">
-                                        <div className="flex items-center gap-1.5">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                                            <span className="text-[10px] text-slate-500 font-mono uppercase tracking-widest">
-                                                Last heartbeat: {formatDate(job?.updated_at)}
-                                            </span>
+                                        <div className="flex items-center gap-3 pt-1">
+                                            <div className="flex items-center gap-1.5">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                                                <span className="text-[10px] text-slate-500 font-mono uppercase tracking-widest">
+                                                    Last heartbeat: {formatDate(job?.updated_at)}
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <div className="shrink-0 flex flex-col gap-2 w-full md:w-auto">
-                                <button
-                                    onClick={handleResurrect}
-                                    disabled={actionLoading || isNoWorker}
-                                    title={isNoWorker ? "Start the runtime worker first (npm run worker)" : undefined}
-                                    className={cn(
-                                        "px-6 py-3 font-black uppercase tracking-widest transition-all scifi-clip flex items-center justify-center gap-2 w-full md:w-auto",
-                                        isNoWorker
-                                            ? "bg-slate-800/50 border border-slate-600/50 text-slate-500 cursor-not-allowed"
-                                            : "bg-amber-500/10 border border-amber-500/50 text-amber-400 hover:bg-amber-500/20 cursor-pointer shadow-[0_0_20px_rgba(245,158,11,0.15)]"
-                                    )}
-                                >
-                                    <RefreshCw className={cn("w-4 h-4", actionLoading && "animate-spin")} />
-                                    {isNoWorker ? "Worker Required" : "Continuity Restore"}
-                                </button>
+                                <div className="shrink-0 flex flex-col gap-2 w-full md:w-auto">
+                                    <button
+                                        onClick={handleResurrect}
+                                        disabled={actionLoading || isNoWorker}
+                                        title={isNoWorker ? "Start the runtime worker first (npm run worker)" : undefined}
+                                        className={cn(
+                                            "px-6 py-3 font-black uppercase tracking-widest transition-all scifi-clip flex items-center justify-center gap-2 w-full md:w-auto",
+                                            isNoWorker
+                                                ? "bg-slate-800/50 border border-slate-600/50 text-slate-500 cursor-not-allowed"
+                                                : "bg-amber-500/10 border border-amber-500/50 text-amber-400 hover:bg-amber-500/20 cursor-pointer shadow-[0_0_20px_rgba(245,158,11,0.15)]"
+                                        )}
+                                    >
+                                        <RefreshCw className={cn("w-4 h-4", actionLoading && "animate-spin")} />
+                                        {isNoWorker ? "Worker Required" : "Continuity Restore"}
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    </div>
                     );
                 })()}
 
@@ -839,10 +839,10 @@ export default function JobDetailsPage() {
                 {(() => {
                     const status = String(job?.status || '').toLowerCase();
                     const isDecided = ['approved', 'rejected'].includes(status);
-                    
+
                     // Show the bar if we are in a decision stage OR if we have reached the worker/grading phase
                     const isLateStage = ['grading', 'graded', 'awaiting_approval', 'worker_execution', 'completed', 'failed', 'approved', 'rejected'].includes(derivedStatus);
-                    
+
                     // CRITICAL: Unlock buttons when status is awaiting_human or graded
                     const needsDecision = (['graded', 'awaiting_approval'].includes(derivedStatus) || status === 'awaiting_human') && !isDecided;
 
@@ -1028,7 +1028,7 @@ export default function JobDetailsPage() {
 
                                                 let planData: any = rawContent;
                                                 if (typeof rawContent === 'string') {
-                                                    try { planData = JSON.parse(rawContent); } catch(e) { planData = rawContent; }
+                                                    try { planData = JSON.parse(rawContent); } catch (e) { planData = rawContent; }
                                                 }
 
                                                 const strategicObj = typeof planData === 'object' ? (planData.strategic_objective || planData.objective || '') : '';
@@ -1183,7 +1183,7 @@ export default function JobDetailsPage() {
 
                                                 let resData: any = rawContent;
                                                 if (typeof rawContent === 'string') {
-                                                    try { resData = JSON.parse(rawContent); } catch(e) { resData = { research_summary: rawContent }; }
+                                                    try { resData = JSON.parse(rawContent); } catch (e) { resData = { research_summary: rawContent }; }
                                                 }
 
                                                 const summary = resData.research_summary || resData.summary || '';
@@ -1212,14 +1212,14 @@ export default function JobDetailsPage() {
                                                                 <p className="text-[9px] uppercase font-black tracking-widest text-slate-500 px-1">Intelligence Findings</p>
                                                                 <div className="space-y-3">
                                                                     {findings.map((f: any, i: number) => {
-                                                                        const title = typeof f === 'string' ? `Finding ${i+1}` : (f.title || `Finding ${i+1}`);
+                                                                        const title = typeof f === 'string' ? `Finding ${i + 1}` : (f.title || `Finding ${i + 1}`);
                                                                         const detail = typeof f === 'string' ? f : (f.detail || f.description || '');
                                                                         const significance = typeof f === 'object' ? (f.significance || '') : '';
                                                                         return (
                                                                             <div key={i} className="p-4 bg-white/[0.03] border border-white/10 scifi-clip hover:bg-white/[0.06] transition-colors">
                                                                                 <div className="flex items-start gap-3 mb-2">
                                                                                     <div className="w-5 h-5 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shrink-0 mt-0.5">
-                                                                                        <span className="text-[9px] font-black text-emerald-400">{i+1}</span>
+                                                                                        <span className="text-[9px] font-black text-emerald-400">{i + 1}</span>
                                                                                     </div>
                                                                                     <p className="text-[10px] font-black text-emerald-300 uppercase tracking-wider">{String(title)}</p>
                                                                                 </div>
@@ -1243,7 +1243,7 @@ export default function JobDetailsPage() {
                                                                 <p className="text-[9px] uppercase font-black tracking-widest text-slate-500 px-1">Resources & References</p>
                                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                                                     {resources.map((r: any, i: number) => {
-                                                                        const title = typeof r === 'string' ? r : (r.title || r.name || `Resource ${i+1}`);
+                                                                        const title = typeof r === 'string' ? r : (r.title || r.name || `Resource ${i + 1}`);
                                                                         const type = typeof r === 'object' ? (r.type || '') : '';
                                                                         const relevance = typeof r === 'object' ? (r.relevance || '') : '';
                                                                         return (
@@ -1301,15 +1301,15 @@ export default function JobDetailsPage() {
                                                 </div>
                                                 <div className={cn(
                                                     "px-3 py-1 text-[8px] font-black uppercase tracking-widest scifi-clip-sm",
-                                                    (job?.runtime_context?.final_result || artifacts.some(a => ['final', 'artifact_produce', 'worker_result'].includes(a.artifact_type || ''))) ? "bg-emerald-500/20 text-emerald-500 border border-emerald-500/50" : "bg-white/5 text-slate-600 border border-white/10"
+                                                    (job?.runtime_context?.final_result || artifacts.some(a => ['final', 'artifact_produce', 'worker_result', 'deliverable'].includes(a.artifact_type || ''))) ? "bg-emerald-500/20 text-emerald-500 border border-emerald-500/50" : "bg-white/5 text-slate-600 border border-white/10"
                                                 )}>
-                                                    {(job?.runtime_context?.final_result || artifacts.some(a => ['final', 'artifact_produce', 'worker_result'].includes(a.artifact_type || ''))) ? "COMPLETE" : "IDLE"}
+                                                    {(job?.runtime_context?.final_result || artifacts.some(a => ['final', 'artifact_produce', 'worker_result', 'deliverable'].includes(a.artifact_type || ''))) ? "COMPLETE" : "IDLE"}
                                                 </div>
                                             </div>
                                         </AccordionTrigger>
                                         <AccordionContent className="pb-8 space-y-6">
                                             {(() => {
-                                                const artifact = artifacts.find(a => ['artifact_produce', 'report', 'final', 'worker_result', 'worker'].includes(a.artifact_type || ''));
+                                                const artifact = artifacts.find(a => ['artifact_produce', 'report', 'final', 'worker_result', 'worker', 'deliverable'].includes(a.artifact_type || ''));
                                                 const result = job?.runtime_context?.worker_result || job?.runtime_context?.final_result || job?.artifact || extractOutputData(job);
                                                 let rawContent = artifact?.artifact_content || result;
                                                 if (!rawContent) return <div className="text-center py-8 opacity-20 italic text-[10px] uppercase tracking-widest border border-dashed border-white/5">Awaiting final execution...</div>;
@@ -1319,7 +1319,7 @@ export default function JobDetailsPage() {
                                                     try {
                                                         let clean = (rawContent as string).replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/i, '').trim();
                                                         workerData = JSON.parse(clean);
-                                                    } catch(e) { workerData = { content: rawContent }; }
+                                                    } catch (e) { workerData = { content: rawContent }; }
                                                 }
 
                                                 const execSummary = workerData.executive_summary || workerData.deliverable_summary || '';
@@ -1355,11 +1355,11 @@ export default function JobDetailsPage() {
                                                                 <p className="text-[9px] uppercase font-black tracking-widest text-slate-500 px-1">Report Sections</p>
                                                                 <div className="space-y-3">
                                                                     {sections.map((s: any, i: number) => {
-                                                                        const sTitle = s.title || s.name || `Section ${i+1}`;
+                                                                        const sTitle = s.title || s.name || `Section ${i + 1}`;
                                                                         const sBody = s.body || s.content || s.text || '';
                                                                         return (
                                                                             <div key={i} className="p-4 bg-white/[0.03] border border-white/10 rounded-sm">
-                                                                                <p className="text-[10px] font-black text-purple-300 uppercase tracking-wider mb-3">§{i+1} — {String(sTitle)}</p>
+                                                                                <p className="text-[10px] font-black text-purple-300 uppercase tracking-wider mb-3">§{i + 1} — {String(sTitle)}</p>
                                                                                 <MarkdownReport content={String(sBody)} className="text-xs" />
                                                                             </div>
                                                                         );
@@ -1522,7 +1522,7 @@ export default function JobDetailsPage() {
                                                                 const pct = Math.min(100, Math.max(0, Number(score)));
                                                                 const barColor = pct >= 80 ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]'
                                                                     : pct >= 60 ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]'
-                                                                    : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]';
+                                                                        : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]';
                                                                 const textColor = pct >= 80 ? 'text-emerald-400' : pct >= 60 ? 'text-amber-400' : 'text-red-400';
                                                                 return (
                                                                     <div key={criterion} className="group space-y-1.5">
@@ -1641,46 +1641,46 @@ export default function JobDetailsPage() {
 
                     <div className="lg:col-span-4 space-y-8">
                         <HUDFrame title="OPERATIONAL LOGS" className="max-h-[600px] flex flex-col">
-                           <div className="p-4 flex-1 overflow-hidden flex flex-col">
+                            <div className="p-4 flex-1 overflow-hidden flex flex-col">
                                 <div className="flex items-center justify-between mb-4">
-                                     <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2">
                                         <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
                                         <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Live Agent Stream</span>
-                                     </div>
-                                     <span className="text-[8px] font-mono text-slate-700">{agentLogs.length} EVENTS</span>
+                                    </div>
+                                    <span className="text-[8px] font-mono text-slate-700">{agentLogs.length} EVENTS</span>
                                 </div>
                                 <div className="flex-1 overflow-auto custom-scroll pr-2">
-                                     <AgentLogPanel 
-                                        logs={agentLogs} 
+                                    <AgentLogPanel
+                                        logs={agentLogs}
                                         loading={agentLogsLoading && agentLogs.length === 0}
                                         jobId={job?.job_id || jobId}
                                         envelopeId={envelopeId}
                                         agentId={envelope?.identity_context?.identity_fingerprint || job?.identity_fingerprint || job?.agent_id || job?.requested_agent_id}
-                                     />
+                                    />
                                 </div>
-                           </div>
+                            </div>
                         </HUDFrame>
 
                         <HUDFrame title="DATA ARTIFACTS">
                             <div className="p-4 space-y-3">
                                 {artifacts.length > 0 ? artifacts.map((artifact, i) => (
-                                    <div 
-                                        key={artifact.id || i} 
+                                    <div
+                                        key={artifact.id || i}
                                         className="p-3 bg-white/[0.03] border border-white/5 flex items-center gap-3 hover:bg-white/[0.05] transition-colors cursor-pointer group"
                                         onClick={() => setViewingArtifact({ title: artifact.title || artifact.artifact_type, content: artifact.artifact_content })}
                                     >
-                                         <div className="w-8 h-8 flex items-center justify-center border border-emerald-500/30 bg-emerald-500/5 text-emerald-400 scifi-clip-sm">
+                                        <div className="w-8 h-8 flex items-center justify-center border border-emerald-500/30 bg-emerald-500/5 text-emerald-400 scifi-clip-sm">
                                             <FileText className="w-4 h-4" />
-                                         </div>
-                                         <div className="flex-1 min-w-0">
-                                             <p className="text-[10px] font-black text-white uppercase truncate group-hover:text-cyan-400 transition-colors">
-                                                 {artifact.title || (artifact.artifact_type ? artifact.artifact_type.replace(/_/g, ' ') : 'DATA_MANIFEST')}
-                                             </p>
-                                             <p className="text-[8px] font-mono text-slate-600 uppercase tracking-tighter">
-                                                 {artifact.produced_by_agent || 'SYSTEM'} / {new Date(artifact.created_at).toLocaleTimeString()}
-                                             </p>
-                                         </div>
-                                         <ChevronDown className="w-3 h-3 text-slate-700 -rotate-90 group-hover:text-cyan-500 transition-colors" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-[10px] font-black text-white uppercase truncate group-hover:text-cyan-400 transition-colors">
+                                                {artifact.title || (artifact.artifact_type ? artifact.artifact_type.replace(/_/g, ' ') : 'DATA_MANIFEST')}
+                                            </p>
+                                            <p className="text-[8px] font-mono text-slate-600 uppercase tracking-tighter">
+                                                {artifact.produced_by_agent || 'SYSTEM'} / {new Date(artifact.created_at).toLocaleTimeString()}
+                                            </p>
+                                        </div>
+                                        <ChevronDown className="w-3 h-3 text-slate-700 -rotate-90 group-hover:text-cyan-500 transition-colors" />
                                     </div>
                                 )) : (
                                     <div className="text-center py-6 opacity-20 italic text-[10px] uppercase tracking-widest">Zero artifacts produced</div>
@@ -1690,87 +1690,87 @@ export default function JobDetailsPage() {
                     </div>
                 </div>
 
-            {/* Artifact Manifest Viewer Modal */}
-            <Dialog open={!!viewingArtifact} onOpenChange={(open) => !open && setViewingArtifact(null)}>
-                <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col glass border-white/10 p-0 overflow-hidden sm:rounded-none">
-                    <DialogHeader className="p-6 border-b border-white/10 shrink-0">
-                        <DialogTitle className="text-xl font-black text-white uppercase italic tracking-tighter flex items-center gap-3">
-                            <Terminal className="w-6 h-6 text-cyan-500" />
-                            {String(viewingArtifact?.title || "Dimensional Manifest")}
-                        </DialogTitle>
-                    </DialogHeader>
+                {/* Artifact Manifest Viewer Modal */}
+                <Dialog open={!!viewingArtifact} onOpenChange={(open) => !open && setViewingArtifact(null)}>
+                    <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col glass border-white/10 p-0 overflow-hidden sm:rounded-none">
+                        <DialogHeader className="p-6 border-b border-white/10 shrink-0">
+                            <DialogTitle className="text-xl font-black text-white uppercase italic tracking-tighter flex items-center gap-3">
+                                <Terminal className="w-6 h-6 text-cyan-500" />
+                                {String(viewingArtifact?.title || "Dimensional Manifest")}
+                            </DialogTitle>
+                        </DialogHeader>
 
-                    <div className="flex-1 overflow-y-auto p-6 font-mono text-sm custom-scroll bg-black/60">
-                        <pre className="text-slate-300 whitespace-pre-wrap break-words leading-relaxed">
-                            {viewingArtifact && (typeof viewingArtifact.content === 'string'
-                                ? viewingArtifact.content
-                                : JSON.stringify(viewingArtifact.content, null, 2))
-                            }
-                        </pre>
-                    </div>
-
-                    <div className="p-4 border-t border-white/10 bg-black/40 flex justify-end shrink-0">
-                        <button
-                            onClick={() => setViewingArtifact(null)}
-                            className="px-8 py-2 bg-white/5 border border-white/10 text-white font-bold uppercase tracking-widest hover:bg-white/10 transition-all scifi-clip cursor-target"
-                        >
-                            Close Manifest
-                        </button>
-                    </div>
-                </DialogContent>
-            </Dialog>
-
-            {/* Rejection Reason Modal */}
-            <Dialog open={isRejectModalOpen} onOpenChange={(open) => !open && setIsRejectModalOpen(false)}>
-                <DialogContent className="max-w-xl flex flex-col glass border-orange-500/20 shadow-[0_0_30px_rgba(249,115,22,0.1)] p-0 overflow-hidden sm:rounded-none">
-                    <DialogHeader className="p-6 border-b border-white/10 shrink-0 bg-red-500/5">
-                        <DialogTitle className="text-xl font-black text-white uppercase italic tracking-tighter flex items-center gap-3">
-                            <AlertTriangle className="w-6 h-6 text-red-500" />
-                            Reject & Reroute Deliverable
-                        </DialogTitle>
-                        <DialogDescription className="text-slate-400 text-[11px] leading-relaxed mt-2 uppercase tracking-widest font-bold">
-                            Please provide a detailed strategic reason for this rejection.
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="p-6 bg-black/60">
-                        <div className="space-y-4">
-                            <label className="text-[10px] uppercase font-bold text-slate-500 tracking-widest block flex items-center gap-2">
-                                <FileText className="w-3 h-3 text-cyan-500" /> Operator Rejection Intelligence
-                            </label>
-                            <textarea
-                                value={rejectionReason}
-                                onChange={(e) => setRejectionReason(e.target.value)}
-                                placeholder="Reason for rejection..."
-                                className="w-full h-32 bg-white/5 border border-white/10 rounded-sm p-4 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500/50 transition-colors custom-scroll resize-none"
-                                autoFocus
-                            />
+                        <div className="flex-1 overflow-y-auto p-6 font-mono text-sm custom-scroll bg-black/60">
+                            <pre className="text-slate-300 whitespace-pre-wrap break-words leading-relaxed">
+                                {viewingArtifact && (typeof viewingArtifact.content === 'string'
+                                    ? viewingArtifact.content
+                                    : JSON.stringify(viewingArtifact.content, null, 2))
+                                }
+                            </pre>
                         </div>
-                    </div>
 
-                    <div className="p-4 border-t border-white/10 bg-black/40 flex gap-4 shrink-0 justify-end">
-                        <button
-                            onClick={() => {
-                                setIsRejectModalOpen(false);
-                                setRejectionReason("");
-                            }}
-                            disabled={actionLoading}
-                            className="px-6 py-2 bg-transparent text-slate-400 hover:text-white font-bold uppercase tracking-widest transition-colors cursor-target text-xs"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={handleReject}
-                            disabled={actionLoading || !rejectionReason.trim()}
-                            className="px-8 py-2 bg-red-500/10 border border-red-500/50 text-red-500 font-black uppercase tracking-widest hover:bg-red-500/20 transition-all scifi-clip cursor-target disabled:opacity-50 flex items-center gap-2"
-                        >
-                            {actionLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
-                            Execute Rejection
-                        </button>
-                    </div>
-                </DialogContent>
-            </Dialog>
+                        <div className="p-4 border-t border-white/10 bg-black/40 flex justify-end shrink-0">
+                            <button
+                                onClick={() => setViewingArtifact(null)}
+                                className="px-8 py-2 bg-white/5 border border-white/10 text-white font-bold uppercase tracking-widest hover:bg-white/10 transition-all scifi-clip cursor-target"
+                            >
+                                Close Manifest
+                            </button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Rejection Reason Modal */}
+                <Dialog open={isRejectModalOpen} onOpenChange={(open) => !open && setIsRejectModalOpen(false)}>
+                    <DialogContent className="max-w-xl flex flex-col glass border-orange-500/20 shadow-[0_0_30px_rgba(249,115,22,0.1)] p-0 overflow-hidden sm:rounded-none">
+                        <DialogHeader className="p-6 border-b border-white/10 shrink-0 bg-red-500/5">
+                            <DialogTitle className="text-xl font-black text-white uppercase italic tracking-tighter flex items-center gap-3">
+                                <AlertTriangle className="w-6 h-6 text-red-500" />
+                                Reject & Reroute Deliverable
+                            </DialogTitle>
+                            <DialogDescription className="text-slate-400 text-[11px] leading-relaxed mt-2 uppercase tracking-widest font-bold">
+                                Please provide a detailed strategic reason for this rejection.
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="p-6 bg-black/60">
+                            <div className="space-y-4">
+                                <label className="text-[10px] uppercase font-bold text-slate-500 tracking-widest block flex items-center gap-2">
+                                    <FileText className="w-3 h-3 text-cyan-500" /> Operator Rejection Intelligence
+                                </label>
+                                <textarea
+                                    value={rejectionReason}
+                                    onChange={(e) => setRejectionReason(e.target.value)}
+                                    placeholder="Reason for rejection..."
+                                    className="w-full h-32 bg-white/5 border border-white/10 rounded-sm p-4 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500/50 transition-colors custom-scroll resize-none"
+                                    autoFocus
+                                />
+                            </div>
+                        </div>
+
+                        <div className="p-4 border-t border-white/10 bg-black/40 flex gap-4 shrink-0 justify-end">
+                            <button
+                                onClick={() => {
+                                    setIsRejectModalOpen(false);
+                                    setRejectionReason("");
+                                }}
+                                disabled={actionLoading}
+                                className="px-6 py-2 bg-transparent text-slate-400 hover:text-white font-bold uppercase tracking-widest transition-colors cursor-target text-xs"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleReject}
+                                disabled={actionLoading || !rejectionReason.trim()}
+                                className="px-8 py-2 bg-red-500/10 border border-red-500/50 text-red-500 font-black uppercase tracking-widest hover:bg-red-500/20 transition-all scifi-clip cursor-target disabled:opacity-50 flex items-center gap-2"
+                            >
+                                {actionLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                                Execute Rejection
+                            </button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+            </div>
         </div>
-    </div>
     );
 }

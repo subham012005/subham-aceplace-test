@@ -14,7 +14,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "worker": "ts-node apps/runtime-worker/src/index.ts",
-    "worker:build": "tsc -p apps/runtime-worker/tsconfig.json",
+    "worker:build": "tsc --build apps/runtime-worker/tsconfig.json",
     "worker:start": "node apps/runtime-worker/dist/index.js",
     "test:e2e": "vitest run apps/runtime-worker/src/__tests__/e2e-runtime.test.ts",
     "audit": "npm audit --audit-level=moderate",

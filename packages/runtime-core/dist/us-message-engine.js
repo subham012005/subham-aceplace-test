@@ -73,7 +73,19 @@ function mapStepTypeToUSMessage(stepType) {
             throw new Error(`UNSUPPORTED_STEP_TYPE:${stepType}`);
     }
 }
+const llm_fallback_1 = require("./llm-fallback");
+const persistence_1 = require("./kernels/persistence");
 const AGENT_ENGINE_URL = process.env.AGENT_ENGINE_URL || "http://localhost:8001";
+function isNetworkError(err) {
+    const msg = String(err?.message || err).toLowerCase();
+    return msg.includes("econnrefused") || msg.includes("fetch failed") || msg.includes("network");
+}
+async function logComputeProvider(envelopeId, stepId, agentId, fingerprint, provider, fallbackReason) {
+    await (0, persistence_1.addTrace)(envelopeId, stepId, agentId, fingerprint, "COMPUTE_PROVIDER_SELECTED", {
+        compute_provider: provider,
+        ...(fallbackReason ? { fallback_reason: fallbackReason } : {}),
+    });
+}
 async function handleUSMessage(msg) {
     const db = (0, db_1.getDb)();
     const envelopeRef = db.collection(constants_1.COLLECTIONS.EXECUTION_ENVELOPES).doc(msg.execution.envelope_id);
@@ -83,9 +95,9 @@ async function handleUSMessage(msg) {
     const envelope = snap.data();
     switch (msg.message_type) {
         case "#us#.task.plan":
-            return handleTaskPlan(msg);
+            return handleTaskPlan(msg, envelope);
         case "#us#.task.assign":
-            return handleTaskAssign(msg);
+            return handleTaskAssign(msg, envelope);
         case "#us#.artifact.produce":
             return handleArtifactProduce(msg, envelope);
         case "#us#.evaluation.score":
@@ -96,16 +108,111 @@ async function handleUSMessage(msg) {
             throw new Error("UNKNOWN_MESSAGE_TYPE");
     }
 }
-async function handleTaskPlan(_msg) {
-    // Dispatch creates the initial plan; extra planning steps can be added here if needed.
+async function runFallbackForStep(msg, envelope, stepType, inputRef, fallbackReason) {
+    await logComputeProvider(msg.execution.envelope_id, msg.execution.step_id, msg.identity.agent_id, msg.identity.identity_fingerprint, "ts-fallback", fallbackReason);
+    const result = await (0, llm_fallback_1.executeFallbackStep)({
+        envelope_id: msg.execution.envelope_id,
+        step_id: msg.execution.step_id,
+        step_type: stepType,
+        agent_id: msg.identity.agent_id,
+        identity_fingerprint: msg.identity.identity_fingerprint,
+        prompt: envelope.prompt || "",
+        input_ref: inputRef,
+    });
+    await attachArtifactToStep(msg.execution.envelope_id, msg.execution.step_id, result.artifact_id);
+    await attachArtifactToEnvelope(msg.execution.envelope_id, result.artifact_id);
+}
+async function handleTaskPlan(msg, envelope) {
+    console.log(`[#us#] Dispatching COO execution to Agent Engine: ${msg.execution.step_id}`);
+    try {
+        const res = await fetch(`${AGENT_ENGINE_URL}/execute-step`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Internal-Token": process.env.INTERNAL_SERVICE_TOKEN || ""
+            },
+            body: JSON.stringify({
+                envelope_id: msg.execution.envelope_id,
+                step_id: msg.execution.step_id,
+                step_type: "plan",
+                agent_id: msg.identity.agent_id,
+                prompt: envelope.prompt || "",
+                input_ref: null,
+                message_id: null
+            }),
+        });
+        if (!res.ok)
+            throw new Error(`Agent Engine error: ${await res.text()}`);
+        const result = await res.json();
+        if (!result.success)
+            throw new Error(result.error || "Agent Engine failed");
+        await logComputeProvider(msg.execution.envelope_id, msg.execution.step_id, msg.identity.agent_id, msg.identity.identity_fingerprint, "python");
+        await attachArtifactToStep(msg.execution.envelope_id, msg.execution.step_id, result.artifact_id);
+        await attachArtifactToEnvelope(msg.execution.envelope_id, result.artifact_id);
+    }
+    catch (err) {
+        if (isNetworkError(err)) {
+            console.warn(`[#us#] Agent engine unreachable, falling back to TypeScript LLM for COO`);
+            await runFallbackForStep(msg, envelope, "plan", null, String(err.message));
+            return null;
+        }
+        console.error(`[#us#] EXCEPTION in handleTaskPlan:`, err);
+        throw err;
+    }
     return null;
 }
-async function handleTaskAssign(msg) {
-    const ref = (0, db_1.getDb)().collection(constants_1.COLLECTIONS.EXECUTION_ENVELOPES).doc(msg.execution.envelope_id);
-    const envelopeSnap = await ref.get();
-    if (!envelopeSnap.exists)
-        throw new Error("ENVELOPE_NOT_FOUND");
-    const envelope = envelopeSnap.data();
+async function handleTaskAssign(msg, envelope) {
+    const planArtifactRef = envelope.artifact_refs?.find(id => id.startsWith('art_plan')) || null;
+    let richArtifactId = null;
+    console.log(`[#us#] Dispatching RESEARCHER execution to Agent Engine: ${msg.execution.step_id}`);
+    try {
+        const res = await fetch(`${AGENT_ENGINE_URL}/execute-step`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Internal-Token": process.env.INTERNAL_SERVICE_TOKEN || ""
+            },
+            body: JSON.stringify({
+                envelope_id: msg.execution.envelope_id,
+                step_id: msg.execution.step_id,
+                step_type: "assign",
+                agent_id: msg.identity.agent_id,
+                prompt: envelope.prompt || "",
+                input_ref: planArtifactRef,
+                message_id: null
+            }),
+        });
+        if (res.ok) {
+            const result = await res.json();
+            if (result.success) {
+                richArtifactId = result.artifact_id;
+                await logComputeProvider(msg.execution.envelope_id, msg.execution.step_id, msg.identity.agent_id, msg.identity.identity_fingerprint, "python");
+                await attachArtifactToStep(msg.execution.envelope_id, msg.execution.step_id, richArtifactId);
+                await attachArtifactToEnvelope(msg.execution.envelope_id, richArtifactId);
+            }
+        }
+    }
+    catch (err) {
+        if (isNetworkError(err)) {
+            console.warn(`[#us#] Agent engine unreachable, falling back to TypeScript LLM for Researcher`);
+            const result = await (0, llm_fallback_1.executeFallbackStep)({
+                envelope_id: msg.execution.envelope_id,
+                step_id: msg.execution.step_id,
+                step_type: "assign",
+                agent_id: msg.identity.agent_id,
+                identity_fingerprint: msg.identity.identity_fingerprint,
+                prompt: envelope.prompt || "",
+                input_ref: planArtifactRef,
+            });
+            richArtifactId = result.artifact_id;
+            await logComputeProvider(msg.execution.envelope_id, msg.execution.step_id, msg.identity.agent_id, msg.identity.identity_fingerprint, "ts-fallback", String(err.message));
+            await attachArtifactToStep(msg.execution.envelope_id, msg.execution.step_id, richArtifactId);
+            await attachArtifactToEnvelope(msg.execution.envelope_id, richArtifactId);
+        }
+        else {
+            console.warn(`[#us#] Could not get rich research, falling back to basic decomposition`, err);
+        }
+    }
     const workerAgentIds = envelope.steps
         .filter((s) => s.role === "Worker" && s.step_type === "produce_artifact")
         .map((s) => s.assigned_agent_id)
@@ -118,17 +225,44 @@ async function handleTaskAssign(msg) {
     await (0, decomposition_1.expandWorkerSteps)({
         envelope_id: msg.execution.envelope_id,
         decomposition_plan: decompositionPlan,
+        research_artifact_id: richArtifactId || undefined
     });
+    // If we didn't get a rich artifact from the agent, create the boilerplate one
+    if (!richArtifactId) {
+        const artifactId = `art_assign_${Date.now()}`;
+        const missionObjective = envelope.prompt || decompositionPlan.work_units[0]?.objective || "mission";
+        const structuredContent = {
+            research_summary: `Mission objective "${missionObjective}" has been successfully decomposed into ${decompositionPlan.work_units.length} tactical work units.`,
+            findings: decompositionPlan.work_units.map(wu => ({
+                title: wu.title,
+                detail: wu.instructions,
+                id: wu.work_unit_id
+            })),
+            raw_plan: decompositionPlan,
+            timestamp: new Date().toISOString()
+        };
+        const artifact = {
+            artifact_id: artifactId,
+            execution_id: msg.execution.envelope_id,
+            produced_by_agent: msg.identity.agent_id,
+            identity_fingerprint: msg.identity.identity_fingerprint,
+            artifact_type: "assignment",
+            artifact_content: JSON.stringify(structuredContent),
+            created_at: new Date().toISOString(),
+        };
+        await (0, db_1.getDb)().collection(constants_1.COLLECTIONS.ARTIFACTS).doc(artifactId).set(artifact);
+        await attachArtifactToStep(msg.execution.envelope_id, msg.execution.step_id, artifactId);
+        await attachArtifactToEnvelope(msg.execution.envelope_id, artifactId);
+    }
     return null;
 }
-/**
- * 🤖 ALIGNMENT: Call the Python Agent Engine for Worker execution.
- */
 async function handleArtifactProduce(msg, envelope) {
-    console.log(`[#us#] Dispatching WORKER execution to Agent Engine: ${msg.execution.step_id}`);
     const step = envelope.steps.find(s => s.step_id === msg.execution.step_id);
+    const inputRef = step?.input_ref
+        ? (typeof step.input_ref === "string" ? step.input_ref : step.input_ref.artifact_id)
+        : null;
+    console.log(`[#us#] Dispatching WORKER execution to Agent Engine: ${msg.execution.step_id}`);
     try {
-        console.log(`[#us#] Fetching ${AGENT_ENGINE_URL}/execute-step...`);
         const res = await fetch(`${AGENT_ENGINE_URL}/execute-step`, {
             method: "POST",
             headers: {
@@ -138,12 +272,10 @@ async function handleArtifactProduce(msg, envelope) {
             body: JSON.stringify({
                 envelope_id: msg.execution.envelope_id,
                 step_id: msg.execution.step_id,
-                step_type: "artifact_produce", // Python uses artifact_produce for Workers
+                step_type: "artifact_produce",
                 agent_id: msg.identity.agent_id,
                 prompt: envelope.prompt || "",
-                input_ref: step?.input_ref ?
-                    (typeof step.input_ref === 'string' ? step.input_ref : step.input_ref.artifact_id)
-                    : null,
+                input_ref: inputRef,
                 message_id: null
             }),
         });
@@ -155,9 +287,9 @@ async function handleArtifactProduce(msg, envelope) {
         const result = await res.json();
         if (!result.success)
             throw new Error(result.error || "Agent Engine execution failed");
-        const artifactId = result.artifact_id;
-        await attachArtifactToStep(msg.execution.envelope_id, msg.execution.step_id, artifactId);
-        await attachArtifactToEnvelope(msg.execution.envelope_id, artifactId);
+        await logComputeProvider(msg.execution.envelope_id, msg.execution.step_id, msg.identity.agent_id, msg.identity.identity_fingerprint, "python");
+        await attachArtifactToStep(msg.execution.envelope_id, msg.execution.step_id, result.artifact_id);
+        await attachArtifactToEnvelope(msg.execution.envelope_id, result.artifact_id);
         const traceId = (0, crypto_1.randomUUID)();
         await (0, db_1.getDb)().collection(constants_1.COLLECTIONS.EXECUTION_TRACES).doc(traceId).set({
             trace_id: traceId,
@@ -166,13 +298,19 @@ async function handleArtifactProduce(msg, envelope) {
             agent_id: msg.identity.agent_id,
             identity_fingerprint: msg.identity.identity_fingerprint,
             event_type: "#us#.artifact.produce",
-            artifact_id: artifactId,
+            artifact_id: result.artifact_id,
             timestamp: new Date().toISOString(),
         });
     }
     catch (err) {
-        console.error(`[#us#] EXCEPTION in handleArtifactProduce:`, err);
-        throw err;
+        if (isNetworkError(err)) {
+            console.warn(`[#us#] Agent engine unreachable, falling back to TypeScript LLM for Worker`);
+            await runFallbackForStep(msg, envelope, "artifact_produce", inputRef, String(err.message));
+        }
+        else {
+            console.error(`[#us#] EXCEPTION in handleArtifactProduce:`, err);
+            throw err;
+        }
     }
     await (0, emitRuntimeMetric_1.emitRuntimeMetric)({
         event_type: "ARTIFACT_CREATED",
@@ -182,11 +320,7 @@ async function handleArtifactProduce(msg, envelope) {
     }).catch(() => undefined);
     return null;
 }
-/**
- * 🤖 ALIGNMENT: Call the Python Agent Engine for Grader evaluation.
- */
 async function handleEvaluation(msg, envelope) {
-    console.log(`[#us#] Dispatching GRADER execution to Agent Engine: ${msg.execution.step_id}`);
     // 1. Gather all Worker artifacts for the Grader to evaluate
     const out = (s) => {
         const r = s.output_ref;
@@ -202,29 +336,54 @@ async function handleEvaluation(msg, envelope) {
         out(s));
     const artifactIds = workerSteps.map((s) => out(s)).filter(Boolean);
     const aggregatedContent = artifactIds.length > 0 ? await (0, decomposition_1.aggregateArtifacts)(artifactIds) : "";
-    // 2. Call the Agent Engine (Grader)
-    const res = await fetch(`${AGENT_ENGINE_URL}/execute-step`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "X-Internal-Token": process.env.INTERNAL_SERVICE_TOKEN || ""
-        },
-        body: JSON.stringify({
-            envelope_id: msg.execution.envelope_id,
-            step_id: msg.execution.step_id,
-            step_type: "evaluation", // Python uses evaluation for Graders
-            agent_id: msg.identity.agent_id,
-            prompt: envelope.prompt || "",
-            input_ref: artifactIds.join(","), // Grader gets all worker results
-            message_id: null
-        }),
-    });
-    if (!res.ok)
-        throw new Error(`Agent Engine error: ${await res.text()}`);
-    const result = await res.json();
-    if (!result.success)
-        throw new Error(result.error || "Agent Engine execution failed");
-    // 3. Return the completion message with the aggregated result
+    let graderArtifactId;
+    console.log(`[#us#] Dispatching GRADER execution to Agent Engine: ${msg.execution.step_id}`);
+    try {
+        const res = await fetch(`${AGENT_ENGINE_URL}/execute-step`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Internal-Token": process.env.INTERNAL_SERVICE_TOKEN || ""
+            },
+            body: JSON.stringify({
+                envelope_id: msg.execution.envelope_id,
+                step_id: msg.execution.step_id,
+                step_type: "evaluation",
+                agent_id: msg.identity.agent_id,
+                prompt: envelope.prompt || "",
+                input_ref: artifactIds.join(","),
+                message_id: null
+            }),
+        });
+        if (!res.ok)
+            throw new Error(`Agent Engine error: ${await res.text()}`);
+        const result = await res.json();
+        if (!result.success)
+            throw new Error(result.error || "Agent Engine execution failed");
+        graderArtifactId = result.artifact_id;
+        await logComputeProvider(msg.execution.envelope_id, msg.execution.step_id, msg.identity.agent_id, msg.identity.identity_fingerprint, "python");
+    }
+    catch (err) {
+        if (isNetworkError(err)) {
+            console.warn(`[#us#] Agent engine unreachable, falling back to TypeScript LLM for Grader`);
+            await logComputeProvider(msg.execution.envelope_id, msg.execution.step_id, msg.identity.agent_id, msg.identity.identity_fingerprint, "ts-fallback", String(err.message));
+            const result = await (0, llm_fallback_1.executeFallbackStep)({
+                envelope_id: msg.execution.envelope_id,
+                step_id: msg.execution.step_id,
+                step_type: "evaluation",
+                agent_id: msg.identity.agent_id,
+                identity_fingerprint: msg.identity.identity_fingerprint,
+                prompt: envelope.prompt || "",
+                input_ref: artifactIds[0] || null,
+            });
+            graderArtifactId = result.artifact_id;
+            await attachArtifactToStep(msg.execution.envelope_id, msg.execution.step_id, graderArtifactId);
+            await attachArtifactToEnvelope(msg.execution.envelope_id, graderArtifactId);
+        }
+        else {
+            throw err;
+        }
+    }
     return createUSMessage({
         message_type: "#us#.execution.complete",
         execution: msg.execution,
@@ -233,8 +392,8 @@ async function handleEvaluation(msg, envelope) {
         payload: {
             status: "success",
             role: "Grader",
-            artifact_id: result.artifact_id,
-            aggregated_content: aggregatedContent, // Keep for legacy / trace
+            artifact_id: graderArtifactId,
+            aggregated_content: aggregatedContent,
         },
     });
 }
