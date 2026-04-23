@@ -156,30 +156,31 @@ export interface ExecutionEnvelope {
   envelope_id: string;
   org_id: string;
   status: EnvelopeStatus;
+  failure_reason?: string;
 
   license_id?: string;
   root_task_id?: string;
   coordinator_agent_id?: string;
   multi_agent?: boolean;
-  identity_contexts?: Record<string, IdentityContext>;
-  role_assignments?: Record<string, string>;
-  authority_leases?: Record<string, AgentAuthorityLease | null>;
+  // Remove legacy single-root identity and lease.
+  // Must use identity_contexts[steps[i].assigned_agent_id]
+  identity_contexts: Record<string, IdentityContext>;
+  role_assignments: Record<string, string>;
+  authority_leases: Record<string, AgentAuthorityLease | null>;
   decomposition_plan?: DecompositionPlan | null;
 
   // Steps EMBEDDED — NOT in external collection
   steps: EnvelopeStep[];
-
-  // Lease EMBEDDED — NOT in external collection
-  authority_lease: AuthorityLease | null;
-
-  // Identity
-  identity_context: IdentityContext;
 
   // Artifact references produced during execution
   artifact_refs: string[];
 
   // Hash chain for tamper detection
   trace_head_hash: string | null;
+
+  // Singular fields for backward-compat
+  identity_context?: IdentityContext | null;
+  authority_lease?: AuthorityLease | null;
 
   // Timestamps
   created_at: string;
@@ -292,6 +293,7 @@ export interface ExecutionTrace {
   timestamp: string;
   agent_id: string;
   identity_fingerprint: string;
+  user_id?: string;
   step_id?: string;
   artifact_id?: string;
   message_id?: string;

@@ -1,5 +1,6 @@
 import { adminDb } from "@/lib/firebase-admin";
 import * as crypto from "crypto";
+import { COLLECTIONS } from "@aceplace/runtime-core";
 
 // ─────────────────────────────────────────────
 // Types
@@ -472,8 +473,15 @@ export const workflowEngine = {
                     });
 
                     const envResurrectionCount = Number(envData.resurrection_count || 0);
+                    
+                    // 🛡️ IDENTITY PROPAGATION FIX: Ensure org_id is correctly mapped to user_id.
+                    // If the envelope has 'default' org_id, it will fail strict Phase 2 LLM resolution.
+                    const currentOrgId = envData.org_id || "default";
+                    const targetOrgId = jobData.user_id || currentOrgId;
+
                     await envRef.update({
                         status: "created",
+                        org_id: targetOrgId, // Auto-heal identity propagation
                         authority_lease: null,
                         authority_leases: {},
                         resurrection_count: envResurrectionCount + 1,
@@ -488,7 +496,7 @@ export const workflowEngine = {
                 // claimNextEnvelope's terminal guard treats a "failed" envelope
                 // as permanently dead and the worker NEVER picks it up again.
                 // We must requeue it so the worker poll loop can claim it.
-                const queueRef = db.collection("execution_queue").doc(envelopeId);
+                const queueRef = db.collection(COLLECTIONS.EXECUTION_QUEUE).doc(envelopeId);
                 const queueDoc = await queueRef.get();
                 if (queueDoc.exists) {
                     await queueRef.update({

@@ -10,7 +10,6 @@ export default function LandingPage() {
 
   useEffect(() => {
     setMounted(true);
-
     // 5 minutes = 300,000 ms
     const RELOAD_INTERVAL = 5 * 60 * 1000;
 
@@ -22,15 +21,8 @@ export default function LandingPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // SSR Shell: Minimal background and essential structure to avoid blank flashes
   if (!mounted) {
-    return (
-      <div className="min-h-screen bg-black flex flex-col items-center justify-center p-8 tech-grid overflow-hidden" suppressHydrationWarning>
-        <div className="animate-pulse opacity-20">
-          <Terminal className="w-16 h-16 text-cyan-500" />
-        </div>
-      </div>
-    );
+    return <div className="min-h-screen bg-transparent" suppressHydrationWarning />;
   }
 
   return (
@@ -43,9 +35,9 @@ export default function LandingPage() {
           <div className="flex flex-col items-center gap-8 animate-in fade-in zoom-in duration-1000">
             <img src="/ace-symbol.png" alt="ACEPLACE Symbol" className="w-32 h-32 object-contain drop-shadow-[0_0_30px_rgba(6,182,212,0.4)] transition-all duration-500 hover:scale-110 hover:drop-shadow-[0_0_40px_rgba(6,182,212,0.6)] cursor-target" />
             <div className="flex flex-col items-center">
-                <h1 className="text-6xl md:text-8xl font-black text-white italic tracking-tighter text-center">
-                    ACEPLACE <span className="text-cyan-500">WORKSTATION</span>
-                </h1>
+              <h1 className="text-6xl md:text-8xl font-black text-white italic tracking-tighter text-center">
+                ACEPLACE <span className="text-cyan-500">WORKSTATION</span>
+              </h1>
               <p className="text-cyan-500/60 font-mono text-[10px] md:text-sm tracking-[0.4em] font-black uppercase mt-2">Dimensional Control Plane</p>
             </div>
           </div>

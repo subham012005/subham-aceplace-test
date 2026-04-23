@@ -15,8 +15,8 @@ import type { ExecutionEnvelope, IdentityContext, IdentityVerifyResult } from ".
  * Resolve identity_context for a step agent (multi-agent envelopes), then verify.
  */
 export declare function verifyIdentityForAgent(envelopeId: string, envelope: ExecutionEnvelope, agentId: string): Promise<IdentityVerifyResult>;
-/** Verify a single agent against envelope.identity_context (quarantines on mismatch). */
-export declare function verifyIdentity(envelopeId: string, agentId: string, envelope: ExecutionEnvelope): Promise<IdentityVerifyResult>;
+/** Verify a single agent against a specific fingerprint (quarantines on mismatch). */
+export declare function verifyIdentity(envelopeId: string, agentId: string, expectedFingerprint: string): Promise<IdentityVerifyResult>;
 /**
  * Build an IdentityContext from a stored agent record.
  * Used when creating a new envelope.

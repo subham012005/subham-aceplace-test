@@ -92,15 +92,15 @@ export interface ExecutionEnvelope {
     root_task_id?: string;
     coordinator_agent_id?: string;
     multi_agent?: boolean;
-    identity_contexts?: Record<string, IdentityContext>;
-    role_assignments?: Record<string, string>;
-    authority_leases?: Record<string, AgentAuthorityLease | null>;
+    identity_contexts: Record<string, IdentityContext>;
+    role_assignments: Record<string, string>;
+    authority_leases: Record<string, AgentAuthorityLease | null>;
     decomposition_plan?: DecompositionPlan | null;
     steps: EnvelopeStep[];
-    authority_lease: AuthorityLease | null;
-    identity_context: IdentityContext;
     artifact_refs: string[];
     trace_head_hash: string | null;
+    identity_context?: IdentityContext | null;
+    authority_lease?: AuthorityLease | null;
     created_at: string;
     updated_at: string;
     resurrection_count?: number;
@@ -191,6 +191,7 @@ export interface ExecutionTrace {
     timestamp: string;
     agent_id: string;
     identity_fingerprint: string;
+    user_id?: string;
     step_id?: string;
     artifact_id?: string;
     message_id?: string;

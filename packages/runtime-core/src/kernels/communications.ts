@@ -1,7 +1,7 @@
 /**
  * Communications Kernel — Phase 2
  *
- * Persists to `protocol_messages` (legacy path).
+ * Persists to `execution_messages` (Phase 2 Canonical Path).
  * Multi-agent parallel execution uses `execution_messages` via `us-message-engine.ts`
  * — both are valid; explorer lists `execution_messages` for the canonical #us# trail.
  *
@@ -68,7 +68,7 @@ export async function sendMessage(params: {
   };
 
   await getDb()
-    .collection(COLLECTIONS.PROTOCOL_MESSAGES)
+    .collection(COLLECTIONS.EXECUTION_MESSAGES)
     .doc(message.message_id)
     .set(message);
 
@@ -80,7 +80,7 @@ export async function sendMessage(params: {
  */
 export async function getEnvelopeMessages(envelopeId: string): Promise<ProtocolMessage[]> {
   const snapshot = await getDb()
-    .collection(COLLECTIONS.PROTOCOL_MESSAGES)
+    .collection(COLLECTIONS.EXECUTION_MESSAGES)
     .where("execution.envelope_id", "==", envelopeId)
     .get();
 

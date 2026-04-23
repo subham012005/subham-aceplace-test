@@ -95,17 +95,6 @@ const guards_1 = require("../runtime/guards");
             (0, vitest_1.expect)(() => (0, guards_1.assertEnvelopeNotTerminal)({ status })).not.toThrow();
         }
     });
-    (0, vitest_1.it)("assertIdentityContext throws when identity_context is absent", () => {
-        (0, vitest_1.expect)(() => (0, guards_1.assertIdentityContext)({ identity_context: null })).toThrow("GUARD_IDENTITY_CONTEXT_MISSING");
-    });
-    (0, vitest_1.it)("assertIdentityContext throws when identity_fingerprint is empty", () => {
-        (0, vitest_1.expect)(() => (0, guards_1.assertIdentityContext)({ identity_context: { identity_fingerprint: "" } })).toThrow("GUARD_IDENTITY_FINGERPRINT_MISSING");
-    });
-    (0, vitest_1.it)("assertIdentityContext passes when fingerprint is present", () => {
-        (0, vitest_1.expect)(() => (0, guards_1.assertIdentityContext)({
-            identity_context: { agent_id: "a", identity_fingerprint: "abc123", verified: true },
-        })).not.toThrow();
-    });
     (0, vitest_1.it)("assertAgentIdentityContext throws when agent ctx is missing in multi-agent envelope", () => {
         (0, vitest_1.expect)(() => (0, guards_1.assertAgentIdentityContext)({ multi_agent: true, identity_contexts: {} }, "agent_missing")).toThrow("GUARD_AGENT_IDENTITY_CONTEXT_MISSING:agent_missing");
     });

@@ -81,25 +81,7 @@ def run_envelope(envelope_id: str, instance_id: str) -> None:
         if not envelope:
             return
 
-    # ── Step 2: Verify Identity ────────────────────────────────────────────────
-    if not verify_identity(envelope):
-        print(f"[RUNTIME] Identity failed for {envelope_id}. Quarantined.")
-        return
-
-    identity_ctx = envelope.get("identity_context", {})
-    agent_id = identity_ctx.get("agent_id", "unknown")
-    fingerprint = identity_ctx.get("identity_fingerprint", "")
-
-    # ── Job Sync: Lease Check ──────────────────────────────────────────────────
-    job_id = envelope.get("job_id")
-    if job_id:
-        from services.firestore import sync_job_with_envelope
-        sync_job_with_envelope(job_id=job_id, status="lease_check", envelope_id=envelope_id)
-
-    # ── Step 3: Acquire Authority Lease ───────────────────────────────────────
-    if not acquire_envelope_lease(envelope_id, instance_id):
-        print(f"[RUNTIME] Lease acquisition failed (fork?) for {envelope_id}.")
-        return
+    # (Removed single root identity verification and root lease acquisition)
 
     # Transition to executing
     _safe_transition(envelope_id, "executing")
@@ -109,11 +91,6 @@ def run_envelope(envelope_id: str, instance_id: str) -> None:
         # Re-fetch for latest state
         envelope = get_envelope(envelope_id)
         if not envelope:
-            break
-
-        # ── Lease check before every step (Rule: No lease = no execution) ─────
-        if not has_valid_lease(envelope, instance_id):
-            print(f"[RUNTIME] Lease expired mid-loop for {envelope_id}. Stopping.")
             break
 
         # ── Step 4: Find Next Ready Step ──────────────────────────────────────
@@ -131,8 +108,8 @@ def run_envelope(envelope_id: str, instance_id: str) -> None:
                     append_trace(
                         envelope_id=envelope_id, 
                         step_id="", 
-                        agent_id=agent_id, 
-                        identity_fingerprint=fingerprint, 
+                        agent_id="system", 
+                        identity_fingerprint="system", 
                         event_type="AWAITING_OPERATOR_DECISION" if not any_failed else "EXECUTION_FAILED"
                     )
                     
@@ -140,8 +117,8 @@ def run_envelope(envelope_id: str, instance_id: str) -> None:
                         envelope_id=envelope_id,
                         step_id="",
                         verb="#us#.execution.complete" if any_failed else "#us#.execution.awaiting_human",
-                        sender_agent_id=agent_id,
-                        identity_fingerprint=fingerprint,
+                        sender_agent_id="system",
+                        identity_fingerprint="system",
                         lease_holder=instance_id,
                         payload={"final_status": final},
                     )
@@ -164,6 +141,7 @@ def run_envelope(envelope_id: str, instance_id: str) -> None:
 
         step_id = step["step_id"]
         step_type = step["step_type"]
+        assigned_agent_id = step.get("assigned_agent_id", "unknown")
         handler_info = STEP_HANDLERS.get(step_type)
 
         if handler_info is None:
@@ -172,6 +150,24 @@ def run_envelope(envelope_id: str, instance_id: str) -> None:
             break
 
         handler_fn, verb = handler_info
+
+        # ── Step 4.1: Unified Execution Gate ──────────────────────────────────
+        # verify assigned_agent_id -> verify identity -> acquire/verify lease
+        agent_id = assigned_agent_id
+        fingerprint = verify_identity(envelope, agent_id)
+        if not fingerprint:
+            print(f"[RUNTIME] Per-step identity check failed for {agent_id}. Halting.")
+            break
+
+        if not acquire_envelope_lease(envelope_id, instance_id, agent_id):
+            print(f"[RUNTIME] Per-agent lease acquisition failed for {agent_id}. Halting.")
+            break
+
+        # Re-fetch for updated leases
+        envelope = get_envelope(envelope_id)
+        if not envelope or not has_valid_lease(envelope, instance_id, agent_id):
+            print(f"[RUNTIME] Lease invalid mid-loop for {agent_id}. Halting.")
+            break
 
         # Mark step as executing
         update_envelope_step(envelope_id, step_id, {"status": "executing"})
@@ -223,6 +219,7 @@ def run_envelope(envelope_id: str, instance_id: str) -> None:
                 "step_id": step_id,
                 "step_type": step_type,
                 "agent_id": agent_id,
+                "org_id": envelope.get("org_id", "default"),
                 "identity_fingerprint": fingerprint,
                 "prompt": envelope.get("prompt", ""),
                 "input_ref": step.get("input_ref"),
@@ -325,4 +322,10 @@ def _fail_step_and_envelope(
     update_envelope_step(envelope_id, step_id, {"status": "failed"})
     append_trace(envelope_id, step_id, agent_id, fingerprint,
                  "STEP_FAILED", {"reason": reason})
-    _safe_transition(envelope_id, "failed")
+    
+    # Security/Identity breaches trigger QUARANTINE
+    security_triggers = ["IDENTITY", "LEASE", "PROVIDER", "UNAUTHORIZED", "FORK"]
+    if any(trigger in reason.upper() for trigger in security_triggers):
+        _safe_transition(envelope_id, "quarantined")
+    else:
+        _safe_transition(envelope_id, "failed")

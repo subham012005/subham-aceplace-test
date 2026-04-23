@@ -129,7 +129,7 @@ export async function verifyUserApiKey(req: Request): Promise<{
       const decodedToken = await adminAuth.verifyIdToken(tokenCandidate);
       return {
         userId: decodedToken.uid,
-        orgId: (decodedToken.org_id as string) || "default",
+        orgId: decodedToken.org_id as string,
       };
     } catch (e: any) {
       console.warn(`[SECURITY] ID Token verification failed: ${e.message}. Attempting API Key fallback.`);
@@ -158,7 +158,7 @@ export async function verifyUserApiKey(req: Request): Promise<{
     const keyData = snap.docs[0].data();
     return {
       userId: keyData.user_id,
-      orgId: keyData.org_id || "default",
+      orgId: keyData.org_id,
     };
   } catch (error) {
     console.error("[SECURITY] Auth lookup failed:", error);

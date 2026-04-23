@@ -26,8 +26,8 @@ export function buildEnvelope(params: {
   jobId?: string;
   userId?: string;
   prompt?: string;
-  identityContext: IdentityContext;
-  identity_contexts?: Record<string, IdentityContext>;
+  identityContext?: IdentityContext; // Legacy parameter, keep optional or removed entirely.
+  identity_contexts: Record<string, IdentityContext>;
   role_assignments?: Record<string, string>;
   stepPipeline?: string[];        // canonical step types from Python engine
   steps?: EnvelopeStep[];         // explicitly mapped steps from the planner
@@ -54,26 +54,26 @@ export function buildEnvelope(params: {
       step_type: stepType as StepType,
       status: index === 0 ? "ready" : "pending",
       assigned_agent_id: params.identity_contexts
-          ? (config?.agent_role ?? stepType)
-          : (params.identityContext.agent_id), // Default to coordinator if single-agent
+          ? (roleAssignments[role || ""] || config?.agent_role || stepType)
+          : (params.identityContext?.agent_id || "unknown"), // Default to coordinator if single-agent
       role: role,
       retry_count: 0,
       max_retries: 2,
     } as EnvelopeStep;
   });
 
-  const identity_contexts = params.identity_contexts ?? {
-    [params.identityContext.agent_id]: params.identityContext,
-  };
+  const identity_contexts = params.identity_contexts;
 
   // Populate role_assignments if not provided
   if (!params.role_assignments) {
     if (!params.identity_contexts) {
        // Single agent mode: map all roles to the primary agent
-       roleAssignments.COO = params.identityContext.agent_id;
-       roleAssignments.Researcher = params.identityContext.agent_id;
-       roleAssignments.Worker = params.identityContext.agent_id;
-       roleAssignments.Grader = params.identityContext.agent_id;
+       if (params.identityContext) {
+           roleAssignments.COO = params.identityContext.agent_id;
+           roleAssignments.Researcher = params.identityContext.agent_id;
+           roleAssignments.Worker = params.identityContext.agent_id;
+           roleAssignments.Grader = params.identityContext.agent_id;
+       }
     } else {
        // Multi-agent mode: try to infer from step config
        for (const step of steps) {
@@ -102,19 +102,14 @@ export function buildEnvelope(params: {
 
   return {
     envelope_id: envelopeId,
-    org_id: params.orgId ?? "default",
+    org_id: params.orgId ?? params.userId ?? "default",
     status: "created",
 
     // Steps EMBEDDED (not external collection)
     steps,
 
-    // Lease starts as null — acquired before first step
-    authority_lease: null,
-
-    // Identity context from agent store
-    identity_context: params.identityContext,
-
-  // Multi-agent identity contexts
+    // Multi-agent identity contexts and authority leases
+    authority_leases: {},
     multi_agent: assignedAgents.size > 1,
     identity_contexts,
     role_assignments: roleAssignments,

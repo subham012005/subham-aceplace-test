@@ -184,7 +184,6 @@ function buildStandardEnvelope(
     orgId,
     jobId: `job_${Date.now()}`,
     prompt: "Test execution task for Phase-2 validation",
-    identityContext: contexts[agents.coo.agent_id],
     identity_contexts: contexts,
     steps,
   });
@@ -1016,8 +1015,8 @@ describe("TEST RUN 7 — Determinism Proof", () => {
     }
 
     // ── Fingerprint comparison ────────────────────────────────────────────────
-    const fpA = envA.identity_context.identity_fingerprint;
-    const fpB = envB.identity_context.identity_fingerprint;
+    const fpA = envA.identity_context?.identity_fingerprint;
+    const fpB = envB.identity_context?.identity_fingerprint;
     const fpMatch = fpA === fpB;
     console.log(`\n  Fingerprint (COO identity_context):`);
     console.log(`    FP-A : ${fpA}`);

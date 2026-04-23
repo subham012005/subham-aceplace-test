@@ -81,6 +81,7 @@ export async function acquirePerAgentLease(
       agentId,
       envelope.identity_contexts?.[agentId]?.identity_fingerprint || "unknown",
       "LEASE_ACQUIRED",
+      undefined,
       { lease_id: leaseId, instance_id: instanceId }
     );
 

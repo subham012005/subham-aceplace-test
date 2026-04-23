@@ -536,15 +536,23 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                 <div className="grid grid-cols-2 gap-3 py-2">
                                     <KernelStatusBadge
                                         kernel="identity"
-                                        status={envelope?.identity_context.verified ? "verified" : "active"}
+                                        status={
+                                            Object.values((envelope as any)?.identity_contexts || {}).every((ctx: any) => ctx.verified)
+                                            ? "verified"
+                                            : "active"
+                                        }
                                     />
                                     <KernelStatusBadge
                                         kernel="authority"
-                                        status={envelope?.authority_context?.lease_id ? "granted" : "idle"}
+                                        status={
+                                            Object.values((envelope as any)?.authority_leases || {}).some((l: any) => l.status === "active")
+                                            ? "granted"
+                                            : "idle"
+                                        }
                                     />
                                     <KernelStatusBadge
                                         kernel="execution"
-                                        status={envelope?.execution_context?.status === "running" ? "active" : "idle"}
+                                        status={envelope?.status === "executing" ? "active" : "idle"}
                                     />
                                     <KernelStatusBadge
                                         kernel="persistence"
@@ -563,15 +571,15 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                 <div className="space-y-4 py-2">
                                     <div className="flex items-center justify-between border-b border-white/5 pb-2">
                                         <span className="text-[8px] uppercase font-black tracking-widest text-slate-500">Execution ID</span>
-                                        <span className="text-[10px] font-mono text-cyan-500 tracking-tighter truncate max-w-[200px]">{job?.execution_id || "LEGACY_CONTEXT"}</span>
+                                        <span className="text-[10px] font-mono text-cyan-500 tracking-tighter truncate max-w-[200px]">{envelope?.envelope_id || job?.execution_id || "LEGACY_CONTEXT"}</span>
                                     </div>
                                     <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                                        <span className="text-[8px] uppercase font-black tracking-widest text-slate-500">Lease Authority</span>
+                                        <span className="text-[8px] uppercase font-black tracking-widest text-slate-500">Active Leases</span>
                                         <span className={cn(
                                             "text-[10px] font-black uppercase tracking-widest",
-                                            envelope?.authority_context?.lease_id ? "text-emerald-500" : "text-amber-500"
+                                            Object.keys((envelope as any)?.authority_leases || {}).length > 0 ? "text-emerald-500" : "text-amber-500"
                                         )}>
-                                            {envelope?.authority_context?.lease_id ? "GRANTED" : "UNAUTHORIZED"}
+                                            {Object.keys((envelope as any)?.authority_leases || {}).length} GRANTED
                                         </span>
                                     </div>
                                     <div className="flex items-center justify-between">

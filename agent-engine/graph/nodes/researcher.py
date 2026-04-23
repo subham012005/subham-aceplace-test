@@ -11,8 +11,10 @@ import json
 import time
 import traceback
 from services.firestore import get_artifact, log_agent_action
-from config import AGENT_MODELS, ANTHROPIC_API_KEY
+from provider_router import get_llm_config
 from langchain_anthropic import ChatAnthropic
+from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
 
 
@@ -63,12 +65,17 @@ def execute(ctx: dict) -> str:
     envelope_id = ctx.get("envelope_id", "")
     step_id = ctx.get("step_id", "")
     agent_id = ctx.get("agent_id", "agent_researcher")
+    start_ms = int(time.time() * 1000)
     input_ref = ctx.get("input_ref")
 
     print(f"[RESEARCHER] Researching for envelope {envelope_id}")
 
-    cfg = AGENT_MODELS.get("researcher", AGENT_MODELS["coo"])
-    model_name = cfg["model"]
+    # ── Step 5: Resolve Provider Configuration (BYO-LLM) ────────────────────────
+    llm_cfg = get_llm_config(ctx.get("org_id"), "researcher")
+    provider = llm_cfg["provider"]
+    model_name = llm_cfg["model"]
+    api_key = llm_cfg["api_key"]
+    base_url = llm_cfg.get("base_url")
 
     # Load plan from previous step artifact if available
     plan_context = ""
@@ -94,13 +101,31 @@ def execute(ctx: dict) -> str:
     start_ms = int(time.time() * 1000)
 
     try:
-        llm = ChatAnthropic(
-            model=model_name,
-            temperature=cfg["temperature"],
-            api_key=ANTHROPIC_API_KEY,
-            max_tokens=8192,
-            timeout=300,
-        )
+        if provider == "anthropic":
+            llm = ChatAnthropic(
+                model=model_name,
+                temperature=llm_cfg["temperature"],
+                api_key=api_key,
+                base_url=base_url if base_url else None,
+                max_tokens=8192,
+                timeout=300,
+            )
+        elif provider == "openai":
+            llm = ChatOpenAI(
+                model=model_name,
+                temperature=llm_cfg["temperature"],
+                api_key=api_key,
+                base_url=base_url if base_url else None,
+                max_tokens=4096,
+            )
+        elif provider == "gemini":
+            llm = ChatGoogleGenerativeAI(
+                model=model_name,
+                temperature=llm_cfg["temperature"],
+                google_api_key=api_key,
+            )
+        else:
+            raise ValueError(f"Unsupported provider: {provider}")
 
         messages = [
             SystemMessage(content=RESEARCHER_SYSTEM_PROMPT),

@@ -57,10 +57,11 @@ export function LeaseManager() {
           {activeLeases.map((lease) => {
             const remaining = new Date(lease.authority_lease.expires_at).getTime() - now;
             const isUrgent = remaining < 60000;
+            const leaseKey = `${lease.envelope_id}-${lease.agent_id}`;
 
             return (
               <div
-                key={lease.envelope_id}
+                key={leaseKey}
                 className={cn(
                   "flex items-center gap-3 p-3 border transition-all",
                   isUrgent
@@ -72,26 +73,37 @@ export function LeaseManager() {
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-[9px] font-mono text-white truncate">{lease.envelope_id}</span>
+                    <span className="text-[10px] font-black text-white tracking-tighter uppercase">
+                      {lease.agent_id.replace("agent_", "").toUpperCase()}
+                    </span>
+                    <span className="text-[9px] font-mono text-slate-500 truncate opacity-60">
+                      ({lease.envelope_id.slice(-6)})
+                    </span>
                   </div>
-                  <span className="text-[7px] font-black uppercase tracking-widest text-slate-600">
-                    Holder: {lease.authority_lease.holder_instance_id}
-                  </span>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-[7px] font-black uppercase tracking-widest text-slate-600">
+                      ID: {lease.authority_lease.holder_instance_id.slice(0, 12)}...
+                    </span>
+                  </div>
                 </div>
 
-                <span className={cn(
-                  "text-xs font-black tabular-nums",
-                  isUrgent ? "text-red-500" : "text-purple-400",
-                )}>
-                  {formatCountdown(lease.authority_lease.expires_at)}
-                </span>
+                <div className="text-right">
+                    <div className={cn(
+                    "text-[10px] font-black tabular-nums tracking-tight",
+                    isUrgent ? "text-red-500" : "text-purple-400",
+                    )}>
+                    {formatCountdown(lease.authority_lease.expires_at)}
+                    </div>
+                    <div className="text-[6px] font-bold text-slate-700 uppercase tracking-tighter">Time to TTL</div>
+                </div>
 
                 <button
                   onClick={() => handleRevoke(lease.envelope_id)}
-                  className="p-1.5 hover:bg-red-500/10 rounded transition-colors cursor-target"
+                  className="ml-2 p-1.5 hover:bg-red-500/10 rounded transition-colors cursor-target"
                   title="Revoke lease"
                 >
-                  <X className="w-3 h-3 text-slate-600 hover:text-red-500" />
+                  <X className="w-3 h-3 text-slate-700 hover:text-red-500" />
                 </button>
               </div>
             );

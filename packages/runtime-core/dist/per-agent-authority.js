@@ -66,7 +66,7 @@ async function acquirePerAgentLease(envelopeId, agentId, instanceId, options) {
         };
         const authority_leases = { ...(envelope.authority_leases || {}), [agentId]: lease };
         tx.update(ref, { authority_leases, updated_at: nowIso });
-        await (0, persistence_1.addTrace)(envelopeId, "", agentId, envelope.identity_contexts?.[agentId]?.identity_fingerprint || "unknown", "LEASE_ACQUIRED", { lease_id: leaseId, instance_id: instanceId });
+        await (0, persistence_1.addTrace)(envelopeId, "", agentId, envelope.identity_contexts?.[agentId]?.identity_fingerprint || "unknown", "LEASE_ACQUIRED", undefined, { lease_id: leaseId, instance_id: instanceId });
         return lease;
     });
 }

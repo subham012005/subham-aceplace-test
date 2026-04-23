@@ -28,7 +28,7 @@ export declare function getEnvelopeStep(envelopeId: string, stepId: string): Pro
  */
 export declare function getNextReadyStep(envelope: ExecutionEnvelope): EnvelopeStep | null;
 export declare function setEnvelopeStatus(envelopeId: string, status: EnvelopeStatus): Promise<void>;
-export declare function addTrace(envelopeId: string, stepId: string, agentId: string, identityFingerprint: string, eventType: string, metadata?: Record<string, unknown>): Promise<void>;
+export declare function addTrace(envelopeId: string, stepId: string, agentId: string, identityFingerprint: string, eventType: string, userId?: string, metadata?: Record<string, unknown>): Promise<void>;
 export declare function createArtifact(artifact: Artifact): Promise<void>;
 export declare function getArtifact(artifactId: string): Promise<Artifact | null>;
 /**
