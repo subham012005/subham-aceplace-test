@@ -18,7 +18,7 @@ export {
 } from "./kernels/identity";
 
 // Persistence kernel
-export { getDb } from "./db";
+export { getDb, setDb } from "./db";
 export {
   createEnvelope,
   getEnvelope,

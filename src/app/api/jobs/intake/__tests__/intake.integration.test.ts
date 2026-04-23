@@ -1,9 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { POST } from "../route";
 import { MemoryDb } from "@aceplace/runtime-core/__tests__/memory-db";
-import { setDb } from "@aceplace/runtime-core/db";
-import { COLLECTIONS } from "@aceplace/runtime-core/constants";
-import { resolveAssignedAgentId } from "@aceplace/runtime-core/runtime/resolution";
+import { setDb, COLLECTIONS, resolveAssignedAgentId } from "@aceplace/runtime-core";
 
 const { mockDb } = vi.hoisted(() => {
   const { MemoryDb } = require("@aceplace/runtime-core/__tests__/memory-db");

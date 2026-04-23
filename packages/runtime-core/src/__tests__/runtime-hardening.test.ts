@@ -67,6 +67,7 @@ describe("Runtime Hardening Tests — Phase 2", () => {
     const envelope = buildEnvelope({
       orgId: ORG,
       identity_contexts: { [coo.agent_id]: { agent_id: coo.agent_id, identity_fingerprint: coo.identity_fingerprint, verified: true } },
+      role_assignments: { "COO": coo.agent_id },
       stepPipeline: ["plan"],
     });
 
@@ -107,6 +108,7 @@ describe("Runtime Hardening Tests — Phase 2", () => {
     const envelope = buildEnvelope({
       orgId: ORG,
       identity_contexts: { [coo.agent_id]: { agent_id: coo.agent_id, identity_fingerprint: coo.identity_fingerprint, verified: true } },
+      role_assignments: { "COO": coo.agent_id },
       stepPipeline: ["plan"],
     });
 
@@ -158,6 +160,7 @@ describe("Runtime Hardening Tests — Phase 2", () => {
     const envelope = buildEnvelope({
       orgId: ORG,
       identity_contexts: { [coo.agent_id]: { agent_id: coo.agent_id, identity_fingerprint: coo.identity_fingerprint, verified: true } },
+      role_assignments: { "COO": coo.agent_id, "Researcher": coo.agent_id },
       stepPipeline: ["plan", "assign"],
     });
 

@@ -10,7 +10,8 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.js"
-    }
+    },
+    "./__tests__/memory-db": "./src/__tests__/memory-db.ts"
   },
   "scripts": {
     "build": "tsc",
