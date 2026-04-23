@@ -41,12 +41,10 @@ export async function transition(
     if (currentStatus === newStatus) return;
 
     if (!metadata?.agent_id) {
-       traceAgentId = envelope.coordinator_agent_id || envelope.identity_context?.agent_id || "runtime_worker";
+       traceAgentId = envelope.coordinator_agent_id || Object.keys(envelope.identity_contexts || {})[0] || "runtime_worker";
     }
     if (traceAgentId !== "runtime_worker") {
-        const fp = envelope.multi_agent && envelope.identity_contexts?.[traceAgentId]
-            ? envelope.identity_contexts[traceAgentId]?.identity_fingerprint
-            : envelope.identity_context?.identity_fingerprint;
+        const fp = envelope.identity_contexts?.[traceAgentId]?.identity_fingerprint;
         if (fp) traceFingerprint = fp;
     }
 
@@ -67,42 +65,43 @@ export async function transition(
       );
     }
 
-    tx.update(ref, { status: newStatus, updated_at: now });
+    const updates: Partial<ExecutionEnvelope> = { status: newStatus, updated_at: now };
+    const failureReason = (metadata?.error || metadata?.reason) as string;
+    
+    if (newStatus === "failed" && failureReason) {
+      updates.failure_reason = failureReason;
+    }
+
+    tx.update(ref, updates);
 
     // Sync legacy jobs collection if job_id is present
     if (envelope.job_id) {
       const jobRef = db.collection(COLLECTIONS.JOBS).doc(envelope.job_id);
       const jobUpdate: Record<string, unknown> = { status: newStatus, updated_at: now };
-      if (newStatus === "failed" && metadata?.reason) {
-        jobUpdate.failure_reason = String(metadata.reason);
+      if (newStatus === "failed" && failureReason) {
+        jobUpdate.failure_reason = failureReason;
       }
       tx.set(jobRef, jobUpdate, { merge: true });
     }
 
     // Sync execution_queue status
     const queueRef = db.collection(COLLECTIONS.EXECUTION_QUEUE).doc(envelopeId);
-    const terminalStatuses = ["completed", "failed", "quarantined", "rejected"];
     
-    if (terminalStatuses.includes(newStatus)) {
-      // For terminal states, we can either delete or mark as terminal. 
-      // Mark as terminal is better for audit consistency.
-      tx.set(queueRef, { status: newStatus, updated_at: now }, { merge: true });
-    } else {
-      tx.set(queueRef, { status: newStatus, updated_at: now }, { merge: true });
-    }
-  });
+    tx.set(queueRef, { status: newStatus, updated_at: now }, { merge: true });
 
-  // Log the transition
-  const traceId = generateTraceId(`TRANSITION_${newStatus.toUpperCase()}`);
-  await db.collection(COLLECTIONS.EXECUTION_TRACES).doc(traceId).set({
-    trace_id: traceId,
-    envelope_id: envelopeId,
-    step_id: (metadata?.step_id as string) || "",
-    agent_id: traceAgentId,
-    identity_fingerprint: traceFingerprint,
-    event_type: `STATUS_TRANSITION_${newStatus.toUpperCase()}`,
-    timestamp: now,
-    metadata: metadata ?? {},
+    // Log the transition
+    const traceId = generateTraceId(`TRANSITION_${newStatus.toUpperCase()}`);
+    tx.set(db.collection(COLLECTIONS.EXECUTION_TRACES).doc(traceId), {
+      trace_id: traceId,
+      envelope_id: envelopeId,
+      step_id: (metadata?.step_id as string) || "",
+      agent_id: traceAgentId,
+      identity_fingerprint: traceFingerprint,
+      event_type: `STATUS_TRANSITION_${newStatus.toUpperCase()}`,
+      user_id: envelope.user_id || "",
+      timestamp: now,
+      metadata: metadata ?? {},
+    });
   });
 }
 

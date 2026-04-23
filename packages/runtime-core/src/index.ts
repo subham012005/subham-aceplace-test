@@ -112,7 +112,6 @@ export { getLicenseFromRequest, runtimeIdFromRequest } from "./acelogic/http-con
 // Runtime guardrails
 export {
   assertEnvelopeNotTerminal,
-  assertIdentityContext,
   assertAgentIdentityContext,
   assertAgentLease,
   assertClaimOwnership,

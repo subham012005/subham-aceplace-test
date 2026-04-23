@@ -51,6 +51,7 @@ class ExecuteStepRequest(BaseModel):
     agent_id: str
     prompt: str
     input_ref: str | None = None
+    org_id: str | None = "default"
     message_id: str | None = None
 
 
@@ -151,6 +152,7 @@ async def execute_step(request: ExecuteStepRequest):
     Returns artifact_id of produced output.
     """
     from services.firestore import create_artifact
+    print(f"[ENGINE] Received execute-step request: {request.dict()}")
 
     try:
         # Import the handler for this step type
@@ -167,6 +169,7 @@ async def execute_step(request: ExecuteStepRequest):
             "step_id": request.step_id,
             "step_type": request.step_type,
             "agent_id": request.agent_id,
+            "org_id": request.org_id or "default",
             "identity_fingerprint": "",
             "prompt": request.prompt,
             "input_ref": request.input_ref,

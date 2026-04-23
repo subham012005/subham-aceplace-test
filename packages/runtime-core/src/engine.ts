@@ -131,11 +131,10 @@ export async function dispatch(params: {
     // ── Step 2: Build Envelope ────────────────────────────────────────────────
     const envelope = buildEnvelope({
       envelopeId: suggestedEnvId,
-      orgId: params.orgId ?? "default",
+      orgId: params.orgId || params.userId,
       jobId: params.jobId,
       userId: params.userId,
       prompt: params.prompt,
-      identityContext: identity_contexts[agentId],
       identity_contexts, 
       role_assignments,    
       steps: plannedSteps,
@@ -262,5 +261,5 @@ export async function approveEnvelope(envelopeId: string): Promise<void> {
  */
 export async function rejectEnvelope(envelopeId: string, reason?: string): Promise<void> {
   await transition(envelopeId, "rejected", { reason: reason ?? "human_rejected" });
-  await persistence.addTrace(envelopeId, "", "human", "", "HUMAN_REJECTED", { reason });
+  await persistence.addTrace(envelopeId, "", "human", "", "HUMAN_REJECTED", undefined, { reason });
 }

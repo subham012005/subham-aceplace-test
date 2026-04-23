@@ -23,7 +23,7 @@ _db = None
 COLLECTION_ENVELOPES  = "execution_envelopes"
 COLLECTION_ARTIFACTS  = "artifacts"
 COLLECTION_TRACES     = "execution_traces"
-COLLECTION_MESSAGES   = "protocol_messages"
+COLLECTION_MESSAGES   = "execution_messages"
 COLLECTION_AGENT_LOGS = "agent_logs"
 COLLECTION_JOBS       = "jobs"
 
@@ -166,10 +166,11 @@ def advance_next_pending_step(
 def acquire_envelope_lease(
     envelope_id: str,
     instance_id: str,
+    agent_id: str,
     duration_seconds: int = 300,
 ) -> bool:
     """
-    Acquire authority lease embedded in envelope.authority_lease.
+    Acquire authority lease embedded in envelope.authority_leases[agent_id].
     Returns True if acquired, False if fork detected (envelope quarantined).
     Uses Firestore transaction.
     """
@@ -184,14 +185,15 @@ def acquire_envelope_lease(
         if not snap.exists:
             raise ValueError(f"Envelope {envelope_id} not found")
         env = snap.to_dict()
-        existing = env.get("authority_lease")
+        authority_leases = env.get("authority_leases", {})
+        existing = authority_leases.get(agent_id)
 
         if existing:
-            exp = datetime.fromisoformat(existing["expires_at"])
+            exp = datetime.fromisoformat(existing["lease_expires_at"])
             if exp.tzinfo is None:
                 exp = exp.replace(tzinfo=timezone.utc)
             if exp > now:
-                if existing["holder_instance_id"] != instance_id:
+                if existing["current_instance_id"] != instance_id:
                     # FORK DETECTED
                     transaction.update(ref, {
                         "status": "quarantined",
@@ -202,13 +204,19 @@ def acquire_envelope_lease(
                 return "already_held"
 
         # Issue new lease
+        lease_id = f"lease_{agent_id}_{int(now.timestamp() * 1000)}"
         new_lease = {
-            "holder_instance_id": instance_id,
-            "leased_at": now.isoformat(),
-            "expires_at": expires_at,
+            "lease_id": lease_id,
+            "agent_id": agent_id,
+            "current_instance_id": instance_id,
+            "acquired_at": now.isoformat(),
+            "last_renewed_at": now.isoformat(),
+            "lease_expires_at": expires_at,
+            "status": "active"
         }
+        authority_leases[agent_id] = new_lease
         transaction.update(ref, {
-            "authority_lease": new_lease,
+            "authority_leases": authority_leases,
             "status": "leased",
             "updated_at": now.isoformat(),
         })
@@ -226,14 +234,15 @@ def acquire_envelope_lease(
     return True
 
 
-def has_valid_lease(envelope: dict, instance_id: str) -> bool:
-    """Check if envelope has a valid non-expired lease for instance_id."""
-    lease = envelope.get("authority_lease")
+def has_valid_lease(envelope: dict, instance_id: str, agent_id: str) -> bool:
+    """Check if envelope has a valid non-expired lease for instance_id and agent_id."""
+    authority_leases = envelope.get("authority_leases", {})
+    lease = authority_leases.get(agent_id)
     if not lease:
         return False
-    if lease.get("holder_instance_id") != instance_id:
+    if lease.get("current_instance_id") != instance_id:
         return False
-    exp = datetime.fromisoformat(lease["expires_at"])
+    exp = datetime.fromisoformat(lease["lease_expires_at"])
     if exp.tzinfo is None:
         exp = exp.replace(tzinfo=timezone.utc)
     return exp > datetime.now(timezone.utc)
@@ -241,29 +250,34 @@ def has_valid_lease(envelope: dict, instance_id: str) -> bool:
 
 # ─── Identity Verification ────────────────────────────────────────────────────
 
-def verify_identity(envelope: dict) -> bool:
+def verify_identity(envelope: dict, agent_id: str) -> dict:
     """
-    Verify agent identity:
-    1. Load agent from agents/{agent_id}
-    2. Recompute SHA-256 from canonical_identity_json
-    3. Compare to envelope.identity_context.identity_fingerprint
-    On mismatch → quarantine envelope.
+    Verify agent identity dynamically:
+    1. Check envelope.identity_contexts[agent_id]
+    2. Load agent from agents/{agent_id}
+    3. Recompute SHA-256 from canonical_identity_json
+    4. Compare to identity context fingerprint
+    On mismatch -> quarantine envelope and raise exception.
+    Returns the verified identity_fingerprint.
     """
     db = get_db()
     envelope_id = envelope.get("envelope_id", "")
-    identity_ctx = envelope.get("identity_context", {})
-    agent_id = identity_ctx.get("agent_id", "")
+    identity_contexts = envelope.get("identity_contexts", {})
+    identity_ctx = identity_contexts.get(agent_id, {})
     expected_fp = identity_ctx.get("identity_fingerprint", "")
+    if not expected_fp:
+        quarantine_envelope(envelope_id, f"IDENTITY_CONTEXT_MISSING_FOR_{agent_id}")
+        return ""
 
     # Allow dev bypass
     if expected_fp in ("pending_verification", ""):
-        print(f"[IDENTITY] Dev bypass for envelope {envelope_id}")
-        return True
+        print(f"[IDENTITY] Dev bypass for envelope {envelope_id} agent {agent_id}")
+        return expected_fp
 
     agent_doc = db.collection("agents").document(agent_id).get()
     if not agent_doc.exists:
         quarantine_envelope(envelope_id, "AGENT_NOT_FOUND")
-        return False
+        return ""
 
     agent = agent_doc.to_dict()
     canonical_json = agent.get("canonical_identity_json", "")
@@ -271,14 +285,14 @@ def verify_identity(envelope: dict) -> bool:
 
     if recomputed != expected_fp:
         quarantine_envelope(envelope_id, "IDENTITY_FINGERPRINT_MISMATCH")
-        return False
+        return ""
 
     # Update last_verified_at
     db.collection("agents").document(agent_id).update({
         "last_verified_at": datetime.now(timezone.utc).isoformat()
     })
     append_trace(envelope_id, "", agent_id, recomputed, "IDENTITY_VERIFIED")
-    return True
+    return recomputed
 
 
 # ─── Artifact Pipeline ────────────────────────────────────────────────────────

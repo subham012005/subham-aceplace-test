@@ -30,12 +30,22 @@ export async function claimNextEnvelope(workerId: string): Promise<{ envelope_id
     .get();
 
   if (snapshot.empty) {
-    snapshot = await db
+    // AUDIT FIX: To avoid FAILED_PRECONDITION on new collection names without composite indexes,
+    // we fetch recently claimed entries and filter for staleness in memory.
+    const claimedSnap = await db
       .collection(EXECUTION_QUEUE_COLLECTION)
       .where("status", "==", "claimed")
-      .where("updated_at", "<", new Date(staleTime).toISOString())
-      .limit(1)
+      .limit(10) // Small batch
       .get();
+    
+    const staleDoc = claimedSnap.docs.find(d => {
+       const data = d.data();
+       return new Date(data.updated_at).getTime() < staleTime;
+    });
+
+    if (staleDoc) {
+       snapshot = { empty: false, docs: [staleDoc] } as any;
+    }
   }
 
   if (snapshot.empty) return null;

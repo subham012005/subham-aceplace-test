@@ -29,7 +29,7 @@ export async function POST(req: Request) {
             userId: body.user_id,
             jobId: result.job_id,
             agentId: body.requested_agent_id || "agent_coo",
-            orgId: "default"
+            orgId: body.user_id  // Must match org_intelligence_providers/{userId} in Firestore
         });
 
         if (!dispatchResult.success) {

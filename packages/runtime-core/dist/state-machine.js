@@ -35,12 +35,10 @@ async function transition(envelopeId, newStatus, metadata) {
         if (currentStatus === newStatus)
             return;
         if (!metadata?.agent_id) {
-            traceAgentId = envelope.coordinator_agent_id || envelope.identity_context?.agent_id || "runtime_worker";
+            traceAgentId = envelope.coordinator_agent_id || Object.keys(envelope.identity_contexts || {})[0] || "runtime_worker";
         }
         if (traceAgentId !== "runtime_worker") {
-            const fp = envelope.multi_agent && envelope.identity_contexts?.[traceAgentId]
-                ? envelope.identity_contexts[traceAgentId]?.identity_fingerprint
-                : envelope.identity_context?.identity_fingerprint;
+            const fp = envelope.identity_contexts?.[traceAgentId]?.identity_fingerprint;
             if (fp)
                 traceFingerprint = fp;
         }
@@ -66,27 +64,20 @@ async function transition(envelopeId, newStatus, metadata) {
         }
         // Sync execution_queue status
         const queueRef = db.collection(constants_1.COLLECTIONS.EXECUTION_QUEUE).doc(envelopeId);
-        const terminalStatuses = ["completed", "failed", "quarantined", "rejected"];
-        if (terminalStatuses.includes(newStatus)) {
-            // For terminal states, we can either delete or mark as terminal. 
-            // Mark as terminal is better for audit consistency.
-            tx.set(queueRef, { status: newStatus, updated_at: now }, { merge: true });
-        }
-        else {
-            tx.set(queueRef, { status: newStatus, updated_at: now }, { merge: true });
-        }
-    });
-    // Log the transition
-    const traceId = (0, hash_1.generateTraceId)(`TRANSITION_${newStatus.toUpperCase()}`);
-    await db.collection(constants_1.COLLECTIONS.EXECUTION_TRACES).doc(traceId).set({
-        trace_id: traceId,
-        envelope_id: envelopeId,
-        step_id: metadata?.step_id || "",
-        agent_id: traceAgentId,
-        identity_fingerprint: traceFingerprint,
-        event_type: `STATUS_TRANSITION_${newStatus.toUpperCase()}`,
-        timestamp: now,
-        metadata: metadata ?? {},
+        tx.set(queueRef, { status: newStatus, updated_at: now }, { merge: true });
+        // Log the transition
+        const traceId = (0, hash_1.generateTraceId)(`TRANSITION_${newStatus.toUpperCase()}`);
+        tx.set(db.collection(constants_1.COLLECTIONS.EXECUTION_TRACES).doc(traceId), {
+            trace_id: traceId,
+            envelope_id: envelopeId,
+            step_id: metadata?.step_id || "",
+            agent_id: traceAgentId,
+            identity_fingerprint: traceFingerprint,
+            event_type: `STATUS_TRANSITION_${newStatus.toUpperCase()}`,
+            user_id: envelope.user_id || "",
+            timestamp: now,
+            metadata: metadata ?? {},
+        });
     });
 }
 /**

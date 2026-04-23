@@ -25,7 +25,7 @@ export { aceLogicIntrospect, aceLogicVerifyIdentity, aceLogicLeaseAcquire, aceLo
 export { auditLicenseCheck, checkCapability } from "./acelogic/capability";
 export { isLicenseExpired, resolveLicenseById } from "./acelogic/resolve-license";
 export { getLicenseFromRequest, runtimeIdFromRequest } from "./acelogic/http-context";
-export { assertEnvelopeNotTerminal, assertIdentityContext, assertAgentIdentityContext, assertAgentLease, assertClaimOwnership, assertStepExists, assertStepNotCompleted, assertDependenciesSatisfied, assertEnvelopeHasSteps, } from "./runtime/guards";
+export { assertEnvelopeNotTerminal, assertAgentIdentityContext, assertAgentLease, assertClaimOwnership, assertStepExists, assertStepNotCompleted, assertDependenciesSatisfied, assertEnvelopeHasSteps, } from "./runtime/guards";
 export { resolveAssignedAgentId } from "./runtime/resolution";
 export { executeFallbackStep } from "./llm-fallback";
 export * from "./types";

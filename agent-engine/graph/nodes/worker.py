@@ -11,7 +11,11 @@ import json
 import time
 import traceback
 from services.firestore import get_artifact, log_agent_action
-from config import AGENT_MODELS, ANTHROPIC_API_KEY, OPENAI_API_KEY
+from provider_router import get_llm_config
+from langchain_anthropic import ChatAnthropic
+from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.messages import SystemMessage, HumanMessage
 
 
 WORKER_SYSTEM_PROMPT = """You are the Production Worker agent in the ACEPLACE Phase 2 runtime.
@@ -62,12 +66,14 @@ def execute(ctx: dict) -> str:
     step_id = ctx.get("step_id", "")
     agent_id = ctx.get("agent_id", "agent_worker")
     input_ref = ctx.get("input_ref")
+    start_ms = int(time.time() * 1000)
 
     print(f"[WORKER] Producing artifact for envelope {envelope_id}")
 
-    cfg = AGENT_MODELS.get("worker", AGENT_MODELS["coo"])
-    model_name = cfg["model"]
-    provider = cfg.get("provider", "anthropic")
+    # ── Step 5: Resolve Provider Configuration (BYO-LLM) ────────────────────────
+    llm_cfg = get_llm_config(ctx.get("org_id"), "worker")
+    provider = llm_cfg["provider"]
+    model_name = llm_cfg["model"]
 
     # Load research from previous step artifact
     research_context = ""
@@ -103,11 +109,10 @@ def execute(ctx: dict) -> str:
         input_summary=f"Produce deliverable for: {prompt[:300]}",
     )
 
-    start_ms = int(time.time() * 1000)
 
     try:
         combined_prompt = f"Mission Prompt: {prompt}{work_unit_context}"
-        raw_text = _call_llm(provider, model_name, cfg, combined_prompt, research_context)
+        raw_text = _call_llm(provider, model_name, llm_cfg, combined_prompt, research_context)
 
         cleaned = raw_text.strip()
         for fence in ("```json", "```"):
@@ -163,39 +168,37 @@ def execute(ctx: dict) -> str:
 
 
 def _call_llm(provider: str, model_name: str, cfg: dict, prompt: str, research_context: str) -> str:
-    """Call the appropriate LLM provider and return raw text."""
-    if provider == "openai":
-        try:
-            from langchain_openai import ChatOpenAI
-            from langchain_core.messages import SystemMessage, HumanMessage
-            llm = ChatOpenAI(
-                model=model_name,
-                temperature=cfg["temperature"],
-                api_key=OPENAI_API_KEY,
-                max_tokens=8192,
-                timeout=300,
-            )
-            messages = [
-                SystemMessage(content=WORKER_SYSTEM_PROMPT),
-                HumanMessage(content=f"Task:\n\n{prompt}{research_context}\n\nProduce the deliverable."),
-            ]
-            response = llm.invoke(messages)
-            return response.content if isinstance(response.content, str) else str(response.content)
-        except Exception as e:
-            print(f"[WORKER] OpenAI failed ({e}), falling back to Anthropic")
-            provider = "anthropic"
+    """Call the resolved LLM provider and return raw text."""
+    api_key = cfg["api_key"]
+    base_url = cfg.get("base_url")
 
-    # Anthropic (default and fallback)
-    from langchain_anthropic import ChatAnthropic
-    from langchain_core.messages import SystemMessage, HumanMessage
-    from config import ANTHROPIC_API_KEY as ANTHRO_KEY
-    llm = ChatAnthropic(
-        model="claude-sonnet-4-6",
-        temperature=cfg["temperature"],
-        api_key=ANTHRO_KEY,
-        max_tokens=8192,
-        timeout=300,
-    )
+    if provider == "openai":
+        llm = ChatOpenAI(
+            model=model_name,
+            temperature=cfg["temperature"],
+            api_key=api_key,
+            base_url=base_url if base_url else None,
+            max_tokens=8192,
+            timeout=300,
+        )
+    elif provider == "anthropic":
+        llm = ChatAnthropic(
+            model=model_name,
+            temperature=cfg["temperature"],
+            api_key=api_key,
+            base_url=base_url if base_url else None,
+            max_tokens=8192,
+            timeout=300,
+        )
+    elif provider == "gemini":
+        llm = ChatGoogleGenerativeAI(
+            model=model_name,
+            temperature=cfg["temperature"],
+            google_api_key=api_key,
+        )
+    else:
+        raise ValueError(f"BYO_LLM_ERROR: Unsupported provider {provider}")
+
     messages = [
         SystemMessage(content=WORKER_SYSTEM_PROMPT),
         HumanMessage(content=f"Task:\n\n{prompt}{research_context}\n\nProduce the deliverable."),

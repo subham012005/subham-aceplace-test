@@ -10,8 +10,10 @@ Returns:   artifact content string for persistence
 import json
 import time
 import traceback
-from config import AGENT_MODELS, ANTHROPIC_API_KEY
+from provider_router import get_llm_config
 from langchain_anthropic import ChatAnthropic
+from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from services.firestore import log_agent_action
 
@@ -87,33 +89,43 @@ def execute(ctx: dict) -> str:
     envelope_id = ctx.get("envelope_id", "")
     step_id = ctx.get("step_id", "")
     agent_id = ctx.get("agent_id", "agent_coo")
+    start_ms = int(time.time() * 1000)
 
     print(f"[COO] Planning for envelope {envelope_id}")
 
-    cfg = AGENT_MODELS["coo"]
-    model_name = cfg["model"]
-
-    # ── Log: START ─────────────────────────────────────────────────────────────
-    log_agent_action(
-        envelope_id=envelope_id,
-        step_id=step_id,
-        agent_role="coo",
-        agent_id=agent_id,
-        event="START",
-        model=model_name,
-        input_summary=f"Planning task: {prompt[:300]}",
-    )
-
-    start_ms = int(time.time() * 1000)
+    # ── Step 5: Resolve Provider Configuration (BYO-LLM) ────────────────────────
+    llm_cfg = get_llm_config(ctx.get("org_id"), "coo")
+    provider = llm_cfg["provider"]
+    model_name = llm_cfg["model"]
+    api_key = llm_cfg["api_key"]
+    base_url = llm_cfg.get("base_url")
 
     try:
-        llm = ChatAnthropic(
-            model=model_name,
-            temperature=cfg["temperature"],
-            api_key=ANTHROPIC_API_KEY,
-            max_tokens=4096,
-            timeout=300,
-        )
+        if provider == "anthropic":
+            llm = ChatAnthropic(
+                model=model_name,
+                temperature=llm_cfg["temperature"],
+                api_key=api_key,
+                base_url=base_url if base_url else None,
+                max_tokens=4096,
+                timeout=300,
+            )
+        elif provider == "openai":
+            llm = ChatOpenAI(
+                model=model_name,
+                temperature=llm_cfg["temperature"],
+                api_key=api_key,
+                base_url=base_url if base_url else None,
+                max_tokens=4096,
+            )
+        elif provider == "gemini":
+            llm = ChatGoogleGenerativeAI(
+                model=model_name,
+                temperature=llm_cfg["temperature"],
+                google_api_key=api_key,
+            )
+        else:
+            raise ValueError(f"Unsupported provider: {provider}")
 
         messages = [
             SystemMessage(content=COO_SYSTEM_PROMPT),

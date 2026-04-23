@@ -19,7 +19,7 @@ function mapSummary(
     root_task_id: envelope.root_task_id ?? "",
     status: envelope.status,
     coordinator_agent_id:
-      envelope.coordinator_agent_id ?? envelope.identity_context?.agent_id,
+      envelope.coordinator_agent_id ?? Object.keys(envelope.identity_contexts || {})[0],
     step_counts: {
       total: steps.length,
       ready: countByStatus("ready"),
@@ -110,14 +110,14 @@ export async function getEnvelopeDetail(envelope_id: string) {
   try {
     messageSnap = await db
       .collection(COLLECTIONS.EXECUTION_MESSAGES)
-      .where("envelope_id", "==", envelope_id)
-      .orderBy("created_at", "desc")
+      .where("execution.envelope_id", "==", envelope_id)
+      .orderBy("timestamp", "desc")
       .limit(100)
       .get();
   } catch {
     messageSnap = await db
       .collection(COLLECTIONS.EXECUTION_MESSAGES)
-      .where("envelope_id", "==", envelope_id)
+      .where("execution.envelope_id", "==", envelope_id)
       .limit(100)
       .get();
   }

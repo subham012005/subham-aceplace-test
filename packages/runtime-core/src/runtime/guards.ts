@@ -38,19 +38,9 @@ export function assertEnvelopeNotTerminal(envelope: ExecutionEnvelope): void {
 }
 
 /**
- * Primary identity_context must be present and carry a non-empty fingerprint.
- * A missing or empty fingerprint means the envelope was built incorrectly —
- * execution must not proceed.
+ * (REMOVED) assertIdentityContext — No longer needed in Phase 2 as root identity_context 
+ * is deprecated. Use assertAgentIdentityContext instead.
  */
-export function assertIdentityContext(envelope: ExecutionEnvelope): void {
-  if (!envelope.identity_context) {
-    throw new Error("GUARD_IDENTITY_CONTEXT_MISSING");
-  }
-  const fp = envelope.identity_context.identity_fingerprint;
-  if (!fp) {
-    throw new Error("GUARD_IDENTITY_FINGERPRINT_MISSING");
-  }
-}
 
 /**
  * Per-agent identity_context must be present and carry a valid fingerprint.
@@ -61,11 +51,7 @@ export function assertAgentIdentityContext(
   envelope: ExecutionEnvelope,
   agentId: string
 ): void {
-  const ctx = envelope.multi_agent
-    ? envelope.identity_contexts?.[agentId]
-    : envelope.identity_context?.agent_id === agentId
-      ? envelope.identity_context
-      : undefined;
+  const ctx = envelope.identity_contexts?.[agentId];
 
   if (!ctx) {
     throw new Error(`GUARD_AGENT_IDENTITY_CONTEXT_MISSING:${agentId}`);
@@ -84,9 +70,7 @@ export function assertAgentIdentityVerified(
   agentId: string
 ): void {
   assertAgentIdentityContext(envelope, agentId);
-  const ctx = envelope.multi_agent
-    ? envelope.identity_contexts?.[agentId]
-    : envelope.identity_context;
+  const ctx = envelope.identity_contexts?.[agentId];
 
   if (!ctx?.verified) {
     throw new Error(`GUARD_IDENTITY_NOT_VERIFIED:${agentId}`);

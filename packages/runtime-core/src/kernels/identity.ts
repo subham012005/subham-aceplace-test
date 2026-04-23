@@ -39,15 +39,8 @@ export async function verifyIdentityForAgent(
   envelope: ExecutionEnvelope,
   agentId: string
 ): Promise<IdentityVerifyResult> {
-  const ctx =
-    envelope.multi_agent && envelope.identity_contexts?.[agentId]
-      ? envelope.identity_contexts[agentId]
-      : envelope.identity_context.agent_id === agentId
-        ? envelope.identity_context
-        : null;
+  const ctx = envelope.identity_contexts?.[agentId] || null;
   if (!ctx) {
-    // AUDIT FIX: Missing identity_context is a hard invariant violation — quarantine
-    // immediately rather than returning a soft failure that the caller might retry.
     await quarantineEnvelope(envelopeId, "IDENTITY_CONTEXT_MISSING");
     await logIdentityTrace(envelopeId, agentId, "", "IDENTITY_CONTEXT_MISSING");
     return {
@@ -58,22 +51,15 @@ export async function verifyIdentityForAgent(
       verified_at: new Date().toISOString(),
     };
   }
-  const synthetic: ExecutionEnvelope = {
-    ...envelope,
-    identity_context: {
-      ...ctx,
-      agent_id: ctx.agent_id || agentId,
-      verified: ctx.verified ?? true,
-    },
-  };
-  return verifyIdentity(envelopeId, agentId, synthetic);
+
+  return verifyIdentity(envelopeId, agentId, ctx.identity_fingerprint);
 }
 
-/** Verify a single agent against envelope.identity_context (quarantines on mismatch). */
+/** Verify a single agent against a specific fingerprint (quarantines on mismatch). */
 export async function verifyIdentity(
   envelopeId: string,
   agentId: string,
-  envelope: ExecutionEnvelope
+  expectedFingerprint: string
 ): Promise<IdentityVerifyResult> {
   const now = new Date().toISOString();
 
@@ -101,9 +87,6 @@ export async function verifyIdentity(
   const canonicalRaw = agent.canonical_identity_json;
   const canonicalStr = typeof canonicalRaw === "string" ? canonicalRaw : JSON.stringify(canonicalRaw);
   const recomputedFingerprint = computeFingerprint(canonicalStr);
-
-  // Compare with envelope's expected fingerprint
-  const expectedFingerprint = envelope.identity_context.identity_fingerprint;
 
   // RULE: Missing identity_fingerprint on envelope is a hard failure.
   if (!expectedFingerprint) {

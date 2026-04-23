@@ -46,9 +46,9 @@ class AceApiClient {
      *  - Calls the runtime engine dispatcher
      */
     async dispatchFromDashboard(data: {
-        prompt: string;
+        root_task: string;
         job_id?: string;
-        agent_id?: string;
+        execution_policy?: { entry_agent: string };
     }) {
         const response = await this.secureFetch("/api/runtime/dispatch/from-dashboard", {
             method: "POST",
@@ -205,6 +205,23 @@ class AceApiClient {
 
     async getSecureJobArtifacts(jobId: string) {
         const response = await this.secureFetch(`/api/runtime/jobs/${jobId}/artifacts`);
+        return this.handleResponse(response);
+    }
+
+    // ─── Intelligence Provider Config (Secure Admin Layer) ───
+
+    async getIntelligenceConfig() {
+        const response = await this.secureFetch("/api/user/intelligence-providers");
+        if (response.status === 404) return null;
+        return this.handleResponse(response);
+    }
+
+    async saveIntelligenceConfig(config: any) {
+        const response = await this.secureFetch("/api/user/intelligence-providers", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(config),
+        });
         return this.handleResponse(response);
     }
 

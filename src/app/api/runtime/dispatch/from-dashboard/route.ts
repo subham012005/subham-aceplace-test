@@ -20,13 +20,21 @@ export async function POST(req: Request) {
 
     const body = (await req.json()) as Record<string, unknown>;
 
-    const prompt = sanitisePrompt(body.prompt);
+    // Support phase-2 API Contract: root_task and execution_policy
+    const prompt = sanitisePrompt((body.root_task || body.prompt) as string);
 
-    const agentId =
-      typeof body.agent_id === "string" && body.agent_id.trim()
-        ? body.agent_id.trim().slice(0, 128)
-        : undefined;
+    let agentId: string | undefined = undefined;
+    if (body.execution_policy && typeof body.execution_policy === "object") {
+        const entry_agent = (body.execution_policy as Record<string, unknown>).entry_agent;
+        if (typeof entry_agent === "string") {
+            agentId = entry_agent.trim().slice(0, 128);
+        }
+    }
+    if (!agentId && typeof body.agent_id === "string") {
+        agentId = body.agent_id.trim().slice(0, 128);
+    }
 
+    // Keep jobId for UI compat until completely removed
     const jobId =
       typeof body.job_id === "string" && body.job_id.trim()
         ? body.job_id.trim().slice(0, 128)

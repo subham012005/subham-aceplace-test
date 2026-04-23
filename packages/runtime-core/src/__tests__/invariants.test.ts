@@ -15,7 +15,6 @@ import { planEnvelopeSteps } from "../step-planner";
 import { computeFingerprint } from "../kernels/identity";
 import {
   assertEnvelopeNotTerminal,
-  assertIdentityContext,
   assertAgentIdentityContext,
   assertAgentLease,
   assertStepNotCompleted,
@@ -117,25 +116,7 @@ describe("Invariant — runtime guardrails (guards.ts)", () => {
     }
   });
 
-  it("assertIdentityContext throws when identity_context is absent", () => {
-    expect(() =>
-      assertIdentityContext({ identity_context: null } as any)
-    ).toThrow("GUARD_IDENTITY_CONTEXT_MISSING");
-  });
 
-  it("assertIdentityContext throws when identity_fingerprint is empty", () => {
-    expect(() =>
-      assertIdentityContext({ identity_context: { identity_fingerprint: "" } } as any)
-    ).toThrow("GUARD_IDENTITY_FINGERPRINT_MISSING");
-  });
-
-  it("assertIdentityContext passes when fingerprint is present", () => {
-    expect(() =>
-      assertIdentityContext({
-        identity_context: { agent_id: "a", identity_fingerprint: "abc123", verified: true },
-      } as any)
-    ).not.toThrow();
-  });
 
   it("assertAgentIdentityContext throws when agent ctx is missing in multi-agent envelope", () => {
     expect(() =>

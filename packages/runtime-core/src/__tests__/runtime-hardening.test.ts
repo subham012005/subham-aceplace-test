@@ -66,7 +66,7 @@ describe("Runtime Hardening Tests — Phase 2", () => {
 
     const envelope = buildEnvelope({
       orgId: ORG,
-      identityContext: { agent_id: coo.agent_id, identity_fingerprint: coo.identity_fingerprint, verified: true },
+      identity_contexts: { [coo.agent_id]: { agent_id: coo.agent_id, identity_fingerprint: coo.identity_fingerprint, verified: true } },
       stepPipeline: ["plan"],
     });
 
@@ -106,7 +106,7 @@ describe("Runtime Hardening Tests — Phase 2", () => {
 
     const envelope = buildEnvelope({
       orgId: ORG,
-      identityContext: { agent_id: coo.agent_id, identity_fingerprint: coo.identity_fingerprint, verified: true },
+      identity_contexts: { [coo.agent_id]: { agent_id: coo.agent_id, identity_fingerprint: coo.identity_fingerprint, verified: true } },
       stepPipeline: ["plan"],
     });
 
@@ -135,7 +135,7 @@ describe("Runtime Hardening Tests — Phase 2", () => {
 
      const envelope = buildEnvelope({
        orgId: ORG,
-       identityContext: { agent_id: coo.agent_id, identity_fingerprint: coo.identity_fingerprint, verified: true },
+       identity_contexts: { [coo.agent_id]: { agent_id: coo.agent_id, identity_fingerprint: coo.identity_fingerprint, verified: true } },
        stepPipeline: ["plan"],
        role_assignments: { "COO": coo.agent_id }
      });
@@ -157,7 +157,7 @@ describe("Runtime Hardening Tests — Phase 2", () => {
 
     const envelope = buildEnvelope({
       orgId: ORG,
-      identityContext: { agent_id: coo.agent_id, identity_fingerprint: coo.identity_fingerprint, verified: true },
+      identity_contexts: { [coo.agent_id]: { agent_id: coo.agent_id, identity_fingerprint: coo.identity_fingerprint, verified: true } },
       stepPipeline: ["plan", "assign"],
     });
 

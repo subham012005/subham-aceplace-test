@@ -19,7 +19,6 @@ import {
   assertClaimOwnership,
   assertEnvelopeHasSteps,
   assertEnvelopeNotTerminal,
-  assertIdentityContext,
   assertStepNotCompleted,
 } from "./runtime/guards";
 import { resolveAssignedAgentId } from "./runtime/resolution";
@@ -181,9 +180,7 @@ async function pauseForHumanApproval(
 }
 
 function resolveInstanceId(envelope: ExecutionEnvelope, agentId: string, fallback: string) {
-  const ctx = envelope.multi_agent
-    ? envelope.identity_contexts?.[agentId]
-    : envelope.identity_context;
+  const ctx = envelope.identity_contexts?.[agentId];
   return ctx?.instance_id || fallback;
 }
 
@@ -212,7 +209,6 @@ async function executeClaimedStep(params: {
 
     // 2. Pre-Identity Guards
     assertEnvelopeNotTerminal(envelope);
-    assertIdentityContext(envelope);
     assertAgentIdentityContext(envelope, agentId);
     assertStepNotCompleted(step);
 
@@ -221,7 +217,7 @@ async function executeClaimedStep(params: {
     fingerprint = ident.identity_fingerprint || "00000000";
     
     if (!ident.verified) {
-      await addTrace(envelope_id, step.step_id, agentId, fingerprint, "IDENTITY_FAILED", {
+      await addTrace(envelope_id, step.step_id, agentId, fingerprint, "IDENTITY_FAILED", undefined, {
         reason: ident.reason,
       });
       throw new Error(`IDENTITY_FAILED:${ident.reason}`);
@@ -229,7 +225,7 @@ async function executeClaimedStep(params: {
 
     // 4. Identity Verified Guard
     assertAgentIdentityVerified(envelope, agentId);
-    await addTrace(envelope_id, step.step_id, agentId, fingerprint, "IDENTITY_VERIFIED", {
+    await addTrace(envelope_id, step.step_id, agentId, fingerprint, "IDENTITY_VERIFIED", undefined, {
       agent_id: agentId,
       verified_at: ident.verified_at || new Date().toISOString(),
     });
@@ -251,7 +247,7 @@ async function executeClaimedStep(params: {
     // 6. Lease Acquisition
     const forceRenew = step.step_type === "complete";
     await acquirePerAgentLease(envelope_id, agentId, instanceId, { forceRenew });
-    await addTrace(envelope_id, step.step_id, agentId, fingerprint, "LEASE_ACQUIRED", {
+    await addTrace(envelope_id, step.step_id, agentId, fingerprint, "LEASE_ACQUIRED", undefined, {
       instance_id: instanceId,
     });
     await emitSafe({
@@ -272,14 +268,14 @@ async function executeClaimedStep(params: {
     console.error(`[RUNTIME] Preflight failed for step ${step.step_id}: ${msg}`);
     
     // Explicitly trace the failure
-    await addTrace(envelope_id, step.step_id, "runtime_worker", "00000000", "PREFLIGHT_FAILED", {
+    await addTrace(envelope_id, step.step_id, "runtime_worker", "00000000", "PREFLIGHT_FAILED", undefined, {
       error: msg,
       step_id: step.step_id,
       role: step.role,
     });
 
     // Deterministic state machine transition
-    if (msg.includes("AGENT_NOT_FOUND") || msg.includes("IDENTITY_FAILED") || msg.includes("LEASE_")) {
+    if (msg.includes("AGENT_NOT_FOUND") || msg.includes("IDENTITY_FAILED") || msg.includes("IDENTITY_CONTEXT_MISSING") || msg.includes("LEASE_")) {
       await transition(envelope_id, "quarantined", {
         reason: msg,
         step_id: step.step_id,
@@ -351,6 +347,7 @@ async function executeClaimedStep(params: {
       agentId,
       fingerprint,
       "STEP_COMPLETED",
+      undefined,
       { duration_ms: duration, message_id: messageId }
     );
 
@@ -367,7 +364,7 @@ async function executeClaimedStep(params: {
     leaseHeartbeatManager.stop(hbKey);
     await releasePerAgentLease(envelope_id, agentId).catch(() => undefined);
     
-    await addTrace(envelope_id, step.step_id, agentId, fingerprint, "LEASE_RELEASED", {
+    await addTrace(envelope_id, step.step_id, agentId, fingerprint, "LEASE_RELEASED", undefined, {
       instance_id: instanceId,
     });
 
@@ -526,7 +523,7 @@ export async function runEnvelopeParallel(params: {
       await pauseForHumanApproval(
         envelope_id,
         humanApprovalStep.step_id,
-        envelope.coordinator_agent_id || envelope.identity_context.agent_id
+        envelope.coordinator_agent_id || Object.keys(envelope.identity_contexts || {})[0] || "unknown"
       );
       return;
     }
@@ -547,7 +544,7 @@ export async function runEnvelopeParallel(params: {
         const anyQuarantined = envelope.status === "quarantined";
 
         if (anyQuarantined) {
-           await addTrace(envelope_id, "", "runtime_worker", "00000000", "STATUS_TRANSITION_QUARANTINED", {
+           await addTrace(envelope_id, "", "runtime_worker", "00000000", "STATUS_TRANSITION_QUARANTINED", undefined, {
              reason: "Step failure or resolution error triggered quarantine",
            });
            return;
@@ -557,7 +554,7 @@ export async function runEnvelopeParallel(params: {
           if (everyStepCompleted) {
             // 🛡️ HITL HARDENING: Never auto-complete. Transition to awaiting_human for operator sign-off.
             await transition(envelope_id, "awaiting_human");
-            await addTrace(envelope_id, "", "runtime_worker", "00000000", "STATUS_TRANSITION_AWAITING_HUMAN", {
+            await addTrace(envelope_id, "", "runtime_worker", "00000000", "STATUS_TRANSITION_AWAITING_HUMAN", undefined, {
                reason: "All steps finished. Verification required."
             });
 
@@ -593,12 +590,12 @@ export async function runEnvelopeParallel(params: {
             await emitSafe({
               event_type: "ENVELOPE_COMPLETED",
               envelope_id,
-              agent_id: envelope.coordinator_agent_id || envelope.identity_context.agent_id,
+              agent_id: envelope.coordinator_agent_id || Object.keys(envelope.identity_contexts || {})[0] || "unknown",
               org_id: envelope.org_id,
             });
           } else if (anyFailed) {
             await transition(envelope_id, "failed");
-            await addTrace(envelope_id, "", "runtime_worker", "00000000", "STATUS_TRANSITION_FAILED", {
+            await addTrace(envelope_id, "", "runtime_worker", "00000000", "STATUS_TRANSITION_FAILED", undefined, {
               reason: "Partial step failure",
             });
             await emitSafe({
@@ -646,9 +643,7 @@ export async function runEnvelopeParallel(params: {
       claimed.map((s) => ({
         agent_id: s.assigned_agent_id!,
         identity_fingerprint:
-          envForPrime.multi_agent && envForPrime.identity_contexts?.[s.assigned_agent_id!]
-            ? envForPrime.identity_contexts[s.assigned_agent_id!].identity_fingerprint
-            : envForPrime.identity_context.identity_fingerprint,
+          envForPrime.identity_contexts?.[s.assigned_agent_id!]?.identity_fingerprint ?? "00000000",
         instance_id: resolveInstanceId(
           envForPrime,
           s.assigned_agent_id!,

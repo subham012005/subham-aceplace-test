@@ -13,6 +13,7 @@ import { Shield, Copy, Check } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import { cn } from "@/lib/utils";
 import ApiIntegration from "./ApiIntegration";
+import { IntelligenceProviders } from "./IntelligenceProviders";
 
 interface SettingsModalProps {
     isOpen: boolean;
@@ -20,7 +21,7 @@ interface SettingsModalProps {
 }
 
 export default function SettingsModal({ isOpen, onOpenChange }: SettingsModalProps) {
-    const [activeTab, setActiveTab] = React.useState<"ui" | "api">("ui");
+    const [activeTab, setActiveTab] = React.useState<"ui" | "api" | "providers">("ui");
     const [copied, setCopied] = React.useState(false);
     const userId = auth.currentUser?.uid || "Not Authenticated";
 
@@ -73,6 +74,16 @@ export default function SettingsModal({ isOpen, onOpenChange }: SettingsModalPro
                             API Integration
                             {activeTab === "api" && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.8)]" />}
                         </button>
+                        <button
+                            onClick={() => setActiveTab("providers")}
+                            className={cn(
+                                "pb-2 text-[10px] font-black uppercase tracking-widest transition-all relative whitespace-nowrap",
+                                activeTab === "providers" ? "text-amber-400" : "text-slate-500 hover:text-slate-300"
+                            )}
+                        >
+                            Intelligence Providers
+                            {activeTab === "providers" && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.8)]" />}
+                        </button>
                     </div>
                 </DialogHeader>
 
@@ -116,9 +127,13 @@ export default function SettingsModal({ isOpen, onOpenChange }: SettingsModalPro
                                 </div>
                             </div>
                         </>
-                    ) : (
+                    ) : activeTab === "api" ? (
                         <div className="animate-in fade-in slide-in-from-right-4 duration-500">
                             <ApiIntegration />
+                        </div>
+                    ) : (
+                        <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+                            <IntelligenceProviders />
                         </div>
                     )}
 

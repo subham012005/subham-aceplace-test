@@ -66,18 +66,22 @@ export default function ApiIntegration() {
     const pythonSnippet = `
 import requests
 
-# ACEPLACE — Agent Integration
+# ACEPLACE — Phase 2 Execution Envelope Dispatch
 MASTER_SECRET = "${apiKey || 'YOUR_MASTER_SECRET'}"
 API_URL = "http://localhost:3000/api/runtime/dispatch"
 
-def dispatch_task(prompt):
+def dispatch_task(root_task, entry_agent="COO"):
     headers = {
         "Authorization": f"Bearer {MASTER_SECRET}",
         "Content-Type": "application/json"
     }
+    # Phase 2 contract: targets an Execution Envelope, not an agent directly.
+    # The backend creates the envelope + step graph and routes via #us# protocol.
     payload = {
-        "prompt": prompt,
-        "agent_id": "agent_coo"
+        "root_task": root_task,
+        "execution_policy": {
+            "entry_agent": entry_agent   # COO is the default entry point
+        }
     }
     response = requests.post(API_URL, json=payload, headers=headers)
     return response.json()

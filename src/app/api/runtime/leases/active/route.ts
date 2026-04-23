@@ -22,21 +22,44 @@ export async function GET() {
       .where("status", "in", ["leased", "executing"])
       .get();
 
-    const activeLeases = snap.docs
-      .map((doc) => {
-        const envelope = doc.data() as ExecutionEnvelope;
+    const activeLeases: any[] = [];
+
+    snap.docs.forEach((doc) => {
+      const envelope = doc.data() as ExecutionEnvelope;
+      
+      // 1. Check legacy singular lease for backward compat
+      if (envelope.authority_lease) {
         const lease = envelope.authority_lease;
-        
-        // Final sanity check on expiration
-        if (lease && new Date(lease.expires_at) > now) {
-          return {
+        if (new Date(lease.expires_at) > now) {
+          activeLeases.push({
             envelope_id: doc.id,
+            agent_id: "coordinator", // Singular lease assumed to be coordinator
             authority_lease: lease,
-          };
+            is_legacy: true
+          });
         }
-        return null;
-      })
-      .filter(Boolean);
+      }
+
+      // 2. Check Phase 2 multi-agent leases
+      if (envelope.authority_leases) {
+        Object.entries(envelope.authority_leases).forEach(([agentId, lease]) => {
+          if (lease && lease.status !== "expired" && lease.status !== "revoked") {
+            const expiry = lease.lease_expires_at || (lease as any).expires_at;
+            if (expiry && new Date(expiry) > now) {
+              activeLeases.push({
+                envelope_id: doc.id,
+                agent_id: agentId,
+                authority_lease: {
+                  holder_instance_id: lease.current_instance_id,
+                  leased_at: lease.acquired_at,
+                  expires_at: expiry
+                }
+              });
+            }
+          }
+        });
+      }
+    });
 
     return secureJson({ activeLeases }, { status: 200 });
   } catch (error) {

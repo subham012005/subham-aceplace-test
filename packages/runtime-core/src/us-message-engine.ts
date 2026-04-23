@@ -92,11 +92,17 @@ function isNetworkError(err: unknown): boolean {
   return msg.includes("econnrefused") || msg.includes("fetch failed") || msg.includes("network");
 }
 
+/** BYO_LLM errors mean the org config is missing in Firestore — the TS LLM fallback will now strictly enforce this. */
+function isBYOLLMError(err: unknown): boolean {
+  const msg = String((err as Error)?.message || err);
+  return msg.includes("BYO_LLM_ERROR") || msg.includes("MISSING_INTELLIGENCE_CONFIG") || msg.includes("MISSING_API_KEY");
+}
+
 async function logComputeProvider(
   envelopeId: string, stepId: string, agentId: string, fingerprint: string,
   provider: "python" | "ts-fallback", fallbackReason?: string,
 ): Promise<void> {
-  await addTrace(envelopeId, stepId, agentId, fingerprint, "COMPUTE_PROVIDER_SELECTED", {
+  await addTrace(envelopeId, stepId, agentId, fingerprint, "COMPUTE_PROVIDER_SELECTED", undefined, {
     compute_provider: provider,
     ...(fallbackReason ? { fallback_reason: fallbackReason } : {}),
   });
@@ -108,6 +114,26 @@ export async function handleUSMessage(msg: USMessage): Promise<USMessage | null>
   const snap = await envelopeRef.get();
   if (!snap.exists) throw new Error("ENVELOPE_NOT_FOUND");
   const envelope = snap.data() as ExecutionEnvelope;
+
+  // Strict Per-Step Identity and Lease Validation for the TS Runtime Fallback
+  const agent_id = msg.identity.agent_id;
+  const identity_contexts = envelope.identity_contexts || {};
+  const expected_fp = identity_contexts[agent_id]?.identity_fingerprint;
+  
+  if (!expected_fp || expected_fp !== msg.identity.identity_fingerprint) {
+    if (expected_fp !== "pending_verification") {
+      throw new Error(`[TS-FALLBACK] Strict Identity mismatch for ${agent_id}. Halting.`);
+    }
+  }
+
+  const authority_leases = envelope.authority_leases || {};
+  const lease = authority_leases[agent_id];
+  if (!lease || !lease.lease_expires_at) {
+    // If we're fully strict, we block here. For TS fallback gracefully log this.
+    console.warn(`[TS-FALLBACK] No lease found for ${agent_id}. Assuming system override.`);
+  } else if (new Date(lease.lease_expires_at) < new Date()) {
+    throw new Error(`[TS-FALLBACK] Lease expired for ${agent_id}. Halting.`);
+  }
 
   switch (msg.message_type) {
     case "#us#.task.plan":
@@ -145,6 +171,7 @@ async function runFallbackForStep(
     identity_fingerprint: msg.identity.identity_fingerprint,
     prompt: envelope.prompt || "",
     input_ref: inputRef,
+    org_id: envelope.org_id,
   });
   await attachArtifactToStep(msg.execution.envelope_id, msg.execution.step_id, result.artifact_id);
   await attachArtifactToEnvelope(msg.execution.envelope_id, result.artifact_id);
@@ -166,6 +193,7 @@ async function handleTaskPlan(msg: USMessage, envelope: ExecutionEnvelope): Prom
         step_type: "plan",
         agent_id: msg.identity.agent_id,
         prompt: envelope.prompt || "",
+        org_id: envelope.org_id,
         input_ref: null,
         message_id: null
       }),
@@ -182,9 +210,12 @@ async function handleTaskPlan(msg: USMessage, envelope: ExecutionEnvelope): Prom
     await attachArtifactToStep(msg.execution.envelope_id, msg.execution.step_id, result.artifact_id);
     await attachArtifactToEnvelope(msg.execution.envelope_id, result.artifact_id);
   } catch (err) {
-    if (isNetworkError(err)) {
-      console.warn(`[#us#] Agent engine unreachable, falling back to TypeScript LLM for COO`);
-      await runFallbackForStep(msg, envelope, "plan", null, String((err as Error).message));
+    if (isNetworkError(err) || isBYOLLMError(err)) {
+      const reason = isBYOLLMError(err)
+        ? `BYO-LLM config missing for org: ${(err as Error).message}`
+        : `Agent engine unreachable: ${(err as Error).message}`;
+      console.warn(`[#us#] ${reason}. Falling back to TypeScript LLM for COO.`);
+      await runFallbackForStep(msg, envelope, "plan", null, reason);
       return null;
     }
     console.error(`[#us#] EXCEPTION in handleTaskPlan:`, err);
@@ -212,6 +243,7 @@ async function handleTaskAssign(msg: USMessage, envelope: ExecutionEnvelope): Pr
         step_type: "assign",
         agent_id: msg.identity.agent_id,
         prompt: envelope.prompt || "",
+        org_id: envelope.org_id,
         input_ref: planArtifactRef,
         message_id: null
       }),
@@ -230,8 +262,11 @@ async function handleTaskAssign(msg: USMessage, envelope: ExecutionEnvelope): Pr
       }
     }
   } catch (err) {
-    if (isNetworkError(err)) {
-      console.warn(`[#us#] Agent engine unreachable, falling back to TypeScript LLM for Researcher`);
+    if (isNetworkError(err) || isBYOLLMError(err)) {
+      const reason = isBYOLLMError(err)
+        ? `BYO-LLM config missing for org: ${(err as Error).message}`
+        : `Agent engine unreachable: ${(err as Error).message}`;
+      console.warn(`[#us#] ${reason}. Falling back to TypeScript LLM for Researcher.`);
       const result = await executeFallbackStep({
         envelope_id: msg.execution.envelope_id,
         step_id: msg.execution.step_id,
@@ -240,12 +275,13 @@ async function handleTaskAssign(msg: USMessage, envelope: ExecutionEnvelope): Pr
         identity_fingerprint: msg.identity.identity_fingerprint,
         prompt: envelope.prompt || "",
         input_ref: planArtifactRef,
+        org_id: envelope.org_id,
       });
       richArtifactId = result.artifact_id;
       await logComputeProvider(
         msg.execution.envelope_id, msg.execution.step_id,
         msg.identity.agent_id, msg.identity.identity_fingerprint,
-        "ts-fallback", String((err as Error).message),
+        "ts-fallback", reason,
       );
       await attachArtifactToStep(msg.execution.envelope_id, msg.execution.step_id, richArtifactId);
       await attachArtifactToEnvelope(msg.execution.envelope_id, richArtifactId);
@@ -323,6 +359,7 @@ async function handleArtifactProduce(msg: USMessage, envelope: ExecutionEnvelope
         step_type: "artifact_produce",
         agent_id: msg.identity.agent_id,
         prompt: envelope.prompt || "",
+        org_id: envelope.org_id,
         input_ref: inputRef,
         message_id: null
       }),
@@ -355,9 +392,12 @@ async function handleArtifactProduce(msg: USMessage, envelope: ExecutionEnvelope
       timestamp: new Date().toISOString(),
     });
   } catch (err) {
-    if (isNetworkError(err)) {
-      console.warn(`[#us#] Agent engine unreachable, falling back to TypeScript LLM for Worker`);
-      await runFallbackForStep(msg, envelope, "artifact_produce", inputRef, String((err as Error).message));
+    if (isNetworkError(err) || isBYOLLMError(err)) {
+      const reason = isBYOLLMError(err)
+        ? `BYO-LLM config missing for org: ${(err as Error).message}`
+        : `Agent engine unreachable: ${(err as Error).message}`;
+      console.warn(`[#us#] ${reason}. Falling back to TypeScript LLM for Worker.`);
+      await runFallbackForStep(msg, envelope, "artifact_produce", inputRef, reason);
     } else {
       console.error(`[#us#] EXCEPTION in handleArtifactProduce:`, err);
       throw err;
@@ -409,6 +449,7 @@ async function handleEvaluation(msg: USMessage, envelope: ExecutionEnvelope): Pr
         step_type: "evaluation",
         agent_id: msg.identity.agent_id,
         prompt: envelope.prompt || "",
+        org_id: envelope.org_id,
         input_ref: artifactIds.join(","),
         message_id: null
       }),
@@ -423,12 +464,15 @@ async function handleEvaluation(msg: USMessage, envelope: ExecutionEnvelope): Pr
       msg.identity.agent_id, msg.identity.identity_fingerprint, "python",
     );
   } catch (err) {
-    if (isNetworkError(err)) {
-      console.warn(`[#us#] Agent engine unreachable, falling back to TypeScript LLM for Grader`);
+    if (isNetworkError(err) || isBYOLLMError(err)) {
+      const reason = isBYOLLMError(err)
+        ? `BYO-LLM config missing for org: ${(err as Error).message}`
+        : `Agent engine unreachable: ${(err as Error).message}`;
+      console.warn(`[#us#] ${reason}. Falling back to TypeScript LLM for Grader.`);
       await logComputeProvider(
         msg.execution.envelope_id, msg.execution.step_id,
         msg.identity.agent_id, msg.identity.identity_fingerprint,
-        "ts-fallback", String((err as Error).message),
+        "ts-fallback", reason,
       );
       const result = await executeFallbackStep({
         envelope_id: msg.execution.envelope_id,
@@ -438,6 +482,7 @@ async function handleEvaluation(msg: USMessage, envelope: ExecutionEnvelope): Pr
         identity_fingerprint: msg.identity.identity_fingerprint,
         prompt: envelope.prompt || "",
         input_ref: artifactIds[0] || null,
+        org_id: envelope.org_id,
       });
       graderArtifactId = result.artifact_id;
       await attachArtifactToStep(msg.execution.envelope_id, msg.execution.step_id, graderArtifactId);

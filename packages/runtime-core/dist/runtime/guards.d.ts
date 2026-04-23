@@ -23,11 +23,9 @@ import type { EnvelopeStep, ExecutionEnvelope } from "../types";
  */
 export declare function assertEnvelopeNotTerminal(envelope: ExecutionEnvelope): void;
 /**
- * Primary identity_context must be present and carry a non-empty fingerprint.
- * A missing or empty fingerprint means the envelope was built incorrectly —
- * execution must not proceed.
+ * (REMOVED) assertIdentityContext — No longer needed in Phase 2 as root identity_context
+ * is deprecated. Use assertAgentIdentityContext instead.
  */
-export declare function assertIdentityContext(envelope: ExecutionEnvelope): void;
 /**
  * Per-agent identity_context must be present and carry a valid fingerprint.
  * Multi-agent envelopes embed one IdentityContext per agent in identity_contexts.

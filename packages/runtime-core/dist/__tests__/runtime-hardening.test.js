@@ -56,7 +56,7 @@ async function readEnvelope(db, id) {
         await seedAgents(db, [coo]);
         const envelope = (0, envelope_builder_1.buildEnvelope)({
             orgId: ORG,
-            identityContext: { agent_id: coo.agent_id, identity_fingerprint: coo.identity_fingerprint, verified: true },
+            identity_contexts: { [coo.agent_id]: { agent_id: coo.agent_id, identity_fingerprint: coo.identity_fingerprint, verified: true } },
             stepPipeline: ["plan"],
         });
         // Manually break the envelope: remove role_assignments and step assigned_agent_id
@@ -90,7 +90,7 @@ async function readEnvelope(db, id) {
         await seedAgents(db, [coo]);
         const envelope = (0, envelope_builder_1.buildEnvelope)({
             orgId: ORG,
-            identityContext: { agent_id: coo.agent_id, identity_fingerprint: coo.identity_fingerprint, verified: true },
+            identity_contexts: { [coo.agent_id]: { agent_id: coo.agent_id, identity_fingerprint: coo.identity_fingerprint, verified: true } },
             stepPipeline: ["plan"],
         });
         // Manually set step to failed
@@ -113,7 +113,7 @@ async function readEnvelope(db, id) {
         await seedAgents(db, [coo]);
         const envelope = (0, envelope_builder_1.buildEnvelope)({
             orgId: ORG,
-            identityContext: { agent_id: coo.agent_id, identity_fingerprint: coo.identity_fingerprint, verified: true },
+            identity_contexts: { [coo.agent_id]: { agent_id: coo.agent_id, identity_fingerprint: coo.identity_fingerprint, verified: true } },
             stepPipeline: ["plan"],
             role_assignments: { "COO": coo.agent_id }
         });
@@ -131,7 +131,7 @@ async function readEnvelope(db, id) {
         await seedAgents(db, [coo]);
         const envelope = (0, envelope_builder_1.buildEnvelope)({
             orgId: ORG,
-            identityContext: { agent_id: coo.agent_id, identity_fingerprint: coo.identity_fingerprint, verified: true },
+            identity_contexts: { [coo.agent_id]: { agent_id: coo.agent_id, identity_fingerprint: coo.identity_fingerprint, verified: true } },
             stepPipeline: ["plan", "assign"],
         });
         // Manually set one step to completed, one to ready (but not runnable or something)

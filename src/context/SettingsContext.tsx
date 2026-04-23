@@ -9,6 +9,8 @@ interface Settings {
 
 interface SettingsContextType {
     settings: Settings;
+    isSettingsOpen: boolean;
+    setIsSettingsOpen: (open: boolean) => void;
 }
 
 const defaultSettings: Settings = {
@@ -19,15 +21,19 @@ const SettingsContext = createContext<SettingsContextType | undefined>(undefined
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
     const [settings, setSettings] = useState<Settings>(defaultSettings);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [isInitialized, setIsInitialized] = useState(false);
 
     useEffect(() => {
         setIsInitialized(true);
     }, []);
 
-    const [isInitialized, setIsInitialized] = useState(false);
-
     return (
-        <SettingsContext.Provider value={{ settings: { ...settings, isInitialized } }}>
+        <SettingsContext.Provider value={{ 
+            settings: { ...settings, isInitialized },
+            isSettingsOpen,
+            setIsSettingsOpen
+        }}>
             {children}
         </SettingsContext.Provider>
     );
@@ -40,3 +46,4 @@ export function useSettings() {
     }
     return context;
 }
+

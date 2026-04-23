@@ -208,9 +208,9 @@ export async function createExecutionEnvelopeFromHandoff(params: {
     multi_agent: true,
     identity_contexts: params.identity_contexts,
     authority_leases: {},
+    role_assignments: params.role_assignments,
     decomposition_plan: null,
     steps,
-    authority_lease: null,
     identity_context: coordinatorCtx,
     artifact_refs: [],
     trace_head_hash: null,
@@ -233,6 +233,7 @@ export async function createExecutionEnvelopeFromHandoff(params: {
     params.coordinator_agent_id,
     coordinatorCtx.identity_fingerprint,
     "HANDOFF_ENVELOPE_CREATED",
+    params.requested_by_user_id,
     { step_count: steps.length }
   );
 }

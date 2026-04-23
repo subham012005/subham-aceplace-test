@@ -47,9 +47,9 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
             const generatedJobId = `job_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
             await aceApi.dispatchFromDashboard({
-                prompt: task,
+                root_task: task,
                 job_id: generatedJobId,
-                agent_id: "agent_coo",
+                execution_policy: { entry_agent: "agent_coo" },
             });
 
             // Trigger Firestore logging in parallel

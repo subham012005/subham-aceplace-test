@@ -24,7 +24,6 @@ export const COLLECTIONS = {
   AGENTS: "agents",                              // Agent identity store
   ARTIFACTS: "artifacts",                        // Artifact pipeline outputs
   EXECUTION_TRACES: "execution_traces",          // Trace log (keep)
-  PROTOCOL_MESSAGES: "protocol_messages",        // #us# message log (legacy path)
   EXECUTION_MESSAGES: "execution_messages",      // #us# canonical persistence (spec)
   JOBS: "jobs",                                  // Legacy — UI pointer only (read-only)
   JOB_TRACES: "job_traces",                      // Legacy — UI display only
@@ -36,7 +35,7 @@ export const COLLECTIONS = {
   AGENT_METRICS: "agent_metrics",
   SECRETS: "secrets",
   // AUDIT FIX P1#5: Previously undocumented collections — now first-class constants.
-  EXECUTION_QUEUE: "execution_queue",            // runtime-worker polling queue (written by web, read by worker)
+  EXECUTION_QUEUE: "execution_queue_local",            // runtime-worker polling queue (written by web, read by worker)
   API_KEYS: "api_keys",                          // service-level API key store (auth for runtime routes)
 } as const;
 

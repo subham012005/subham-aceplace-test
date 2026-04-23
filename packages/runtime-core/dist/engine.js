@@ -152,7 +152,6 @@ async function dispatch(params) {
             jobId: params.jobId,
             userId: params.userId,
             prompt: params.prompt,
-            identityContext: identity_contexts[agentId],
             identity_contexts,
             role_assignments,
             steps: plannedSteps,
@@ -261,6 +260,6 @@ async function approveEnvelope(envelopeId) {
  */
 async function rejectEnvelope(envelopeId, reason) {
     await (0, state_machine_1.transition)(envelopeId, "rejected", { reason: reason ?? "human_rejected" });
-    await persistence.addTrace(envelopeId, "", "human", "", "HUMAN_REJECTED", { reason });
+    await persistence.addTrace(envelopeId, "", "human", "", "HUMAN_REJECTED", undefined, { reason });
 }
 //# sourceMappingURL=engine.js.map

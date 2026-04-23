@@ -13,6 +13,7 @@ import type { AuthorityLease } from "@aceplace/runtime-core/shared";
 
 export interface ActiveLease {
   envelope_id: string;
+  agent_id: string;
   authority_lease: AuthorityLease;
 }
 

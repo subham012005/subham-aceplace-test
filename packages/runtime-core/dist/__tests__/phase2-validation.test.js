@@ -144,7 +144,6 @@ function buildStandardEnvelope(agents, orgId = "org_aceplace") {
         orgId,
         jobId: `job_${Date.now()}`,
         prompt: "Test execution task for Phase-2 validation",
-        identityContext: contexts[agents.coo.agent_id],
         identity_contexts: contexts,
         steps,
     });
@@ -811,8 +810,8 @@ let db;
             console.log(`    step[${i}] (${stepsA[i].step_type.padEnd(16)}) deps: A=${dA}  B=${dB}  ${m ? "✓" : "✗"}`);
         }
         // ── Fingerprint comparison ────────────────────────────────────────────────
-        const fpA = envA.identity_context.identity_fingerprint;
-        const fpB = envB.identity_context.identity_fingerprint;
+        const fpA = envA.identity_context?.identity_fingerprint;
+        const fpB = envB.identity_context?.identity_fingerprint;
         const fpMatch = fpA === fpB;
         console.log(`\n  Fingerprint (COO identity_context):`);
         console.log(`    FP-A : ${fpA}`);

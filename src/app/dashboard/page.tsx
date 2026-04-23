@@ -40,8 +40,10 @@ import { AceWaveform } from "@/components/AceWaveform";
 import { RuntimeStats } from "@/components/RuntimeStats";
 import { LeaseManager } from "@/components/LeaseManager";
 import { IdentityPanel } from "@/components/IdentityPanel";
+import { AgentIdentityMini } from "@/components/AgentIdentityMini";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useEnvelopes } from "@/hooks/useEnvelopes";
+import { TraceStreamPanel } from "@/components/TraceStreamPanel";
 import type { ExecutionEnvelope } from "@aceplace/runtime-core/shared";
 
 interface ActivityLog {
@@ -80,6 +82,48 @@ const parseFirestoreDate = (date: any) => {
     return isNaN(d.getTime()) ? null : d;
 };
 
+const AGENT_ROSTER = [
+    { name: "COO",        agentId: "agent_coo",        color: "text-blue-400",    border: "border-blue-500/30",    bg: "bg-blue-500/10" },
+    { name: "Researcher", agentId: "agent_researcher",  color: "text-purple-400",  border: "border-purple-500/30",  bg: "bg-purple-500/10" },
+    { name: "Worker",     agentId: "agent_worker",      color: "text-amber-400",   border: "border-amber-500/30",   bg: "bg-amber-500/10" },
+    { name: "Grader",     agentId: "agent_grader",      color: "text-emerald-400", border: "border-emerald-500/30", bg: "bg-emerald-500/10" },
+] as const;
+
+function AgentIdentityRoster() {
+    const [activeAgent, setActiveAgent] = React.useState<string>("agent_coo");
+    const active = AGENT_ROSTER.find(a => a.agentId === activeAgent) ?? AGENT_ROSTER[0];
+
+    return (
+        <div className="border border-white/5 bg-black/40 overflow-hidden">
+            {/* Header */}
+            <div className="px-3 pt-3 pb-0">
+                <p className="text-[8px] font-black uppercase tracking-[0.25em] text-slate-500 mb-2">Agent Identity Registry</p>
+                {/* Agent Tabs */}
+                <div className="flex gap-1 overflow-x-auto scrollbar-hide">
+                    {AGENT_ROSTER.map(a => (
+                        <button
+                            key={a.agentId}
+                            onClick={() => setActiveAgent(a.agentId)}
+                            className={cn(
+                                "text-[7px] font-black uppercase tracking-widest px-2 py-1 border transition-all whitespace-nowrap shrink-0",
+                                activeAgent === a.agentId
+                                    ? `${a.color} ${a.border} ${a.bg}`
+                                    : "text-slate-600 border-white/5 hover:text-slate-400"
+                            )}
+                        >
+                            {a.name}
+                        </button>
+                    ))}
+                </div>
+            </div>
+            {/* Identity Panel for active agent */}
+            <div className="border-t border-white/5 mt-2">
+                <IdentityPanel agentId={activeAgent} />
+            </div>
+        </div>
+    );
+}
+
 export default function DashboardPage() {
     const { user, loading: authLoading, signOut: handleSignOut } = useAuth();
     const router = useRouter();
@@ -95,8 +139,6 @@ export default function DashboardPage() {
             }
         }
     }, [user, authLoading, router]);
-
-    const { settings } = useSettings();
 
     const {
         jobs,
@@ -122,7 +164,7 @@ export default function DashboardPage() {
 
     const [selectedJob, setSelectedJob] = React.useState<Job | null>(null);
     const [isComposerOpen, setIsComposerOpen] = React.useState(false);
-    const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
+    const { settings, isSettingsOpen, setIsSettingsOpen } = useSettings();
     const [isSpeaking, setIsSpeaking] = React.useState(false);
     const [data, setData] = React.useState<DashboardData | null>(null);
     const [statsLoading, setStatsLoading] = React.useState(false);
@@ -735,7 +777,7 @@ export default function DashboardPage() {
                 <div className="col-span-1 md:col-span-12 lg:col-span-7 space-y-4 flex flex-col h-auto lg:h-[800px] lg:h-full lg:overflow-hidden order-1 lg:order-2">
 
                     {/* Agent Overview Grid */}
-                    <HUDFrame title="Agent Overview" subtitle="Live Node View" className="h-auto lg:min-h-[320px] lg:h-[320px] shrink-0">
+                    <HUDFrame title="Agent Overview" subtitle="Live Node View" className="h-auto lg:min-h-[420px] lg:h-[420px] shrink-0">
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 h-full py-1">
                             {isStatsSyncing ? (
                                 Array.from({ length: 4 }).map((_, i) => (
@@ -745,11 +787,11 @@ export default function DashboardPage() {
                                     </div>
                                 ))
                             ) : [
-                                { name: "COO", intel: "claude-sonnet-4-6", gate: "Omega-V", status: "Active" },
-                                { name: "Researcher", intel: "claude-sonnet-4-6", gate: "Sigma-II", status: "Active" },
-                                { name: "Worker", intel: "OpenAI GPT-4o", gate: "Alpha-X", status: "Active" },
-                                { name: "Grader", intel: "claude-haiku-4-5-20251001", gate: "Delta-VII", status: "Active" }
-                            ].map((agent, i) => (
+                                { name: "COO",        agentId: "agent_coo",        capability: "planning",    modelClass: "high_reasoning", gate: "Omega-V" },
+                                { name: "Researcher", agentId: "agent_researcher",  capability: "research",     modelClass: "high_reasoning", gate: "Sigma-II" },
+                                { name: "Worker",     agentId: "agent_worker",      capability: "execution",    modelClass: "standard",       gate: "Alpha-X" },
+                                { name: "Grader",     agentId: "agent_grader",      capability: "evaluation",   modelClass: "standard",       gate: "Delta-VII" }
+                            ].map((agent: { name: string; agentId: string; capability: string; modelClass: string; gate: string }, i) => (
                                 <div
                                     key={agent.name}
                                     className="relative group border border-white/10 bg-black/60 overflow-hidden flex flex-col p-[1px] hover:border-cyan-500/40 transition-colors h-full min-h-[200px] lg:min-h-0 animate-in fade-in zoom-in-[0.5] slide-in-from-bottom-12 duration-1000"
@@ -759,13 +801,16 @@ export default function DashboardPage() {
                                 >
                                     <div className="p-4 flex-1 space-y-1 z-10">
                                         <h3 className="text-xs font-black text-white italic uppercase tracking-[0.2em] border-b border-white/10 pb-2 mb-3">{agent.name}</h3>
-                                        <p className="text-[8px] uppercase text-slate-500 font-bold tracking-widest leading-relaxed">Intelligence: <br /><span className="text-slate-300">{agent.intel}</span></p>
-                                        <p className="text-[9px] uppercase text-slate-500 font-bold tracking-widest mt-3 leading-relaxed">Status: <br /><span className={agent.status === "Standby" ? "text-amber-500" : "text-cyan-500"}>{agent.status || "Active"}</span> — {agent.gate}</p>
+                                        <p className="text-[8px] uppercase text-slate-500 font-bold tracking-widest leading-relaxed">Capability: <br /><span className="text-cyan-300">{agent.capability}</span></p>
+                                        <p className="text-[8px] uppercase text-slate-500 font-bold tracking-widest mt-1 leading-relaxed">Model Class: <br /><span className="text-amber-400/80">{agent.modelClass}</span></p>
+                                        <p className="text-[9px] uppercase text-slate-500 font-bold tracking-widest mt-2 leading-relaxed">Status: <br /><span className="text-emerald-400">AVAILABLE</span> — {agent.gate}</p>
+                                        {/* Per-agent identity sub-panel */}
+                                        <AgentIdentityMini agentId={agent.agentId} />
                                     </div>
 
                                     {/* High-Tech Node Core */}
                                     <div className="mt-auto p-4 flex flex-col items-center relative z-10 cursor-target">
-                                        <div className={cn("w-12 h-12 md:w-16 md:h-16 relative flex items-center justify-center transition-transform duration-700", hoveredAgent === agent.name && "scale-110")}>
+                                        <div className={cn("w-16 h-16 md:w-20 md:h-20 relative flex items-center justify-center transition-transform duration-700", hoveredAgent === agent.name && "scale-110")}>
                                             {agent.name === "COO" && (() => {
                                                 const isHovered = hoveredAgent === "COO";
                                                 return (
@@ -1004,14 +1049,23 @@ export default function DashboardPage() {
                             </table>
                         </div>
                     </HUDFrame>
+
+                    {/* Real-time Execution Trace Stream */}
+                    <ErrorBoundary title="Trace Stream">
+                        <TraceStreamPanel
+                            userId={userUid}
+                            maxItems={50}
+                            className="flex-none shrink-0"
+                        />
+                    </ErrorBoundary>
                 </div>
 
                 {/* Right Sidebar: COMMAND + MONITOR */}
                 <div className="col-span-1 md:col-span-12 lg:col-span-3 space-y-4 flex flex-col h-auto lg:h-full lg:overflow-hidden order-3 min-h-0">
 
-                    {/* Agent Identity Panel */}
-                    <ErrorBoundary title="Identity Panel">
-                        <IdentityPanel agentId="agent_coo" />
+                    {/* Agent Identity Roster — all 4 agents */}
+                    <ErrorBoundary title="Agent Identity Roster">
+                        <AgentIdentityRoster />
                     </ErrorBoundary>
 
                     {/* Lease Manager */}

@@ -149,9 +149,7 @@ async function pauseForHumanApproval(envelopeId, stepId, coordinatorId) {
     await (0, state_machine_1.transition)(envelopeId, "awaiting_human", { step_id: stepId, agent_id: coordinatorId });
 }
 function resolveInstanceId(envelope, agentId, fallback) {
-    const ctx = envelope.multi_agent
-        ? envelope.identity_contexts?.[agentId]
-        : envelope.identity_context;
+    const ctx = envelope.identity_contexts?.[agentId];
     return ctx?.instance_id || fallback;
 }
 async function executeClaimedStep(params) {
@@ -172,21 +170,20 @@ async function executeClaimedStep(params) {
         agentId = (0, resolution_1.resolveAssignedAgentId)(envelope, step);
         // 2. Pre-Identity Guards
         (0, guards_1.assertEnvelopeNotTerminal)(envelope);
-        (0, guards_1.assertIdentityContext)(envelope);
         (0, guards_1.assertAgentIdentityContext)(envelope, agentId);
         (0, guards_1.assertStepNotCompleted)(step);
         // 3. Identity Verification
         const ident = await (0, identity_1.verifyIdentityForAgent)(envelope_id, envelope, agentId);
         fingerprint = ident.identity_fingerprint || "00000000";
         if (!ident.verified) {
-            await (0, persistence_1.addTrace)(envelope_id, step.step_id, agentId, fingerprint, "IDENTITY_FAILED", {
+            await (0, persistence_1.addTrace)(envelope_id, step.step_id, agentId, fingerprint, "IDENTITY_FAILED", undefined, {
                 reason: ident.reason,
             });
             throw new Error(`IDENTITY_FAILED:${ident.reason}`);
         }
         // 4. Identity Verified Guard
         (0, guards_1.assertAgentIdentityVerified)(envelope, agentId);
-        await (0, persistence_1.addTrace)(envelope_id, step.step_id, agentId, fingerprint, "IDENTITY_VERIFIED", {
+        await (0, persistence_1.addTrace)(envelope_id, step.step_id, agentId, fingerprint, "IDENTITY_VERIFIED", undefined, {
             agent_id: agentId,
             verified_at: ident.verified_at || new Date().toISOString(),
         });
@@ -206,7 +203,7 @@ async function executeClaimedStep(params) {
         // 6. Lease Acquisition
         const forceRenew = step.step_type === "complete";
         await (0, per_agent_authority_1.acquirePerAgentLease)(envelope_id, agentId, instanceId, { forceRenew });
-        await (0, persistence_1.addTrace)(envelope_id, step.step_id, agentId, fingerprint, "LEASE_ACQUIRED", {
+        await (0, persistence_1.addTrace)(envelope_id, step.step_id, agentId, fingerprint, "LEASE_ACQUIRED", undefined, {
             instance_id: instanceId,
         });
         await emitSafe({
@@ -225,13 +222,13 @@ async function executeClaimedStep(params) {
         const msg = err.message || String(err);
         console.error(`[RUNTIME] Preflight failed for step ${step.step_id}: ${msg}`);
         // Explicitly trace the failure
-        await (0, persistence_1.addTrace)(envelope_id, step.step_id, "runtime_worker", "00000000", "PREFLIGHT_FAILED", {
+        await (0, persistence_1.addTrace)(envelope_id, step.step_id, "runtime_worker", "00000000", "PREFLIGHT_FAILED", undefined, {
             error: msg,
             step_id: step.step_id,
             role: step.role,
         });
         // Deterministic state machine transition
-        if (msg.includes("AGENT_NOT_FOUND") || msg.includes("IDENTITY_FAILED") || msg.includes("LEASE_")) {
+        if (msg.includes("AGENT_NOT_FOUND") || msg.includes("IDENTITY_FAILED") || msg.includes("IDENTITY_CONTEXT_MISSING") || msg.includes("LEASE_")) {
             await (0, state_machine_1.transition)(envelope_id, "quarantined", {
                 reason: msg,
                 step_id: step.step_id,
@@ -290,7 +287,7 @@ async function executeClaimedStep(params) {
             output_ref: { message_id: messageId },
         });
         // 🔬 Trace emission for audit trail
-        await (0, persistence_1.addTrace)(envelope_id, step.step_id, agentId, fingerprint, "STEP_COMPLETED", { duration_ms: duration, message_id: messageId });
+        await (0, persistence_1.addTrace)(envelope_id, step.step_id, agentId, fingerprint, "STEP_COMPLETED", undefined, { duration_ms: duration, message_id: messageId });
         await emitSafe({
             event_type: "STEP_COMPLETED",
             envelope_id,
@@ -304,7 +301,7 @@ async function executeClaimedStep(params) {
     finally {
         lease_heartbeat_1.leaseHeartbeatManager.stop(hbKey);
         await (0, per_agent_authority_1.releasePerAgentLease)(envelope_id, agentId).catch(() => undefined);
-        await (0, persistence_1.addTrace)(envelope_id, step.step_id, agentId, fingerprint, "LEASE_RELEASED", {
+        await (0, persistence_1.addTrace)(envelope_id, step.step_id, agentId, fingerprint, "LEASE_RELEASED", undefined, {
             instance_id: instanceId,
         });
         await emitSafe({
@@ -438,7 +435,7 @@ async function runEnvelopeParallel(params) {
             (s.status === "pending" || s.status === "ready") &&
             dependencySatisfied(s, envelope.steps || []));
         if (humanApprovalStep) {
-            await pauseForHumanApproval(envelope_id, humanApprovalStep.step_id, envelope.coordinator_agent_id || envelope.identity_context.agent_id);
+            await pauseForHumanApproval(envelope_id, humanApprovalStep.step_id, envelope.coordinator_agent_id || Object.keys(envelope.identity_contexts || {})[0] || "unknown");
             return;
         }
         const runnableSteps = getRunnableSteps(envelope);
@@ -452,7 +449,7 @@ async function runEnvelopeParallel(params) {
                 const anyFailed = allSteps.some((s) => s.status === "failed");
                 const anyQuarantined = envelope.status === "quarantined";
                 if (anyQuarantined) {
-                    await (0, persistence_1.addTrace)(envelope_id, "", "runtime_worker", "00000000", "STATUS_TRANSITION_QUARANTINED", {
+                    await (0, persistence_1.addTrace)(envelope_id, "", "runtime_worker", "00000000", "STATUS_TRANSITION_QUARANTINED", undefined, {
                         reason: "Step failure or resolution error triggered quarantine",
                     });
                     return;
@@ -461,7 +458,7 @@ async function runEnvelopeParallel(params) {
                     if (everyStepCompleted) {
                         // 🛡️ HITL HARDENING: Never auto-complete. Transition to awaiting_human for operator sign-off.
                         await (0, state_machine_1.transition)(envelope_id, "awaiting_human");
-                        await (0, persistence_1.addTrace)(envelope_id, "", "runtime_worker", "00000000", "STATUS_TRANSITION_AWAITING_HUMAN", {
+                        await (0, persistence_1.addTrace)(envelope_id, "", "runtime_worker", "00000000", "STATUS_TRANSITION_AWAITING_HUMAN", undefined, {
                             reason: "All steps finished. Verification required."
                         });
                         // Sync grader score to job doc for dashboard display
@@ -497,13 +494,13 @@ async function runEnvelopeParallel(params) {
                         await emitSafe({
                             event_type: "ENVELOPE_COMPLETED",
                             envelope_id,
-                            agent_id: envelope.coordinator_agent_id || envelope.identity_context.agent_id,
+                            agent_id: envelope.coordinator_agent_id || Object.keys(envelope.identity_contexts || {})[0] || "unknown",
                             org_id: envelope.org_id,
                         });
                     }
                     else if (anyFailed) {
                         await (0, state_machine_1.transition)(envelope_id, "failed");
-                        await (0, persistence_1.addTrace)(envelope_id, "", "runtime_worker", "00000000", "STATUS_TRANSITION_FAILED", {
+                        await (0, persistence_1.addTrace)(envelope_id, "", "runtime_worker", "00000000", "STATUS_TRANSITION_FAILED", undefined, {
                             reason: "Partial step failure",
                         });
                         await emitSafe({
@@ -549,9 +546,7 @@ async function runEnvelopeParallel(params) {
         const envForPrime = (await ref.get()).data();
         await (0, batch_execution_guard_1.batchPrimeExecutionGuards)(claimed.map((s) => ({
             agent_id: s.assigned_agent_id,
-            identity_fingerprint: envForPrime.multi_agent && envForPrime.identity_contexts?.[s.assigned_agent_id]
-                ? envForPrime.identity_contexts[s.assigned_agent_id].identity_fingerprint
-                : envForPrime.identity_context.identity_fingerprint,
+            identity_fingerprint: envForPrime.identity_contexts?.[s.assigned_agent_id]?.identity_fingerprint ?? "00000000",
             instance_id: resolveInstanceId(envForPrime, s.assigned_agent_id, instance_id),
             org_id: envForPrime.org_id,
             license_id: envForPrime.license_id || "dev_license",

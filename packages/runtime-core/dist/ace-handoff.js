@@ -185,9 +185,9 @@ async function createExecutionEnvelopeFromHandoff(params) {
         multi_agent: true,
         identity_contexts: params.identity_contexts,
         authority_leases: {},
+        role_assignments: params.role_assignments,
         decomposition_plan: null,
         steps,
-        authority_lease: null,
         identity_context: coordinatorCtx,
         artifact_refs: [],
         trace_head_hash: null,
@@ -203,7 +203,7 @@ async function createExecutionEnvelopeFromHandoff(params) {
         org_id: params.org_id,
         agent_id: params.coordinator_agent_id,
     }).catch(() => undefined);
-    await persistence.addTrace(params.envelope_id, "", params.coordinator_agent_id, coordinatorCtx.identity_fingerprint, "HANDOFF_ENVELOPE_CREATED", { step_count: steps.length });
+    await persistence.addTrace(params.envelope_id, "", params.coordinator_agent_id, coordinatorCtx.identity_fingerprint, "HANDOFF_ENVELOPE_CREATED", params.requested_by_user_id, { step_count: steps.length });
 }
 async function acceptAceHandoff(handoff) {
     validateAceHandoff(handoff);

@@ -17,8 +17,8 @@ export declare function buildEnvelope(params: {
     jobId?: string;
     userId?: string;
     prompt?: string;
-    identityContext: IdentityContext;
-    identity_contexts?: Record<string, IdentityContext>;
+    identityContext?: IdentityContext;
+    identity_contexts: Record<string, IdentityContext>;
     role_assignments?: Record<string, string>;
     stepPipeline?: string[];
     steps?: EnvelopeStep[];
