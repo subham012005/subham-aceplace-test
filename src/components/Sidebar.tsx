@@ -7,9 +7,11 @@ import { usePathname } from "next/navigation";
 import {
     LayoutDashboard,
     PlusSquare,
-    X
+    X,
+    Settings
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSettings } from "@/context/SettingsContext";
 
 const menuItems = [
     { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
@@ -23,6 +25,7 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     const pathname = usePathname();
+    const { setIsSettingsOpen } = useSettings();
 
     return (
         <>
@@ -88,6 +91,18 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                             </Link>
                         );
                     })}
+                    <button
+                        onClick={() => {
+                            setIsSettingsOpen(true);
+                            if (window.innerWidth < 1024) onClose();
+                        }}
+                        className="w-full group flex items-center justify-between px-4 py-3 transition-all duration-300 relative scifi-clip border cursor-target text-slate-500 border-transparent hover:bg-white/5 hover:text-slate-200"
+                    >
+                        <div className="flex items-center gap-3 relative z-10">
+                            <Settings className="w-4 h-4 group-hover:text-cyan-400" />
+                            <span className="text-[11px] font-bold uppercase tracking-wider italic">System Config</span>
+                        </div>
+                    </button>
                 </nav>
             </div>
         </>
