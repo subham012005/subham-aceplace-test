@@ -41,7 +41,7 @@ yarn-error.log*
 next-env.d.ts
 
 # Testing Workspace
-44: testing-end-to-end/
+testing-end-to-end/
 
 # Python bytecode
 __pycache__/
