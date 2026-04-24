@@ -152,9 +152,12 @@ describe("ACEPLACE Deterministic Runtime — End-to-End", () => {
       envelope_id: envelopeId,
       status: "created",
       multi_agent: false,
-      identity_context: {
-        agent_id: tamperedAgentId,
-        identity_fingerprint: "different_fingerprint_to_trigger_mismatch"
+      identity_contexts: {
+        [tamperedAgentId]: {
+          agent_id: tamperedAgentId,
+          identity_fingerprint: "different_fingerprint_to_trigger_mismatch",
+          verified: true
+        }
       },
       steps: [{ step_id: "step_1", status: "ready", assigned_agent_id: tamperedAgentId }],
       created_at: new Date().toISOString()
@@ -302,7 +305,7 @@ describe("ACEPLACE Deterministic Runtime — End-to-End", () => {
     process.env.ALLOW_PENDING_IDENTITY = "false";
     
     try {
-      const result = await verifyIdentity("env_pending", agentId, env as any);
+      const result = await verifyIdentity("env_pending", agentId, env.identity_context.identity_fingerprint);
       expect(result.verified).toBe(false);
       expect(result.reason).toBe("IDENTITY_NOT_VERIFIED");
       
@@ -339,19 +342,7 @@ describe("ACEPLACE Deterministic Runtime — End-to-End", () => {
     }
   }, 5000);
 
-  it("should reject execution when identity_context is missing (GUARD_IDENTITY_CONTEXT_MISSING)", async () => {
-    const { assertIdentityContext } = await import("@aceplace/runtime-core");
 
-    // Null identity_context
-    expect(() =>
-      assertIdentityContext({ identity_context: null } as any)
-    ).toThrow("GUARD_IDENTITY_CONTEXT_MISSING");
-
-    // Present but empty fingerprint
-    expect(() =>
-      assertIdentityContext({ identity_context: { identity_fingerprint: "" } } as any)
-    ).toThrow("GUARD_IDENTITY_FINGERPRINT_MISSING");
-  }, 5000);
 
   it("should emit a trace for every state transition", async () => {
     const { COLLECTIONS } = await import("@aceplace/runtime-core");

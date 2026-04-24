@@ -41,7 +41,7 @@ yarn-error.log*
 next-env.d.ts
 
 # Testing Workspace
-testing-end-to-end/
+44: testing-end-to-end/
 
 # Python bytecode
 __pycache__/
@@ -64,3 +64,9 @@ antigravity_*.json
 antigravity_*.txt
 envelope_debug.json
 docs/phase2-cert-certrun_*.json
+
+# Logs and Scratch
+worker.log
+worker_error.log
+scratch/
+issues.txt

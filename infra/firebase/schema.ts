@@ -88,7 +88,6 @@ export const COLLECTION_NAMES = {
   LICENSES: "licenses",
   LICENSE_AUDIT_EVENTS: "license_audit_events",
   EXECUTION_MESSAGES: "execution_messages",
-  PROTOCOL_MESSAGES: "protocol_messages",
   TELEMETRY_EVENTS: "telemetry_events",
   TELEMETRY_ROLLUPS: "telemetry_rollups",
   ENVELOPE_METRICS: "envelope_metrics",

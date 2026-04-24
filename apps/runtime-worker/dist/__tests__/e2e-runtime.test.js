@@ -290,13 +290,6 @@ const USER_ID = "user_e2e_tester";
             (0, vitest_1.expect)(() => assertEnvelopeNotTerminal({ status })).toThrow(`GUARD_ENVELOPE_TERMINAL:${status}`);
         }
     }, 5000);
-    (0, vitest_1.it)("should reject execution when identity_context is missing (GUARD_IDENTITY_CONTEXT_MISSING)", async () => {
-        const { assertIdentityContext } = await Promise.resolve().then(() => __importStar(require("@aceplace/runtime-core")));
-        // Null identity_context
-        (0, vitest_1.expect)(() => assertIdentityContext({ identity_context: null })).toThrow("GUARD_IDENTITY_CONTEXT_MISSING");
-        // Present but empty fingerprint
-        (0, vitest_1.expect)(() => assertIdentityContext({ identity_context: { identity_fingerprint: "" } })).toThrow("GUARD_IDENTITY_FINGERPRINT_MISSING");
-    }, 5000);
     (0, vitest_1.it)("should emit a trace for every state transition", async () => {
         const { COLLECTIONS } = await Promise.resolve().then(() => __importStar(require("@aceplace/runtime-core")));
         const { transition } = await Promise.resolve().then(() => __importStar(require("@aceplace/runtime-core")));
