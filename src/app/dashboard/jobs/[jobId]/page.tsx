@@ -49,8 +49,10 @@ import {
     RotateCw,
     AlertCircle,
     Layers,
+    ArrowRight,
     ChevronDown
 } from "lucide-react";
+import { useSettings } from "@/context/SettingsContext";
 import { cn } from "@/lib/utils";
 import { HUDFrame } from "@/components/HUDFrame";
 import { SciFiFrame } from "@/components/SciFiFrame";
@@ -153,6 +155,7 @@ export default function JobDetailsPage() {
     const envelopeId = (job as any)?.envelope_id || job?.execution_id || null;
     const { envelope, steps, loading: envelopeLoading } = useEnvelope(envelopeId);
     const { logs: agentLogs, loading: agentLogsLoading } = useAgentLogs(envelopeId);
+    const { setIsSettingsOpen } = useSettings();
 
     // Unified Governance Logic — also check agent logs as fallback
     const graderLogSummary = agentLogs.find(l => l.agent_role === 'grader' && l.event === 'COMPLETE')?.output_summary || "";
@@ -710,6 +713,39 @@ export default function JobDetailsPage() {
                         </div>
                     </div>
                 )}
+                
+                {/* ── INTEGRITY BREACH ALERT ─────────────────────────────────────────── */}
+                {(() => {
+                    const failureReason = String(job?.failure_reason || envelope?.failure_reason || "");
+                    const isFailed = String(job?.status || "").toLowerCase() === "failed" || envelope?.status === "failed";
+                    const isMissingConfig = failureReason.includes("MISSING_INTELLIGENCE_CONFIG");
+                    
+                    if (!isFailed || !failureReason || isAgentEngineFailure) return null;
+
+                    return (
+                        <div className="border border-rose-500/30 bg-rose-500/10 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-500 mb-8">
+                            <div className="flex items-start gap-3">
+                                <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+                                <div className="space-y-1">
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-rose-500 block">Integrity Breach / Execution Failed</span>
+                                    <p className="text-[11px] font-mono text-rose-200 leading-tight">
+                                        {failureReason}
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            {isMissingConfig && (
+                                <button 
+                                    onClick={() => setIsSettingsOpen(true)}
+                                    className="w-full py-2 border border-rose-500/30 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all group"
+                                >
+                                    Configure Intelligence Providers
+                                    <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+                                </button>
+                            )}
+                        </div>
+                    );
+                })()}
 
                 {/* ── MISSION INTELLIGENCE SUMMARY ───────────────────────────────────── */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -989,7 +1025,7 @@ export default function JobDetailsPage() {
                 {/* ── UNIFIED MISSION TIMELINE ──────────────────────────────────────── */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     <div className="lg:col-span-8 space-y-8">
-                        {envelopeId && <EnvelopeInspector executionId={envelopeId} />}
+                        {envelopeId && <EnvelopeInspector executionId={envelopeId} hideFailureBanner={true} />}
 
                         <HUDFrame title="OPERATIONAL FEED" variant="dark">
                             <div className="p-0">

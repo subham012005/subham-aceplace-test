@@ -29,6 +29,7 @@ import { useSettings } from "@/context/SettingsContext";
 
 interface EnvelopeInspectorProps {
   executionId: string;
+  hideFailureBanner?: boolean;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -63,7 +64,7 @@ function CopyableId({ value }: { value: string }) {
   );
 }
 
-export function EnvelopeInspector({ executionId }: EnvelopeInspectorProps) {
+export function EnvelopeInspector({ executionId, hideFailureBanner = false }: EnvelopeInspectorProps) {
   const { envelope, steps, loading, error } = useEnvelope(executionId);
   const { setIsSettingsOpen } = useSettings();
 
@@ -105,7 +106,7 @@ export function EnvelopeInspector({ executionId }: EnvelopeInspectorProps) {
   return (
     <div className="space-y-4">
       {/* Failure Banner */}
-      {envelope.status === "failed" && failureReason && (
+      {!hideFailureBanner && envelope.status === "failed" && failureReason && (
         <div className="border border-rose-500/30 bg-rose-500/10 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-500">
           <div className="flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
@@ -128,6 +129,7 @@ export function EnvelopeInspector({ executionId }: EnvelopeInspectorProps) {
           )}
         </div>
       )}
+
 
       {/* Envelope Metadata Panel */}
       <HUDFrame title="EXECUTION ENVELOPE" variant="dark">
