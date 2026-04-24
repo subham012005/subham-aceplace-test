@@ -30,7 +30,7 @@ import {
   requeueEnvelope,
   runEnvelopeParallel,
   type ExecutionEnvelope
-} from "../../../packages/runtime-core/src/index";
+} from "@aceplace/runtime-core";
 
 // ── Status Server for Render Free Tier / UptimeRobot ──────────────────────────
 function startHealthCheckServer() {

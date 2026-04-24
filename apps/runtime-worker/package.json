@@ -2,6 +2,7 @@
   "name": "@aceplace/runtime-worker",
   "version": "1.0.0",
   "private": true,
+  "type": "commonjs",
   "description": "ACEPLACE long-lived deterministic runtime worker — polls execution_queue and drives envelope execution",
   "main": "dist/index.js",
   "scripts": {
