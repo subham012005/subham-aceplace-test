@@ -566,13 +566,6 @@ export default function DashboardPage() {
                 </div>
                 <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto">
                     <SettingsModal isOpen={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
-                    <button
-                        onClick={() => setIsSettingsOpen(true)}
-                        className="p-2 border border-white/5 hover:border-cyan-500/30 transition-all group scifi-clip bg-white/5 cursor-target"
-                        title="Settings"
-                    >
-                        <SettingsIcon className="w-4 h-4 text-cyan-500/50 group-hover:text-cyan-500 transition-colors" />
-                    </button>
 
                     <button
                         onClick={handleGlobalRefresh}
