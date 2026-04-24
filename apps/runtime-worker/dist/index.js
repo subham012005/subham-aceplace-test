@@ -57,7 +57,7 @@ const https = __importStar(require("https"));
 const runtime_core_1 = require("@aceplace/runtime-core");
 // ── Status Server for Render Free Tier / UptimeRobot ──────────────────────────
 function startHealthCheckServer() {
-    const PORT = process.env.PORT || 3000;
+    const PORT = process.env.PORT || 3001;
     const server = http.createServer((req, res) => {
         res.writeHead(200, { "Content-Type": "text/plain" });
         res.end("ACEPLACE Worker: Active\n");

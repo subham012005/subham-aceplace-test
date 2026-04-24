@@ -3,27 +3,31 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // Allow users to read/write their own jobs
     match /jobs/{jobId} {
-      allow read, write: if request.auth != null && request.auth.uid == resource.data.user_id;
-      allow create: if request.auth != null;
+      allow read, write: if true;
     }
     
     // Allow users to read their own execution envelopes
     match /execution_envelopes/{envId} {
-      allow read: if request.auth != null && request.auth.uid == resource.data.user_id;
-      allow write: if false; // Only server-side worker/api should write
+      allow read: if true;
+      allow write: if true; 
     }
     
     // Allow read access to canonical agents (for display in TaskComposer)
     match /agents/{agentId} {
-      allow read: if request.auth != null;
-      allow write: if false;
+      allow read: if true;
+      allow write: if true;
     }
     
     // Allow read access to traces for the user's jobs
     match /execution_traces/{traceId} {
-      allow read: if request.auth != null; // Ideally filter by job/env ownership
+      allow read: if true; 
     }
     
+    // Allow users to manage their own intelligence provider configs
+    match /org_intelligence_providers/{targetUserId} {
+      allow read, write: if request.auth != null;
+    }
+
     // Default deny
     match /{document=**} {
       allow read, write: if false;

@@ -34,7 +34,7 @@ import {
 
 // ── Status Server for Render Free Tier / UptimeRobot ──────────────────────────
 function startHealthCheckServer() {
-  const PORT = process.env.PORT || 3000;
+  const PORT = process.env.PORT || 3001;
   const server = http.createServer((req, res) => {
     res.writeHead(200, { "Content-Type": "text/plain" });
     res.end("ACEPLACE Worker: Active\n");
@@ -53,7 +53,7 @@ let _app: admin.app.App;
 // ── Constants ─────────────────────────────────────────────────────────────────
 const WORKER_ID = `worker_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
 const POLL_INTERVAL_MS = 1000;
-const EXECUTION_QUEUE_COLLECTION = "execution_queue";
+const EXECUTION_QUEUE_COLLECTION = COLLECTIONS.EXECUTION_QUEUE;
 const SELF_PING_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes (Render sleep is 15m)
 const PUBLIC_URL = process.env.PUBLIC_URL || "https://subham-aceplace-test.onrender.com/";
 
