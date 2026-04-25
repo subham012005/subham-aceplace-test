@@ -229,7 +229,8 @@ async function resolveOrgLLMConfig(orgId: string, role: string): Promise<Resolve
     // Model mapping (mirrors agent-engine/provider_router.py)
     const MODEL_MAP: Record<string, Record<string, string>> = {
         openai: { coo: "gpt-4o", researcher: "gpt-4o", worker: "gpt-4o", grader: "gpt-4o-mini" },
-        anthropic: { coo: "claude-3-5-sonnet-20240620", researcher: "claude-3-5-sonnet-20240620", worker: "claude-3-5-sonnet-20240620", grader: "claude-3-haiku-20240307" },
+        // claude-3-5-sonnet-20240620 was deprecated — use the 2024-10-22 snapshot
+        anthropic: { coo: "claude-3-5-sonnet-20241022", researcher: "claude-3-5-sonnet-20241022", worker: "claude-3-5-sonnet-20241022", grader: "claude-3-haiku-20240307" },
         gemini: { coo: "gemini-1.5-pro", researcher: "gemini-1.5-pro", worker: "gemini-1.5-flash", grader: "gemini-1.5-flash" }
     };
 
@@ -243,6 +244,23 @@ async function resolveOrgLLMConfig(orgId: string, role: string): Promise<Resolve
         temperature: def.temperature,
         maxTokens: def.maxTokens
     };
+}
+
+/**
+ * Safely look up the org's OpenAI API key from Firestore.
+ * Used as the cross-provider fallback key when Anthropic fails.
+ * Returns undefined (never throws) so callers can decide gracefully.
+ */
+async function resolveOrgFallbackOpenAIKey(orgId: string): Promise<string | undefined> {
+    try {
+        const db = getDb();
+        const doc = await db.collection("org_intelligence_providers").doc(orgId).get();
+        if (!doc.exists) return undefined;
+        const key = (doc.data() as any)?.providers?.openai?.api_key;
+        return key || undefined;
+    } catch {
+        return undefined;
+    }
 }
 
 // ── Usage Tracking ───────────────────────────────────────────────────────────
@@ -360,10 +378,22 @@ async function callWithAnthropicFallback(params: {
   try {
     return await callAnthropic(params);
   } catch (primaryErr) {
+    const primaryMsg = (primaryErr as Error).message;
+    // Only attempt OpenAI fallback if a key is actually available.
+    // If not, re-throw the real Anthropic error instead of a misleading
+    // "OpenAI key is not set" error that confuses the user.
+    const effectiveFallbackKey = params.fallbackApiKey || process.env.OPENAI_API_KEY;
+    if (!effectiveFallbackKey) {
+      throw new Error(
+        `[${params.agentLabel}] Anthropic API call failed for model '${params.model}': ${primaryMsg}. ` +
+        `No OpenAI fallback key is configured for this role. ` +
+        `Check your Claude API key / model name in Settings > Intelligence Providers.`
+      );
+    }
     const fallbackModel = ANTHROPIC_TO_OPENAI_FALLBACK[params.model] ?? "gpt-4o";
     console.warn(
       `[FALLBACK:${params.agentLabel}] Anthropic (${params.model}) failed — ` +
-      `switching to OpenAI (${fallbackModel}): ${(primaryErr as Error).message}`
+      `switching to OpenAI (${fallbackModel}): ${primaryMsg}`
     );
     return await callOpenAI({
       model: fallbackModel,
@@ -371,7 +401,7 @@ async function callWithAnthropicFallback(params: {
       userMessage: params.userMessage,
       temperature: params.temperature,
       maxTokens: params.maxTokens,
-      apiKey: params.fallbackApiKey
+      apiKey: effectiveFallbackKey
     });
   }
 }
@@ -442,6 +472,8 @@ async function executeCOO(prompt: string, envelopeId: string, agentId: string, f
           apiKey: cfg.apiKey
       });
   } else {
+      // Resolve org's OpenAI key as fallback (user may have both Claude + OpenAI configured)
+      const cooFallbackKey = orgId ? await resolveOrgFallbackOpenAIKey(orgId) : process.env.OPENAI_API_KEY;
       callResult = await callWithAnthropicFallback({
           model: cfg.model,
           systemPrompt: COO_SYSTEM_PROMPT,
@@ -450,7 +482,7 @@ async function executeCOO(prompt: string, envelopeId: string, agentId: string, f
           maxTokens: cfg.maxTokens,
           agentLabel: "COO",
           apiKey: cfg.apiKey,
-          fallbackApiKey: orgId ? undefined : process.env.OPENAI_API_KEY
+          fallbackApiKey: cooFallbackKey
       });
   }
 
@@ -497,6 +529,8 @@ async function executeResearcher(
         apiKey: cfg.apiKey
     });
   } else {
+    // Resolve org's OpenAI key as fallback
+    const researcherFallbackKey = orgId ? await resolveOrgFallbackOpenAIKey(orgId) : process.env.OPENAI_API_KEY;
     callResult = await callWithAnthropicFallback({
         model: cfg.model,
         systemPrompt: RESEARCHER_SYSTEM_PROMPT,
@@ -505,7 +539,7 @@ async function executeResearcher(
         maxTokens: cfg.maxTokens,
         agentLabel: "Researcher",
         apiKey: cfg.apiKey,
-        fallbackApiKey: orgId ? undefined : process.env.OPENAI_API_KEY
+        fallbackApiKey: researcherFallbackKey
     });
   }
 
@@ -617,6 +651,8 @@ async function executeGrader(
         apiKey: cfg.apiKey
     });
   } else {
+    // Resolve org's OpenAI key as fallback
+    const graderFallbackKey = orgId ? await resolveOrgFallbackOpenAIKey(orgId) : process.env.OPENAI_API_KEY;
     callResult = await callWithAnthropicFallback({
         model: cfg.model,
         systemPrompt: GRADER_SYSTEM_PROMPT,
@@ -625,7 +661,7 @@ async function executeGrader(
         maxTokens: cfg.maxTokens,
         agentLabel: "Grader",
         apiKey: cfg.apiKey,
-        fallbackApiKey: orgId ? undefined : process.env.OPENAI_API_KEY
+        fallbackApiKey: graderFallbackKey
     });
   }
 
