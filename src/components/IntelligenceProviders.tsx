@@ -57,7 +57,7 @@ interface IntelligenceConfig {
 const DEFAULT_CONFIG: IntelligenceConfig = {
   providers: {
     openai:    { enabled: false, api_key: "", model: "gpt-4o" },
-    anthropic: { enabled: false, api_key: "", model: "claude-3-7-sonnet-20250219" },
+    anthropic: { enabled: false, api_key: "", model: "claude-sonnet-4-6" },
     gemini:    { enabled: false, api_key: "", model: "gemini-1.5-pro" },
     custom:    { enabled: false, api_key: "" },
   },
@@ -110,16 +110,15 @@ const PROVIDERS: {
 // ── Per-provider model options ─────────────────────────────────────────────
 const PROVIDER_MODELS: Record<string, { label: string; value: string }[]> = {
   openai: [
-    { label: "GPT-4o (Recommended)",  value: "gpt-4o"       },
-    { label: "GPT-4o Mini (Fast)",    value: "gpt-4o-mini"  },
-    { label: "GPT-4 Turbo",           value: "gpt-4-turbo"  },
+    { label: "GPT-4o",                value: "gpt-4o"       },
+    { label: "GPT-4o Mini",           value: "gpt-4o-mini"  },
     { label: "o1-mini",               value: "o1-mini"      },
   ],
   anthropic: [
-    { label: "Claude 3.5 Sonnet (Recommended)", value: "claude-3-5-sonnet-latest" },
-    { label: "Claude 3.5 Haiku (Fast)",        value: "claude-3-5-haiku-latest"  },
-    { label: "Claude 3.7 Sonnet (Latest)",      value: "claude-3-7-sonnet-latest" },
-    { label: "Claude 3 Opus (Powerful)",       value: "claude-3-opus-latest"     },
+    { label: "Claude Sonnet 4.6",     value: "claude-sonnet-4-6"          },
+    { label: "Claude Haiku 4.5",      value: "claude-haiku-4-5-20251001"  },
+    { label: "Claude 3.5 Sonnet",     value: "claude-3-5-sonnet-latest"   },
+    { label: "Claude 3.5 Haiku",      value: "claude-3-5-haiku-latest"    },
   ],
   gemini: [
     { label: "Gemini 1.5 Pro",    value: "gemini-1.5-pro"   },

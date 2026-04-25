@@ -233,12 +233,12 @@ async function resolveOrgLLMConfig(orgId: string, role: string): Promise<Resolve
     // Model mapping — ordered newest-first so newer API accounts always get a valid model.
     // If the user has saved a preferred model in their provider config, that takes priority.
     const MODEL_MAP: Record<string, Record<string, string>> = {
-        openai:    { coo: "gpt-4o", researcher: "gpt-4o", worker: "gpt-4o", grader: "gpt-4o-mini" },
+        openai:    { coo: "gpt-4o", researcher: "gpt-4o", worker: "gpt-4o", grader: "gpt-4o" },
         anthropic: { 
-          coo: "claude-3-5-sonnet-latest", 
-          researcher: "claude-3-5-sonnet-latest", 
-          worker: "claude-3-5-sonnet-latest", 
-          grader: "claude-3-5-haiku-latest" 
+          coo:        "claude-sonnet-4-6", 
+          researcher: "claude-sonnet-4-6", 
+          worker:     "claude-sonnet-4-6", 
+          grader:     "claude-haiku-4-5-20251001" 
         },
         gemini:    { coo: "gemini-1.5-pro", researcher: "gemini-1.5-pro", worker: "gemini-1.5-flash", grader: "gemini-1.5-flash" },
     };
