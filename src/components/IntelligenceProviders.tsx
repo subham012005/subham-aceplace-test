@@ -116,11 +116,10 @@ const PROVIDER_MODELS: Record<string, { label: string; value: string }[]> = {
     { label: "o1-mini",               value: "o1-mini"      },
   ],
   anthropic: [
-    { label: "Claude 3.7 Sonnet (Latest)",  value: "claude-3-7-sonnet-20250219" },
-    { label: "Claude 3.5 Sonnet",           value: "claude-3-5-sonnet-20241022" },
-    { label: "Claude 3.5 Haiku (Fast)",     value: "claude-3-5-haiku-20241022" },
-    { label: "Claude 3 Opus (Powerful)",    value: "claude-3-opus-20240229"    },
-    { label: "Claude 3 Haiku (Fast)",       value: "claude-3-haiku-20240307"   },
+    { label: "Claude 3.5 Sonnet (Recommended)", value: "claude-3-5-sonnet-latest" },
+    { label: "Claude 3.5 Haiku (Fast)",        value: "claude-3-5-haiku-latest"  },
+    { label: "Claude 3.7 Sonnet (Latest)",      value: "claude-3-7-sonnet-latest" },
+    { label: "Claude 3 Opus (Powerful)",       value: "claude-3-opus-latest"     },
   ],
   gemini: [
     { label: "Gemini 1.5 Pro",    value: "gemini-1.5-pro"   },

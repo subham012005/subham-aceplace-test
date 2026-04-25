@@ -178,8 +178,10 @@ function getAnthropic(apiKey?: string): Anthropic {
 
 function getOpenAI(apiKey?: string): OpenAI {
   // If apiKey is provided (even if empty), don't fallback to process.env
-  const key = (apiKey !== undefined) ? apiKey : process.env.OPENAI_API_KEY;
-  if (!key) throw new Error("FALLBACK_NO_API_KEY: OpenAI key is not set. Please provide your API key in Settings > Intelligence Providers.");
+  const key = (apiKey !== undefined && apiKey !== "") ? apiKey : process.env.OPENAI_API_KEY;
+  if (!key || key === "") {
+    throw new Error("FALLBACK_NO_API_KEY: OpenAI key is not set. Please provide your API key in Settings > Intelligence Providers or set OPENAI_API_KEY environment variable.");
+  }
   return new OpenAI({ apiKey: key });
 }
 
@@ -231,9 +233,14 @@ async function resolveOrgLLMConfig(orgId: string, role: string): Promise<Resolve
     // Model mapping — ordered newest-first so newer API accounts always get a valid model.
     // If the user has saved a preferred model in their provider config, that takes priority.
     const MODEL_MAP: Record<string, Record<string, string>> = {
-        openai:    { coo: "gpt-4o",                      researcher: "gpt-4o",                      worker: "gpt-4o",           grader: "gpt-4o-mini"              },
-        anthropic: { coo: "claude-3-7-sonnet-20250219",  researcher: "claude-3-7-sonnet-20250219",  worker: "claude-3-7-sonnet-20250219", grader: "claude-3-5-haiku-20241022" },
-        gemini:    { coo: "gemini-1.5-pro",              researcher: "gemini-1.5-pro",              worker: "gemini-1.5-flash",  grader: "gemini-1.5-flash"          },
+        openai:    { coo: "gpt-4o", researcher: "gpt-4o", worker: "gpt-4o", grader: "gpt-4o-mini" },
+        anthropic: { 
+          coo: "claude-3-5-sonnet-latest", 
+          researcher: "claude-3-5-sonnet-latest", 
+          worker: "claude-3-5-sonnet-latest", 
+          grader: "claude-3-5-haiku-latest" 
+        },
+        gemini:    { coo: "gemini-1.5-pro", researcher: "gemini-1.5-pro", worker: "gemini-1.5-flash", grader: "gemini-1.5-flash" },
     };
 
     // Prefer the model explicitly saved by the user in their provider settings.
@@ -398,6 +405,21 @@ async function callWithAnthropicFallback(params: {
       );
     }
     const fallbackModel = ANTHROPIC_TO_OPENAI_FALLBACK[params.model] ?? "gpt-4o";
+
+    // SPECIAL CASE: If Anthropic returns 404 (model not found), it likely means 
+    // the account only has access to Haiku. Try one more time with Haiku before 
+    // switching to OpenAI.
+    if (primaryMsg.includes("not_found_error") || primaryMsg.includes("404") || primaryMsg.includes("model_not_found")) {
+      if (params.model !== "claude-3-5-haiku-latest") {
+        console.warn(`[FALLBACK:${params.agentLabel}] Anthropic model '${params.model}' not found (404). Retrying with 'claude-3-5-haiku-latest' before giving up...`);
+        try {
+          return await callAnthropic({ ...params, model: "claude-3-5-haiku-latest" });
+        } catch (haikuErr) {
+          console.warn(`[FALLBACK:${params.agentLabel}] Haiku fallback also failed: ${(haikuErr as Error).message}`);
+        }
+      }
+    }
+
     console.warn(
       `[FALLBACK:${params.agentLabel}] Anthropic (${params.model}) failed — ` +
       `switching to OpenAI (${fallbackModel}): ${primaryMsg}`
