@@ -81,6 +81,12 @@ function hexFormat(value: string | null | undefined): string | null {
     return `hex:0x${raw}`;
 }
 
+/** Strip all hex prefixes ("hex:", "0x") and lowercase — for prefix-agnostic comparison. */
+function normalizeFingerprint(value: string | null | undefined): string {
+    if (!value) return "";
+    return String(value).trim().replace(/^hex:/i, "").replace(/^0x/i, "").toLowerCase();
+}
+
 function ensureDb() {
     if (!adminDb) {
         throw new Error("ADMIN_NOT_INITIALIZED: Firebase Admin SDK is not configured.");
@@ -832,7 +838,10 @@ export const workflowEngine = {
 
         const recomputedFingerprint = "hex:0x" + sha256(canonicalJsonString);
         const storedFingerprint = String(agent.identity_fingerprint).trim();
-        const identity_verified = recomputedFingerprint === storedFingerprint;
+        // Normalize both sides before comparing to handle legacy agents stored
+        // without the "hex:0x" prefix (raw SHA-256 hex) and new agents that have it.
+        const identity_verified =
+            normalizeFingerprint(recomputedFingerprint) === normalizeFingerprint(storedFingerprint);
 
         return {
             agent_id,
