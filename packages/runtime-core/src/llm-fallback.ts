@@ -7,6 +7,8 @@
  * Activated automatically when the Python agent-engine is unreachable.
  */
 
+console.log("[LLM-FALLBACK] v2.1 (Enhanced Identity & Model Resolution) Loaded.");
+
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { randomUUID } from "crypto";
@@ -226,15 +228,18 @@ async function resolveOrgLLMConfig(orgId: string, role: string): Promise<Resolve
         throw new Error(`MISSING_API_KEY: The API key for '${providerKey}' (assigned to ${role}) is missing. Please provide it in Settings > Intelligence Providers.`);
     }
     
-    // Model mapping (mirrors agent-engine/provider_router.py)
+    // Model mapping — ordered newest-first so newer API accounts always get a valid model.
+    // If the user has saved a preferred model in their provider config, that takes priority.
     const MODEL_MAP: Record<string, Record<string, string>> = {
-        openai: { coo: "gpt-4o", researcher: "gpt-4o", worker: "gpt-4o", grader: "gpt-4o-mini" },
-        // claude-3-5-sonnet-20240620 was deprecated — use the 2024-10-22 snapshot
-        anthropic: { coo: "claude-3-5-sonnet-20241022", researcher: "claude-3-5-sonnet-20241022", worker: "claude-3-5-sonnet-20241022", grader: "claude-3-haiku-20240307" },
-        gemini: { coo: "gemini-1.5-pro", researcher: "gemini-1.5-pro", worker: "gemini-1.5-flash", grader: "gemini-1.5-flash" }
+        openai:    { coo: "gpt-4o",                      researcher: "gpt-4o",                      worker: "gpt-4o",           grader: "gpt-4o-mini"              },
+        anthropic: { coo: "claude-3-7-sonnet-20250219",  researcher: "claude-3-7-sonnet-20250219",  worker: "claude-3-7-sonnet-20250219", grader: "claude-3-5-haiku-20241022" },
+        gemini:    { coo: "gemini-1.5-pro",              researcher: "gemini-1.5-pro",              worker: "gemini-1.5-flash",  grader: "gemini-1.5-flash"          },
     };
 
-    const model = MODEL_MAP[providerKey]?.[role] || "unknown";
+    // Prefer the model explicitly saved by the user in their provider settings.
+    // Falls back to the role-specific default in MODEL_MAP.
+    const savedModel = providerConfig?.model as string | undefined;
+    const model = (savedModel && savedModel.trim()) ? savedModel.trim() : (MODEL_MAP[providerKey]?.[role] || "unknown");
     const def = (DEFAULT_AGENT_MODELS as any)[role];
 
     return {
@@ -383,6 +388,8 @@ async function callWithAnthropicFallback(params: {
     // If not, re-throw the real Anthropic error instead of a misleading
     // "OpenAI key is not set" error that confuses the user.
     const effectiveFallbackKey = params.fallbackApiKey || process.env.OPENAI_API_KEY;
+    console.log(`[LLM-DEBUG] Anthropic failed. Fallback Key Presence: params=${!!params.fallbackApiKey}, env=${!!process.env.OPENAI_API_KEY}, effective=${!!effectiveFallbackKey}`);
+    
     if (!effectiveFallbackKey) {
       throw new Error(
         `[${params.agentLabel}] Anthropic API call failed for model '${params.model}': ${primaryMsg}. ` +
