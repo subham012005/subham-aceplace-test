@@ -37,6 +37,7 @@ type AgentRole   = "coo" | "researcher" | "worker" | "grader";
 interface ProviderConfig {
   enabled: boolean;
   api_key: string;
+  model?: string;    // user-selected model for this provider
   base_url?: string;
 }
 
@@ -55,9 +56,9 @@ interface IntelligenceConfig {
 // ── Default state ──────────────────────────────────────────────────────────
 const DEFAULT_CONFIG: IntelligenceConfig = {
   providers: {
-    openai:    { enabled: false, api_key: "" },
-    anthropic: { enabled: false, api_key: "" },
-    gemini:    { enabled: false, api_key: "" },
+    openai:    { enabled: false, api_key: "", model: "gpt-4o" },
+    anthropic: { enabled: false, api_key: "", model: "claude-sonnet-4-6" },
+    gemini:    { enabled: false, api_key: "", model: "gemini-1.5-pro" },
     custom:    { enabled: false, api_key: "" },
   },
   agent_models: {
@@ -105,6 +106,27 @@ const PROVIDERS: {
     placeholder: "Bearer token or API key",
   },
 ];
+
+// ── Per-provider model options ─────────────────────────────────────────────
+const PROVIDER_MODELS: Record<string, { label: string; value: string }[]> = {
+  openai: [
+    { label: "GPT-4o",                value: "gpt-4o"       },
+    { label: "GPT-4o Mini",           value: "gpt-4o-mini"  },
+    { label: "o1-mini",               value: "o1-mini"      },
+  ],
+  anthropic: [
+    { label: "Claude Sonnet 4.6",     value: "claude-sonnet-4-6"          },
+    { label: "Claude Haiku 4.5",      value: "claude-haiku-4-5-20251001"  },
+    { label: "Claude 3.5 Sonnet",     value: "claude-3-5-sonnet-latest"   },
+    { label: "Claude 3.5 Haiku",      value: "claude-3-5-haiku-latest"    },
+  ],
+  gemini: [
+    { label: "Gemini 1.5 Pro",    value: "gemini-1.5-pro"   },
+    { label: "Gemini 1.5 Flash",  value: "gemini-1.5-flash" },
+    { label: "Gemini 2.0 Flash",  value: "gemini-2.0-flash" },
+  ],
+  custom: [],
+};
 
 const AGENT_ROLES: { key: AgentRole; label: string; capability: string }[] = [
   { key: "coo",        label: "COO",        capability: "planning"    },
@@ -205,6 +227,27 @@ function ProviderCard({
               </button>
             </div>
           </div>
+
+          {/* Model selection */}
+          {(PROVIDER_MODELS[provider.key]?.length ?? 0) > 0 && (
+            <div className="pt-2 border-t border-white/5">
+              <label className="text-[7px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1 mb-1">
+                <Zap className="w-2.5 h-2.5" /> Model Configuration
+              </label>
+              <select
+                value={config.model || PROVIDER_MODELS[provider.key]?.[0]?.value || ""}
+                onChange={(e) => onChange({ ...config, model: e.target.value })}
+                className="w-full bg-black/60 border border-white/10 text-[8px] font-mono text-cyan-400 px-2 py-1.5 focus:outline-none focus:border-cyan-500/50 transition-all cursor-pointer"
+              >
+                {PROVIDER_MODELS[provider.key].map((m) => (
+                  <option key={m.value} value={m.value}>{m.label}</option>
+                ))}
+              </select>
+              <p className="text-[6px] text-slate-500 mt-1 uppercase tracking-tighter">
+                Ensure your API key has access to the selected model.
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>

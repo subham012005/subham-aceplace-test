@@ -441,8 +441,32 @@ export default function JobDetailsPage() {
             setIsRejectModalOpen(false);
             setRejectionReason("");
             refreshJob();
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleApproveFallback = async () => {
+        if (!user || actionLoading) return;
+        setActionLoading(true);
+        try {
+            await aceApi.approveFallback(jobId);
+            refreshJob();
         } catch (error) {
-            console.error("Reject failed:", error);
+            console.error("Approve fallback failed:", error);
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleRejectFallback = async () => {
+        if (!user || actionLoading) return;
+        setActionLoading(true);
+        try {
+            await aceApi.rejectFallback(jobId, "Operator Manual Fallback Rejection");
+            refreshJob();
+        } catch (error) {
+            console.error("Reject fallback failed:", error);
         } finally {
             setActionLoading(false);
         }
@@ -885,7 +909,72 @@ export default function JobDetailsPage() {
                     if (!isLateStage && !isDecided) return null;
 
                     // Show the bar
-                    if (isDecided || (status === 'completed' && !needsDecision)) {
+                    if (envelope?.fallback_suggested) {
+                        // ── CASE A.1: Fallback Approval Required (HIGHEST PRIORITY) ───────────
+                        const meta = envelope.fallback_metadata;
+                        const isModelSwitch = meta?.suggested_action === 'model_switch';
+                        
+                        return (
+                            <div className="relative overflow-hidden border border-orange-500 bg-orange-500/10 shadow-[0_0_50px_rgba(249,115,22,0.15)] mb-8 scifi-clip p-6 sm:p-8">
+                                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-orange-400 to-transparent animate-shimmer-fast" />
+                                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
+                                    <div className="flex items-start gap-5 flex-1">
+                                        <div className="w-14 h-14 bg-orange-500/20 border border-orange-500/40 scifi-clip flex items-center justify-center shrink-0">
+                                            <RotateCw className="w-7 h-7 text-orange-400 animate-spin-slow" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <div className="flex items-center gap-3">
+                                                <span className="px-2 py-0.5 bg-orange-500 text-black font-black text-[9px] uppercase tracking-widest scifi-clip-sm">
+                                                    Intervention Required
+                                                </span>
+                                                <span className="text-[10px] font-black text-orange-400/60 uppercase tracking-widest italic">
+                                                    {isModelSwitch ? 'Intelligence Provider Failure' : 'Runtime Connection Failure'}
+                                                </span>
+                                            </div>
+                                            <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase leading-tight">
+                                                {isModelSwitch ? 'AI Model Fallback Protocol' : 'Agent Engine Fallback Protocol'}
+                                            </h2>
+                                            
+                                            <div className="space-y-3 mt-4">
+                                                <div className="bg-black/20 p-4 border border-white/5 space-y-2">
+                                                    <p className="text-[10px] font-black uppercase tracking-widest text-orange-500/70">Why this occurred:</p>
+                                                    <p className="text-slate-300 text-sm leading-relaxed">
+                                                        The primary model (Claude 3.5 Sonnet) encountered an API error: 
+                                                        <span className="text-orange-300 italic block mt-1 font-mono text-xs">"{meta?.original_error || meta?.reason || 'Unknown API failure'}"</span>
+                                                    </p>
+                                                </div>
+
+                                                <div className="bg-cyan-500/5 p-4 border border-cyan-500/20 space-y-2">
+                                                    <p className="text-[10px] font-black uppercase tracking-widest text-cyan-400">What happens if you approve:</p>
+                                                    <p className="text-slate-300 text-sm leading-relaxed">
+                                                        The system will **automatically switch the agent's brain** to <span className="text-white font-bold">{meta?.target_model || 'GPT-4o'}</span> and resume the mission exactly where it left off. No progress will be lost.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col gap-3 w-full lg:w-auto shrink-0">
+                                        <button
+                                            onClick={handleApproveFallback}
+                                            disabled={actionLoading}
+                                            className="lg:px-10 py-5 bg-orange-500 text-black font-black uppercase tracking-[0.2em] hover:bg-orange-400 transition-all scifi-clip flex items-center justify-center gap-3 shadow-[0_0_40px_rgba(249,115,22,0.3)] disabled:opacity-50"
+                                        >
+                                            <Zap className={cn("w-5 h-5", actionLoading && "animate-pulse")} />
+                                            {actionLoading ? "Switching Intelligence..." : "Approve & Resume"}
+                                        </button>
+                                        <button
+                                            onClick={handleRejectFallback}
+                                            disabled={actionLoading}
+                                            className="lg:px-8 py-4 bg-black/40 border border-orange-500/30 text-orange-400/70 font-black uppercase tracking-[0.2em] hover:bg-white/5 hover:text-orange-400 transition-all scifi-clip flex items-center justify-center gap-3 disabled:opacity-50"
+                                        >
+                                            <XCircle className="w-5 h-5" />
+                                            Abort Mission
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    } else if (isDecided || (status === 'completed' && !needsDecision)) {
                         // ── CASE A: Decision already made (Terminal) ──────────────
                         const approved = status === 'approved' || (status === 'completed' && isPass);
                         return (
@@ -910,7 +999,7 @@ export default function JobDetailsPage() {
                                     </p>
                                     <p className="text-white font-bold text-sm mt-0.5">
                                         Artifact <span className={approved ? "text-emerald-400" : "text-red-400"}>{approved ? "Approved" : "Rejected"}</span>
-                                        {job?.failure_reason ? ` — ${String(job.failure_reason)}` : ''}
+                                        {(!approved && job?.failure_reason) ? ` — ${String(job.failure_reason)}` : ''}
                                     </p>
                                 </div>
                                 <div className="shrink-0 text-right">

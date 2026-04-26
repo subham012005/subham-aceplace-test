@@ -50,6 +50,7 @@ const EVENT_COLORS: Record<string, { label: string; style: string }> = {
   "us#.evaluation.score":{ label: "#us#.evaluation.score",style: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" },
   "identity_validated":  { label: "identity.validated",   style: "text-violet-400 border-violet-500/30 bg-violet-500/10" },
   "envelope_quarantined":{ label: "QUARANTINED",          style: "text-rose-400 border-rose-500/30 bg-rose-500/10" },
+  "LLM_FALLBACK":        { label: "LLM FALLBACK",         style: "text-amber-500 border-amber-500/30 bg-amber-500/10" },
 };
 
 function getEventStyle(type: string) {

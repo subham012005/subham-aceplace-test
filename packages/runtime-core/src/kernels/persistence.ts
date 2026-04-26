@@ -137,7 +137,8 @@ export async function addTrace(
   identityFingerprint: string,
   eventType: string,
   userId?: string,
-  metadata?: Record<string, unknown>
+  metadata?: Record<string, unknown>,
+  message?: string
 ): Promise<void> {
   const traceId = generateTraceId(eventType);
   const trace: ExecutionTrace = {
@@ -148,6 +149,7 @@ export async function addTrace(
     identity_fingerprint: identityFingerprint,
     event_type: eventType,
     user_id: userId,
+    message,
     timestamp: new Date().toISOString(),
     metadata: metadata ?? {},
   };

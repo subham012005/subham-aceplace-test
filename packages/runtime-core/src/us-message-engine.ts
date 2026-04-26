@@ -88,14 +88,19 @@ import { addTrace } from "./kernels/persistence";
 const AGENT_ENGINE_URL = process.env.AGENT_ENGINE_URL || "http://localhost:8001";
 
 function isNetworkError(err: unknown): boolean {
-  const msg = String((err as Error)?.message || err).toLowerCase();
-  return msg.includes("econnrefused") || msg.includes("fetch failed") || msg.includes("network");
+  const error = err as any;
+  const msg = String(error?.message || error?.code || error || "").toLowerCase();
+  const cause = String(error?.cause || "").toLowerCase();
+  
+  const searchTerms = ["econnrefused", "fetch failed", "network", "unreachable", "eai_again", "etimedout"];
+  return searchTerms.some(term => msg.includes(term) || cause.includes(term));
 }
 
 /** BYO_LLM errors mean the org config is missing in Firestore — the TS LLM fallback will now strictly enforce this. */
 function isBYOLLMError(err: unknown): boolean {
-  const msg = String((err as Error)?.message || err);
-  return msg.includes("BYO_LLM_ERROR") || msg.includes("MISSING_INTELLIGENCE_CONFIG") || msg.includes("MISSING_API_KEY");
+  const error = err as any;
+  const msg = String(error?.message || error?.code || error || "");
+  return msg.includes("BYO_LLM_ERROR") || msg.includes("MISSING_INTELLIGENCE_CONFIG") || msg.includes("MISSING_API_KEY") || msg.includes("UNAUTHORIZED");
 }
 
 async function logComputeProvider(
@@ -106,6 +111,43 @@ async function logComputeProvider(
     compute_provider: provider,
     ...(fallbackReason ? { fallback_reason: fallbackReason } : {}),
   });
+}
+
+async function suggestFallback(params: {
+  envelope: ExecutionEnvelope;
+  stepId: string;
+  agentId: string;
+  reason: string;
+  originalError: string;
+  suggestedAction: "model_switch" | "runtime_switch";
+}): Promise<void> {
+  const db = getDb();
+  const envId = params.envelope.envelope_id;
+  
+  await db.collection(COLLECTIONS.EXECUTION_ENVELOPES).doc(envId).update({
+    status: "awaiting_human",
+    fallback_suggested: true,
+    fallback_metadata: {
+      reason: params.reason,
+      original_error: params.originalError,
+      step_id: params.stepId,
+      suggested_action: params.suggestedAction,
+      agent_id: params.agentId,
+    },
+    updated_at: new Date().toISOString(),
+  });
+  
+  // Also reset the step to 'ready' so it can be re-run after approval
+  const steps = (params.envelope.steps || []).map(s => 
+    s.step_id === params.stepId ? { ...s, status: "ready", claimed_by_instance_id: null, claimed_at: null } : s
+  );
+  await db.collection(COLLECTIONS.EXECUTION_ENVELOPES).doc(envId).update({ steps });
+
+  await addTrace(
+    envId, params.stepId, params.agentId, "00000000",
+    "LLM_FALLBACK_SUGGESTED", undefined, { reason: params.reason },
+    `[SYSTEM] Primary execution failed (${params.reason}). Fallback to ${params.suggestedAction} suggested. Awaiting user approval.`
+  );
 }
 
 export async function handleUSMessage(msg: USMessage): Promise<USMessage | null> {
@@ -157,24 +199,55 @@ async function runFallbackForStep(
   stepType: string,
   inputRef: string | null,
   fallbackReason: string,
+  fallbackApproved?: boolean,
 ): Promise<void> {
   await logComputeProvider(
     msg.execution.envelope_id, msg.execution.step_id,
     msg.identity.agent_id, msg.identity.identity_fingerprint,
     "ts-fallback", fallbackReason,
   );
-  const result = await executeFallbackStep({
-    envelope_id: msg.execution.envelope_id,
-    step_id: msg.execution.step_id,
-    step_type: stepType,
-    agent_id: msg.identity.agent_id,
-    identity_fingerprint: msg.identity.identity_fingerprint,
-    prompt: envelope.prompt || "",
-    input_ref: inputRef,
-    org_id: envelope.org_id,
-  });
-  await attachArtifactToStep(msg.execution.envelope_id, msg.execution.step_id, result.artifact_id);
-  await attachArtifactToEnvelope(msg.execution.envelope_id, result.artifact_id);
+
+  // 1. Clear any existing manual fallback suggestion flag on the envelope
+  // This ensures the UI banner disappears if we are auto-resuming from an engine failure
+  const db = getDb();
+  await db.collection(COLLECTIONS.EXECUTION_ENVELOPES).doc(msg.execution.envelope_id).update({
+    fallback_suggested: false,
+    fallback_metadata: null,
+    updated_at: new Date().toISOString(),
+  }).catch(() => {}); // Ignore if already cleared
+
+  try {
+    const result = await executeFallbackStep({
+      envelope_id: msg.execution.envelope_id,
+      step_id: msg.execution.step_id,
+      step_type: stepType,
+      agent_id: msg.identity.agent_id,
+      identity_fingerprint: msg.identity.identity_fingerprint,
+      prompt: envelope.prompt || "",
+      input_ref: inputRef,
+      org_id: envelope.org_id,
+      fallback_approved: fallbackApproved,
+    });
+    await attachArtifactToStep(msg.execution.envelope_id, msg.execution.step_id, result.artifact_id);
+    await attachArtifactToEnvelope(msg.execution.envelope_id, result.artifact_id);
+  } catch (err) {
+    const msgText = (err as Error).message;
+    if (msgText.includes("LLM_FALLBACK_REQUIRED")) {
+      const parts = msgText.split(":");
+      const suggestedModel = parts[2];
+      const originalErr = parts.slice(3).join(":");
+      await suggestFallback({
+        envelope,
+        stepId: msg.execution.step_id,
+        agentId: msg.identity.agent_id,
+        reason: `Model failed. Suggested switch to ${suggestedModel}`,
+        originalError: originalErr,
+        suggestedAction: "model_switch"
+      });
+      throw new Error("PAUSED_FOR_FALLBACK_APPROVAL");
+    }
+    throw err;
+  }
 }
 
 async function handleTaskPlan(msg: USMessage, envelope: ExecutionEnvelope): Promise<USMessage | null> {
@@ -211,11 +284,37 @@ async function handleTaskPlan(msg: USMessage, envelope: ExecutionEnvelope): Prom
     await attachArtifactToEnvelope(msg.execution.envelope_id, result.artifact_id);
   } catch (err) {
     if (isNetworkError(err) || isBYOLLMError(err)) {
+      const isNetwork = isNetworkError(err);
       const reason = isBYOLLMError(err)
         ? `BYO-LLM config missing for org: ${(err as Error).message}`
         : `Agent engine unreachable: ${(err as Error).message}`;
-      console.warn(`[#us#] ${reason}. Falling back to TypeScript LLM for COO.`);
-      await runFallbackForStep(msg, envelope, "plan", null, reason);
+      
+      const step = envelope.steps.find(s => s.step_id === msg.execution.step_id);
+      const metadata = (step as any)?.metadata || {};
+      
+      // RULE: Only pause for approval if it's NOT a network/engine error.
+      // Connection failures to the Python engine switch to TS runtime automatically.
+      if (!isNetwork && !metadata.fallback_approved) {
+        console.warn(`[#us#] ${reason}. Stopping for fallback approval.`);
+        await suggestFallback({
+          envelope,
+          stepId: msg.execution.step_id,
+          agentId: msg.identity.agent_id,
+          reason,
+          originalError: (err as Error).message,
+          suggestedAction: "runtime_switch"
+        });
+        throw new Error("PAUSED_FOR_FALLBACK_APPROVAL");
+      }
+
+      const fbMsg = `[#us#] ${reason}. Using approved TypeScript LLM fallback for COO.`;
+      console.warn(fbMsg);
+      await addTrace(
+        msg.execution.envelope_id, msg.execution.step_id, 
+        msg.identity.agent_id, msg.identity.identity_fingerprint,
+        "LLM_FALLBACK", undefined, { reason }, fbMsg
+      );
+      await runFallbackForStep(msg, envelope, "plan", null, reason, metadata.fallback_approved);
       return null;
     }
     console.error(`[#us#] EXCEPTION in handleTaskPlan:`, err);
@@ -249,9 +348,10 @@ async function handleTaskAssign(msg: USMessage, envelope: ExecutionEnvelope): Pr
       }),
     });
 
-    if (res.ok) {
-      const result = await res.json() as { success: boolean; artifact_id: string };
-      if (result.success) {
+      if (res.ok) {
+        const result = await res.json() as { success: boolean; error?: string; artifact_id: string };
+        if (result.success) {
+
         richArtifactId = result.artifact_id;
         await logComputeProvider(
           msg.execution.envelope_id, msg.execution.step_id,
@@ -259,34 +359,82 @@ async function handleTaskAssign(msg: USMessage, envelope: ExecutionEnvelope): Pr
         );
         await attachArtifactToStep(msg.execution.envelope_id, msg.execution.step_id, richArtifactId);
         await attachArtifactToEnvelope(msg.execution.envelope_id, richArtifactId);
+      } else {
+        throw new Error(result.error || "Agent Engine failed to produce assignment");
       }
+    } else {
+      throw new Error(`Agent Engine error: ${res.status} ${await res.text()}`);
     }
   } catch (err) {
-    if (isNetworkError(err) || isBYOLLMError(err)) {
+    if (isNetworkError(err) || isBYOLLMError(err) || (err as Error).message.includes("Agent Engine")) {
+      const isNetwork = isNetworkError(err);
       const reason = isBYOLLMError(err)
         ? `BYO-LLM config missing for org: ${(err as Error).message}`
-        : `Agent engine unreachable: ${(err as Error).message}`;
-      console.warn(`[#us#] ${reason}. Falling back to TypeScript LLM for Researcher.`);
-      const result = await executeFallbackStep({
-        envelope_id: msg.execution.envelope_id,
-        step_id: msg.execution.step_id,
-        step_type: "assign",
-        agent_id: msg.identity.agent_id,
-        identity_fingerprint: msg.identity.identity_fingerprint,
-        prompt: envelope.prompt || "",
-        input_ref: planArtifactRef,
-        org_id: envelope.org_id,
-      });
-      richArtifactId = result.artifact_id;
-      await logComputeProvider(
-        msg.execution.envelope_id, msg.execution.step_id,
-        msg.identity.agent_id, msg.identity.identity_fingerprint,
-        "ts-fallback", reason,
-      );
-      await attachArtifactToStep(msg.execution.envelope_id, msg.execution.step_id, richArtifactId);
-      await attachArtifactToEnvelope(msg.execution.envelope_id, richArtifactId);
+        : (err as Error).message.includes("Agent Engine")
+          ? (err as Error).message
+          : `Agent engine unreachable: ${(err as Error).message}`;
+      
+      const step = envelope.steps.find(s => s.step_id === msg.execution.step_id);
+      const metadata = (step as any)?.metadata || {};
+
+      // RULE: Only pause for approval if it's NOT a network/engine error.
+      if (!isNetwork && !metadata.fallback_approved) {
+        console.warn(`[#us#] ${reason}. Stopping for fallback approval.`);
+        await suggestFallback({
+          envelope,
+          stepId: msg.execution.step_id,
+          agentId: msg.identity.agent_id,
+          reason,
+          originalError: (err as Error).message,
+          suggestedAction: "runtime_switch"
+        });
+        throw new Error("PAUSED_FOR_FALLBACK_APPROVAL");
+      }
+
+      const fbMsg = `[#us#] ${reason}. Using approved TypeScript LLM fallback for Researcher.`;
+      console.warn(fbMsg);
+      
+      try {
+        const result = await executeFallbackStep({
+          envelope_id: msg.execution.envelope_id,
+          step_id: msg.execution.step_id,
+          step_type: "assign",
+          agent_id: msg.identity.agent_id,
+          identity_fingerprint: msg.identity.identity_fingerprint,
+          prompt: envelope.prompt || "",
+          input_ref: planArtifactRef,
+          org_id: envelope.org_id,
+          fallback_approved: metadata.fallback_approved,
+        });
+        richArtifactId = result.artifact_id;
+        await logComputeProvider(
+          msg.execution.envelope_id, msg.execution.step_id,
+          msg.identity.agent_id, msg.identity.identity_fingerprint,
+          "ts-fallback", reason,
+        );
+        await attachArtifactToStep(msg.execution.envelope_id, msg.execution.step_id, richArtifactId);
+        await attachArtifactToEnvelope(msg.execution.envelope_id, richArtifactId);
+      } catch (fbErr) {
+        const fbMsgText = (fbErr as Error).message;
+        if (fbMsgText.includes("LLM_FALLBACK_REQUIRED")) {
+          const parts = fbMsgText.split(":");
+          const suggestedModel = parts[2];
+          const originalErr = parts.slice(3).join(":");
+          await suggestFallback({
+            envelope,
+            stepId: msg.execution.step_id,
+            agentId: msg.identity.agent_id,
+            reason: `Model failed. Suggested switch to ${suggestedModel}`,
+            originalError: originalErr,
+            suggestedAction: "model_switch"
+          });
+          throw new Error("PAUSED_FOR_FALLBACK_APPROVAL");
+        }
+        throw fbErr;
+      }
     } else {
-      console.warn(`[#us#] Could not get rich research, falling back to basic decomposition`, err);
+      console.error(`[#us#] EXCEPTION in handleTaskAssign:`, err);
+      throw err;
     }
   }
 
@@ -393,11 +541,36 @@ async function handleArtifactProduce(msg: USMessage, envelope: ExecutionEnvelope
     });
   } catch (err) {
     if (isNetworkError(err) || isBYOLLMError(err)) {
+      const isNetwork = isNetworkError(err);
       const reason = isBYOLLMError(err)
         ? `BYO-LLM config missing for org: ${(err as Error).message}`
         : `Agent engine unreachable: ${(err as Error).message}`;
-      console.warn(`[#us#] ${reason}. Falling back to TypeScript LLM for Worker.`);
-      await runFallbackForStep(msg, envelope, "artifact_produce", inputRef, reason);
+      
+      const step = envelope.steps.find(s => s.step_id === msg.execution.step_id);
+      const metadata = (step as any)?.metadata || {};
+
+      // RULE: Only pause for approval if it's NOT a network/engine error.
+      if (!isNetwork && !metadata.fallback_approved) {
+        console.warn(`[#us#] ${reason}. Stopping for fallback approval.`);
+        await suggestFallback({
+          envelope,
+          stepId: msg.execution.step_id,
+          agentId: msg.identity.agent_id,
+          reason,
+          originalError: (err as Error).message,
+          suggestedAction: "runtime_switch"
+        });
+        throw new Error("PAUSED_FOR_FALLBACK_APPROVAL");
+      }
+
+      const fbMsg = `[#us#] ${reason}. Using approved TypeScript LLM fallback for Worker.`;
+      console.warn(fbMsg);
+      await addTrace(
+        msg.execution.envelope_id, msg.execution.step_id, 
+        msg.identity.agent_id, msg.identity.identity_fingerprint,
+        "LLM_FALLBACK", undefined, { reason }, fbMsg
+      );
+      await runFallbackForStep(msg, envelope, "artifact_produce", inputRef, reason, metadata.fallback_approved);
     } else {
       console.error(`[#us#] EXCEPTION in handleArtifactProduce:`, err);
       throw err;
@@ -465,28 +638,73 @@ async function handleEvaluation(msg: USMessage, envelope: ExecutionEnvelope): Pr
     );
   } catch (err) {
     if (isNetworkError(err) || isBYOLLMError(err)) {
+      const isNetwork = isNetworkError(err);
       const reason = isBYOLLMError(err)
         ? `BYO-LLM config missing for org: ${(err as Error).message}`
         : `Agent engine unreachable: ${(err as Error).message}`;
-      console.warn(`[#us#] ${reason}. Falling back to TypeScript LLM for Grader.`);
+      
+      const step = envelope.steps.find(s => s.step_id === msg.execution.step_id);
+      const metadata = (step as any)?.metadata || {};
+
+      // RULE: Only pause for approval if it's NOT a network/engine error.
+      if (!isNetwork && !metadata.fallback_approved) {
+        console.warn(`[#us#] ${reason}. Stopping for fallback approval.`);
+        await suggestFallback({
+          envelope,
+          stepId: msg.execution.step_id,
+          agentId: msg.identity.agent_id,
+          reason,
+          originalError: (err as Error).message,
+          suggestedAction: "runtime_switch"
+        });
+        throw new Error("PAUSED_FOR_FALLBACK_APPROVAL");
+      }
+
+      const fbMsg = `[#us#] ${reason}. Using approved TypeScript LLM fallback for Grader.`;
+      console.warn(fbMsg);
+      await addTrace(
+        msg.execution.envelope_id, msg.execution.step_id, 
+        msg.identity.agent_id, msg.identity.identity_fingerprint,
+        "LLM_FALLBACK", undefined, { reason }, fbMsg
+      );
       await logComputeProvider(
         msg.execution.envelope_id, msg.execution.step_id,
         msg.identity.agent_id, msg.identity.identity_fingerprint,
         "ts-fallback", reason,
       );
-      const result = await executeFallbackStep({
-        envelope_id: msg.execution.envelope_id,
-        step_id: msg.execution.step_id,
-        step_type: "evaluation",
-        agent_id: msg.identity.agent_id,
-        identity_fingerprint: msg.identity.identity_fingerprint,
-        prompt: envelope.prompt || "",
-        input_ref: artifactIds[0] || null,
-        org_id: envelope.org_id,
-      });
-      graderArtifactId = result.artifact_id;
-      await attachArtifactToStep(msg.execution.envelope_id, msg.execution.step_id, graderArtifactId);
-      await attachArtifactToEnvelope(msg.execution.envelope_id, graderArtifactId);
+      try {
+        const result = await executeFallbackStep({
+          envelope_id: msg.execution.envelope_id,
+          step_id: msg.execution.step_id,
+          step_type: "evaluation",
+          agent_id: msg.identity.agent_id,
+          identity_fingerprint: msg.identity.identity_fingerprint,
+          prompt: envelope.prompt || "",
+          input_ref: artifactIds[0] || null,
+          org_id: envelope.org_id,
+          fallback_approved: metadata.fallback_approved,
+        });
+        graderArtifactId = result.artifact_id;
+        await attachArtifactToStep(msg.execution.envelope_id, msg.execution.step_id, graderArtifactId);
+        await attachArtifactToEnvelope(msg.execution.envelope_id, graderArtifactId);
+      } catch (fbErr) {
+        const fbMsgText = (fbErr as Error).message;
+        if (fbMsgText.includes("LLM_FALLBACK_REQUIRED")) {
+          const parts = fbMsgText.split(":");
+          const suggestedModel = parts[2];
+          const originalErr = parts.slice(3).join(":");
+          await suggestFallback({
+            envelope,
+            stepId: msg.execution.step_id,
+            agentId: msg.identity.agent_id,
+            reason: `Model failed. Suggested switch to ${suggestedModel}`,
+            originalError: originalErr,
+            suggestedAction: "model_switch"
+          });
+          throw new Error("PAUSED_FOR_FALLBACK_APPROVAL");
+        }
+        throw fbErr;
+      }
     } else {
       throw err;
     }

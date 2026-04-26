@@ -45,6 +45,11 @@ export function IdentityPanel({ agentId }: IdentityPanelProps) {
   const tierDef = TIER_DEFINITIONS[identity.tier as LicenseTier];
   const isVerified = !!identity.last_verified_at;
 
+  // Normalize stored `hex:0x<hash>` → display as `0x<hash>`
+  const normalizedFp = identity.fingerprint
+    ? "0x" + identity.fingerprint.replace(/^hex:0x|^0x|^hex:/i, "")
+    : null;
+
   return (
     <HUDFrame title="Agent Identity" variant="dark">
       <div className="space-y-4 py-2">
@@ -93,7 +98,7 @@ export function IdentityPanel({ agentId }: IdentityPanelProps) {
           </div>
           <div className="space-y-0.5">
             <span className="text-[7px] font-black uppercase tracking-widest text-slate-600">Fingerprint</span>
-            <p className="text-[9px] font-mono text-purple-400 truncate">{identity.fingerprint}</p>
+            <p className="text-[9px] font-mono text-purple-400 truncate" title={normalizedFp || undefined}>{normalizedFp || "—"}</p>
           </div>
         </div>
 

@@ -130,6 +130,21 @@ export function EnvelopeInspector({ executionId, hideFailureBanner = false }: En
         </div>
       )}
 
+      {/* Fallback Suggested Banner */}
+      {envelope.fallback_suggested && (
+        <div className="border border-orange-500/30 bg-orange-500/10 p-4 space-y-2 animate-in fade-in slide-in-from-top-2 duration-500">
+          <div className="flex items-start gap-3">
+            <Activity className="w-4 h-4 text-orange-500 shrink-0 mt-0.5 animate-spin-slow" />
+            <div className="space-y-1">
+              <span className="text-[9px] font-black uppercase tracking-widest text-orange-500 block">Fallback Pending Approval</span>
+              <p className="text-[10px] font-mono text-orange-200 leading-tight">
+                {envelope.fallback_metadata?.reason || "System requires approval to switch model/runtime."}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
 
       {/* Envelope Metadata Panel */}
       <HUDFrame title="EXECUTION ENVELOPE" variant="dark">

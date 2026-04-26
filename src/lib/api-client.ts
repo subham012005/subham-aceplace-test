@@ -96,6 +96,23 @@ class AceApiClient {
         return this.handleResponse(response);
     }
 
+    async approveFallback(jobId: string) {
+        const response = await this.secureFetch(`/api/jobs/${jobId}/fallback/approve`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+        });
+        return this.handleResponse(response);
+    }
+
+    async rejectFallback(jobId: string, reason: string) {
+        const response = await this.secureFetch(`/api/jobs/${jobId}/fallback/reject`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ reason }),
+        });
+        return this.handleResponse(response);
+    }
+
     async simulateFork(data: ForkSimulateData) {
         const response = await this.secureFetch(`/api/jobs/${data.job_id}/fork-simulate`, {
             method: "POST",
