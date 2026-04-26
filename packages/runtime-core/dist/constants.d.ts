@@ -24,7 +24,7 @@ export declare const COLLECTIONS: {
     readonly ENVELOPE_METRICS: "envelope_metrics";
     readonly AGENT_METRICS: "agent_metrics";
     readonly SECRETS: "secrets";
-    readonly EXECUTION_QUEUE: "execution_queue_local";
+    readonly EXECUTION_QUEUE: "execution_queue";
     readonly API_KEYS: "api_keys";
 };
 export declare const ENVELOPE_STATUS_TRANSITIONS: Record<EnvelopeStatus, EnvelopeStatus[]>;

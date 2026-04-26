@@ -57,6 +57,7 @@ async function readEnvelope(db, id) {
         const envelope = (0, envelope_builder_1.buildEnvelope)({
             orgId: ORG,
             identity_contexts: { [coo.agent_id]: { agent_id: coo.agent_id, identity_fingerprint: coo.identity_fingerprint, verified: true } },
+            role_assignments: { "COO": coo.agent_id },
             stepPipeline: ["plan"],
         });
         // Manually break the envelope: remove role_assignments and step assigned_agent_id
@@ -91,6 +92,7 @@ async function readEnvelope(db, id) {
         const envelope = (0, envelope_builder_1.buildEnvelope)({
             orgId: ORG,
             identity_contexts: { [coo.agent_id]: { agent_id: coo.agent_id, identity_fingerprint: coo.identity_fingerprint, verified: true } },
+            role_assignments: { "COO": coo.agent_id },
             stepPipeline: ["plan"],
         });
         // Manually set step to failed
@@ -132,6 +134,7 @@ async function readEnvelope(db, id) {
         const envelope = (0, envelope_builder_1.buildEnvelope)({
             orgId: ORG,
             identity_contexts: { [coo.agent_id]: { agent_id: coo.agent_id, identity_fingerprint: coo.identity_fingerprint, verified: true } },
+            role_assignments: { "COO": coo.agent_id, "Researcher": coo.agent_id },
             stepPipeline: ["plan", "assign"],
         });
         // Manually set one step to completed, one to ready (but not runnable or something)

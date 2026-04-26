@@ -113,7 +113,7 @@ async function setEnvelopeStatus(envelopeId, status) {
         .update({ status, updated_at: new Date().toISOString() });
 }
 // ─── Trace Operations ─────────────────────────────────────────────────────────
-async function addTrace(envelopeId, stepId, agentId, identityFingerprint, eventType, userId, metadata) {
+async function addTrace(envelopeId, stepId, agentId, identityFingerprint, eventType, userId, metadata, message) {
     const traceId = (0, hash_1.generateTraceId)(eventType);
     const trace = {
         trace_id: traceId,
@@ -123,6 +123,7 @@ async function addTrace(envelopeId, stepId, agentId, identityFingerprint, eventT
         identity_fingerprint: identityFingerprint,
         event_type: eventType,
         user_id: userId,
+        message,
         timestamp: new Date().toISOString(),
         metadata: metadata ?? {},
     };

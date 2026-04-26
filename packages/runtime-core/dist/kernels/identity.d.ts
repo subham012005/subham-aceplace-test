@@ -37,6 +37,7 @@ export declare function registerAgentIdentity(params: {
     org_id: string;
     agent_id?: string;
     tier?: string;
+    acelogic_id?: string;
 }): Promise<{
     agent_id: string;
     identity_fingerprint: string;

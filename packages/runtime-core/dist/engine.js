@@ -148,7 +148,7 @@ async function dispatch(params) {
         // ── Step 2: Build Envelope ────────────────────────────────────────────────
         const envelope = (0, envelope_builder_1.buildEnvelope)({
             envelopeId: suggestedEnvId,
-            orgId: params.orgId ?? "default",
+            orgId: params.orgId || params.userId,
             jobId: params.jobId,
             userId: params.userId,
             prompt: params.prompt,

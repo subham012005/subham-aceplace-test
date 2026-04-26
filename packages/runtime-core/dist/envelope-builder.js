@@ -79,7 +79,7 @@ function buildEnvelope(params) {
     }
     return {
         envelope_id: envelopeId,
-        org_id: params.orgId ?? "default",
+        org_id: params.orgId ?? params.userId ?? "default",
         status: "created",
         // Steps EMBEDDED (not external collection)
         steps,

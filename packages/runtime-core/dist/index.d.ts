@@ -6,7 +6,7 @@
  */
 export { transition, canTransition } from "./state-machine";
 export { verifyIdentity, verifyIdentityForAgent, buildIdentityContext, computeFingerprint, registerAgentIdentity, } from "./kernels/identity";
-export { getDb } from "./db";
+export { getDb, setDb } from "./db";
 export { createEnvelope, getEnvelope, updateEnvelope, updateEnvelopeStep, getEnvelopeStep, getNextReadyStep, addTrace, createArtifact, linkJobToEnvelope, syncJobStatus, getJob, enqueueEnvelope, } from "./kernels/persistence";
 export { claimNextEnvelope, requeueEnvelope, finalizeQueueEntry, } from "./kernels/queue";
 export { setAgentSecrets, getAgentSecrets, listSecretNames, removeAgentSecret, } from "./kernels/secrets";
@@ -29,6 +29,6 @@ export { assertEnvelopeNotTerminal, assertAgentIdentityContext, assertAgentLease
 export { resolveAssignedAgentId } from "./runtime/resolution";
 export { executeFallbackStep } from "./llm-fallback";
 export * from "./types";
-export * from "./constants";
+export { COLLECTIONS, STALE_CLAIM_THRESHOLD_MS, ENVELOPE_STATUS_TRANSITIONS, STEP_STATUS_TRANSITIONS, STEP_TYPE_CONFIG, DEFAULT_STEP_PIPELINE, ALLOWED_PROTOCOL_VERBS, PROTOCOL_VERB_LABELS, DEFAULT_LEASE_DURATION_SECONDS, MAX_LEASE_DURATION_SECONDS, STEP_EXECUTION_MIN_WINDOW_MS, ENVELOPE_STATUS_DISPLAY, STEP_STATUS_DISPLAY, TIER_DEFINITIONS } from "./constants";
 export type { LicenseManifest } from "./acelogic/types";
 //# sourceMappingURL=index.d.ts.map

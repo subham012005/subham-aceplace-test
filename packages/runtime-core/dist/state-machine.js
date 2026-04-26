@@ -24,7 +24,12 @@ async function transition(envelopeId, newStatus, metadata) {
     const ref = db.collection(constants_1.COLLECTIONS.EXECUTION_ENVELOPES).doc(envelopeId);
     const now = new Date().toISOString();
     let traceAgentId = metadata?.agent_id || "runtime_worker";
-    let traceFingerprint = "0000000000000000000000000000000000000000000000000000000000000000";
+    // Use a deterministic hash for system entities instead of hardcoded zeros
+    const systemFp = (id) => {
+        const { createHash } = require("crypto");
+        return createHash("sha256").update(id, "utf8").digest("hex");
+    };
+    let traceFingerprint = systemFp(traceAgentId);
     await db.runTransaction(async (tx) => {
         const snap = await tx.get(ref);
         if (!snap.exists)
@@ -52,13 +57,23 @@ async function transition(envelopeId, newStatus, metadata) {
             throw new Error(`[StateMachine] Illegal transition: ${currentStatus} → ${newStatus}. ` +
                 `Allowed from ${currentStatus}: [${allowed.join(", ")}]`);
         }
-        tx.update(ref, { status: newStatus, updated_at: now });
+        const updates = { status: newStatus, updated_at: now };
+        const failureReason = (metadata?.error || metadata?.reason);
+        if (newStatus === "failed" && failureReason) {
+            updates.failure_reason = failureReason;
+        }
+        tx.update(ref, updates);
         // Sync legacy jobs collection if job_id is present
         if (envelope.job_id) {
             const jobRef = db.collection(constants_1.COLLECTIONS.JOBS).doc(envelope.job_id);
-            const jobUpdate = { status: newStatus, updated_at: now };
-            if (newStatus === "failed" && metadata?.reason) {
-                jobUpdate.failure_reason = String(metadata.reason);
+            const jobUpdate = {
+                status: newStatus,
+                updated_at: now,
+                identity_id: traceFingerprint, // Sync for UI compatibility
+                identity_fingerprint: traceFingerprint // Native field
+            };
+            if (newStatus === "failed" && failureReason) {
+                jobUpdate.failure_reason = failureReason;
             }
             tx.set(jobRef, jobUpdate, { merge: true });
         }

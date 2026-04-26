@@ -183,8 +183,9 @@ export async function registerAgentIdentity(params: {
   org_id: string;
   agent_id?: string;
   tier?: string;
+  acelogic_id?: string;
 }): Promise<{ agent_id: string; identity_fingerprint: string }> {
-  const { display_name, role, mission, org_id, tier = "builder" } = params;
+  const { display_name, role, mission, org_id, tier = "builder", acelogic_id } = params;
 
   // 1. Generate or validate agent_id
   const slug = display_name.toLowerCase().replace(/[^a-z0-9]/g, "_").slice(0, 32);
@@ -206,7 +207,7 @@ export async function registerAgentIdentity(params: {
   const identity_fingerprint = computeFingerprint(canonical_identity_json);
 
   // 4. Persist to Firestore
-  const agentData: AgentIdentity = {
+  const agentData: AgentIdentity & { acelogic_id?: string } = {
     agent_id,
     display_name,
     canonical_identity_json,
@@ -218,6 +219,7 @@ export async function registerAgentIdentity(params: {
     tier: (tier as unknown) as number, // Compat with existing schema
     created_at: new Date().toISOString(),
     last_verified_at: new Date().toISOString(),
+    ...(acelogic_id ? { acelogic_id } : {}),
   };
 
   await getDb()

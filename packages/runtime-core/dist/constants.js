@@ -29,7 +29,7 @@ exports.COLLECTIONS = {
     AGENT_METRICS: "agent_metrics",
     SECRETS: "secrets",
     // AUDIT FIX P1#5: Previously undocumented collections — now first-class constants.
-    EXECUTION_QUEUE: "execution_queue_local", // runtime-worker polling queue (written by web, read by worker)
+    EXECUTION_QUEUE: "execution_queue", // runtime-worker polling queue (written by web, read by worker)
     API_KEYS: "api_keys", // service-level API key store (auth for runtime routes)
 };
 // ─── Envelope Status State Machine ────────────────────────────────────────────
