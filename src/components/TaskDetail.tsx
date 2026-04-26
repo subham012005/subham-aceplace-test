@@ -442,9 +442,9 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-1">
                                             <p className="text-[8px] uppercase font-black tracking-widest text-slate-500 flex items-center gap-1">
-                                                <FingerprintIcon className="w-2 h-2" /> Identity ID
+                                                <FingerprintIcon className="w-2 h-2" /> Agent Fingerprint
                                             </p>
-                                            <p className="text-xs font-mono text-white">{typeof displayJob.identity_id === 'object' ? JSON.stringify(displayJob.identity_id) : String(displayJob.identity_id || "LEGACY_IDENTITY")}</p>
+                                            <p className="text-xs font-mono text-purple-400 font-bold">{(() => { const raw = displayJob.identity_fingerprint || displayJob.identity_id; if (!raw) return "PENDING_REGISTRATION"; return "0x" + String(raw).replace(/^hex:0x|^0x|^hex:/i, ''); })()}</p>
                                         </div>
                                         <div className="space-y-1">
                                             <p className="text-[8px] uppercase font-black tracking-widest text-slate-500 flex items-center gap-1">

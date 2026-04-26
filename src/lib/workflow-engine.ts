@@ -81,6 +81,12 @@ function hexFormat(value: string | null | undefined): string | null {
     return `hex:0x${raw}`;
 }
 
+/** Strip all hex prefixes ("hex:", "0x") and lowercase — for prefix-agnostic comparison. */
+function normalizeFingerprint(value: string | null | undefined): string {
+    if (!value) return "";
+    return String(value).trim().replace(/^hex:/i, "").replace(/^0x/i, "").toLowerCase();
+}
+
 function ensureDb() {
     if (!adminDb) {
         throw new Error("ADMIN_NOT_INITIALIZED: Firebase Admin SDK is not configured.");
@@ -135,6 +141,7 @@ export const workflowEngine = {
             requested_identity_fingerprint: identity_fingerprint,
             assigned_agent_id: agent_id,
             assigned_instance_id: instance_id,
+            identity_id: identity_fingerprint,
             identity_fingerprint,
             status: "queued",
             retry_count: 0,
@@ -424,6 +431,7 @@ export const workflowEngine = {
         let updates: any = {
             status: "queued",
             quarantine_reason: null,
+            failure_reason: null,                 // Clear stale error messages
             restore_type: restoreType,           // tells Python engine: resume vs restart
             resurrection_count: currentCount + 1, // track how many times restored
             resurrected_at: now,
@@ -832,7 +840,10 @@ export const workflowEngine = {
 
         const recomputedFingerprint = "hex:0x" + sha256(canonicalJsonString);
         const storedFingerprint = String(agent.identity_fingerprint).trim();
-        const identity_verified = recomputedFingerprint === storedFingerprint;
+        // Normalize both sides before comparing to handle legacy agents stored
+        // without the "hex:0x" prefix (raw SHA-256 hex) and new agents that have it.
+        const identity_verified =
+            normalizeFingerprint(recomputedFingerprint) === normalizeFingerprint(storedFingerprint);
 
         return {
             agent_id,
@@ -843,4 +854,137 @@ export const workflowEngine = {
             checked_at: new Date().toISOString(),
         };
     },
+
+    // ─── Approve Fallback ─────────────────────
+    async approveFallback(params: { jobId: string; userId?: string }) {
+        const db = ensureDb();
+        const now = new Date().toISOString();
+
+        const jobRef = db.collection("jobs").doc(params.jobId);
+        const jobDoc = await jobRef.get();
+        if (!jobDoc.exists) throw new Error("JOB_NOT_FOUND");
+        const jobData = jobDoc.data()!;
+
+        const envId = jobData.envelope_id || jobData.execution_id;
+        if (!envId) throw new Error("ENVELOPE_NOT_FOUND");
+
+        const envRef = db.collection("execution_envelopes").doc(envId);
+        const envDoc = await envRef.get();
+        if (!envDoc.exists) throw new Error("ENVELOPE_NOT_FOUND");
+        const envData = envDoc.data()!;
+
+        const fallbackMetadata = envData.fallback_metadata;
+        if (!fallbackMetadata) throw new Error("NO_FALLBACK_PENDING");
+
+        const stepId = fallbackMetadata.step_id;
+
+        // 1. Update the step to 'ready' and mark as 'fallback_approved'
+        const updatedSteps = (envData.steps || []).map((s: any) => {
+            if (s.step_id === stepId) {
+                return { 
+                    ...s, 
+                    status: "ready", 
+                    claimed_by_instance_id: null, 
+                    claimed_at: null,
+                    metadata: { ...(s.metadata || {}), fallback_approved: true }
+                };
+            }
+            return s;
+        });
+
+        // 2. Resume the envelope
+        await envRef.update({
+            status: "executing",
+            steps: updatedSteps,
+            fallback_suggested: false,
+            fallback_metadata: null,
+            failure_reason: null, // Clear failure reason
+            updated_at: now,
+        });
+
+        // 3. Reset job status so UI updates
+        await jobRef.update({
+            status: "executing",
+            error: null,          // Clear low-level error
+            failure_reason: null, // Clear human-readable error
+            updated_at: now,
+        });
+
+        // 4. Reset queue entry so a worker can pick it up immediately
+        await db.collection("execution_queue").doc(envId).update({
+            status: "queued",
+            claimed_by: null,
+            claimed_at: null,
+            updated_at: now,
+        }).catch(async (err) => {
+            // If the queue doc doesn't exist for some reason, create it
+            if (err.code === 'not-found' || err.message?.includes('no document to update')) {
+                await db.collection("execution_queue").doc(envId).set({
+                    envelope_id: envId,
+                    status: "queued",
+                    updated_at: now,
+                });
+            }
+        });
+
+        // 5. Trace the approval
+        await db.collection("execution_traces").add({
+            envelope_id: envId,
+            step_id: stepId,
+            event_type: "FALLBACK_APPROVED",
+            message: `Operator approved fallback to ${fallbackMetadata.suggested_action}.`,
+            timestamp: now,
+        });
+
+        return { success: true };
+    },
+
+    // ─── Reject Fallback ──────────────────────
+    async rejectFallback(params: { jobId: string; userId?: string; reason?: string }) {
+        const db = ensureDb();
+        const now = new Date().toISOString();
+
+        const jobRef = db.collection("jobs").doc(params.jobId);
+        const jobDoc = await jobRef.get();
+        if (!jobDoc.exists) throw new Error("JOB_NOT_FOUND");
+        const jobData = jobDoc.data()!;
+
+        const envId = jobData.envelope_id || jobData.execution_id;
+        if (!envId) throw new Error("ENVELOPE_NOT_FOUND");
+
+        const envRef = db.collection("execution_envelopes").doc(envId);
+        const envDoc = await envRef.get();
+        if (!envDoc.exists) throw new Error("ENVELOPE_NOT_FOUND");
+        const envData = envDoc.data()!;
+
+        const fallbackMetadata = envData.fallback_metadata;
+        const stepId = fallbackMetadata?.step_id;
+
+        // 1. Mark envelope as failed
+        await envRef.update({
+            status: "failed",
+            fallback_suggested: false,
+            fallback_metadata: null,
+            failure_reason: params.reason || "Fallback rejected by operator.",
+            updated_at: now,
+        });
+
+        // 2. Update job
+        await jobRef.update({
+            status: "failed",
+            error: params.reason || "Fallback rejected by operator.",
+            updated_at: now,
+        });
+
+        // 3. Trace
+        await db.collection("execution_traces").add({
+            envelope_id: envId,
+            step_id: stepId || "",
+            event_type: "FALLBACK_REJECTED",
+            message: `Operator rejected fallback. Task failed.`,
+            timestamp: now,
+        });
+
+        return { success: true };
+    }
 };

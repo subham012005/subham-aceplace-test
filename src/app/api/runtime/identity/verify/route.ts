@@ -47,7 +47,10 @@ export async function POST(req: Request) {
       }
       const agentData = agentDoc.data() as any;
       const recomputed = computeFingerprint(agentData.canonical_identity_json);
-      const verified = recomputed === fingerprint;
+      // Normalize both sides: strip "hex:" and "0x" prefixes, lowercase.
+      // Handles legacy agents stored as raw SHA-256 hex AND new agents with "hex:0x" prefix.
+      const normFp = (v: string) => v.trim().replace(/^hex:/i, "").replace(/^0x/i, "").toLowerCase();
+      const verified = normFp(recomputed) === normFp(fingerprint);
       
       console.log(`[IDENTITY_VERIFY] Global Check: agent=${agentId}, recomputed=${recomputed}, received=${fingerprint}, match=${verified}`);
       

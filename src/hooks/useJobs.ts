@@ -83,6 +83,8 @@ export interface Job {
     resurrected_at?: string;
     // Agent pipeline fields
     grade_score?: number;
+    grade_label?: string;
+    grade_recommendation?: string;
     pass_fail?: string;
     output?: any[];
     // Fork Protection

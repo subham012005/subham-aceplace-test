@@ -42,9 +42,13 @@ export function AgentIdentityMini({ agentId }: AgentIdentityMiniProps) {
   }
 
   const isVerified = !!identity.last_verified_at;
-  const shortFp = identity.fingerprint
-    ? identity.fingerprint.slice(0, 8) + "…"
-    : "—";
+
+  // Normalize stored `hex:0x<hash>` → display as `0x<hash>`
+  const normalizeFp = (fp: string | null | undefined) =>
+    fp ? "0x" + fp.replace(/^hex:0x|^0x|^hex:/i, "") : null;
+
+  const normalizedFp = normalizeFp(identity.fingerprint);
+  const shortFp = normalizedFp ? normalizedFp.slice(0, 10) + "…" : "—";
   const shortId = identity.acelogic_id
     ? identity.acelogic_id.slice(0, 14) + "…"
     : "—";
@@ -79,7 +83,7 @@ export function AgentIdentityMini({ agentId }: AgentIdentityMiniProps) {
       </div>
 
       {/* Fingerprint */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1" title={normalizedFp || undefined}>
         <Fingerprint className="w-2 h-2 text-purple-400/60 shrink-0" />
         <span className="text-[7px] font-mono text-purple-400/80 truncate">
           {shortFp}

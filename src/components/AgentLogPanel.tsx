@@ -4,7 +4,7 @@ import React from "react";
 import { 
   Activity, CheckCircle2, XCircle, Clock, Cpu, Search, 
   GraduationCap, Zap, ShieldCheck, Key, AlertTriangle, Terminal,
-  Fingerprint
+  Fingerprint, RefreshCw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { UnifiedLogEntry } from "@/hooks/useAgentLogs";
@@ -72,6 +72,7 @@ const EVENT_CONFIG: Record<string, {
   PREFLIGHT_FAILED: { icon: XCircle, color: "text-red-500", label: "Preflight Failed" },
   STATUS_TRANSITION_COMPLETED: { icon: CheckCircle2, color: "text-emerald-500", label: "Finalized" },
   STATUS_TRANSITION_QUARANTINED: { icon: AlertTriangle, color: "text-orange-500", label: "Quarantined" },
+  LLM_FALLBACK: { icon: RefreshCw, color: "text-amber-500", label: "LLM Fallback" },
 };
 
 function formatDuration(ms: number): string {
@@ -145,7 +146,7 @@ export function AgentLogPanel({ logs, loading, jobId, envelopeId, agentId, class
                 <Fingerprint className="w-3 h-3 text-slate-500" />
               </div>
               <span className="text-[10px] font-mono text-slate-400 break-all leading-tight">
-                {agentId || "0x0000000000000000000000000000000000000000000000000000000000000000"}
+                {agentId ? "0x" + agentId.replace(/^hex:0x|^0x|^hex:/i, '') : "PENDING_REGISTRATION"}
               </span>
             </div>
           </div>
@@ -262,7 +263,7 @@ export function AgentLogPanel({ logs, loading, jobId, envelopeId, agentId, class
                 {log.agent_id && (
                   <div className="flex items-center gap-1 bg-white/5 border border-white/10 px-1.5 py-0.5 rounded-[2px] ml-auto" title={`Agent ID: ${log.agent_id}`}>
                     <Fingerprint className="w-2.5 h-2.5 text-slate-600" />
-                    <span className="text-[8px] font-mono text-slate-500 break-all">{log.agent_id}</span>
+                    <span className="text-[8px] font-mono text-slate-500 break-all">{"0x" + String(log.agent_id).replace(/^hex:0x|^0x|^hex:/i, '')}</span>
                   </div>
                 )}
               </div>

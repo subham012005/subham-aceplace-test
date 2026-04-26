@@ -275,7 +275,10 @@ async function executeClaimedStep(params: {
     });
 
     // Deterministic state machine transition
-    if (msg.includes("AGENT_NOT_FOUND") || msg.includes("IDENTITY_FAILED") || msg.includes("IDENTITY_CONTEXT_MISSING") || msg.includes("LEASE_")) {
+    if (msg.includes("PAUSED_FOR_FALLBACK_APPROVAL")) {
+      // Logic already handled the transition to awaiting_human in us-message-engine
+      console.log(`[RUNTIME] Execution paused for fallback approval for step ${step.step_id}`);
+    } else if (msg.includes("AGENT_NOT_FOUND") || msg.includes("IDENTITY_FAILED") || msg.includes("IDENTITY_CONTEXT_MISSING") || msg.includes("LEASE_")) {
       await transition(envelope_id, "quarantined", {
         reason: msg,
         step_id: step.step_id,
@@ -577,6 +580,7 @@ export async function runEnvelopeParallel(params: {
                     if (content && typeof content === "object") {
                       await getDb().collection(COLLECTIONS.JOBS).doc(envelope.job_id).set({
                         grading_result: content,
+                        failure_reason: null, // Clear stale errors upon success
                         updated_at: new Date().toISOString(),
                       }, { merge: true });
                     }
@@ -674,6 +678,11 @@ export async function runEnvelopeParallel(params: {
       // AUDIT FIX P0#4: FORK_DETECTED must flow through state machine — not raw crash.
       // per-agent-authority now throws this as a pure domain error.
       // We catch it here and perform the canonical quarantine transition.
+      if ((err as Error)?.message === "PAUSED_FOR_FALLBACK_APPROVAL") {
+        console.log(`[RUNTIME] Execution paused for step ${step.step_id} to await fallback approval.`);
+        return; // Suggestion logic already updated envelope status to awaiting_human
+      }
+
       if ((err as Error)?.message === "FORK_DETECTED") {
         console.warn(`[RUNTIME] FORK_DETECTED for step ${step.step_id} — quarantining envelope ${envelope_id}`);
         try {
