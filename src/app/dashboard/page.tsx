@@ -470,10 +470,11 @@ export default function DashboardPage() {
     React.useEffect(() => {
         if (!jobs || jobs.length === 0 || isJobsSyncing) return;
 
-        const top5 = jobs.slice(0, 5);
+        // Auto-fetch details for all visible jobs to ensure scores are sync'd
+        const visibleJobs = jobs.slice(0, 20);
 
         // Fetch immediately if they haven't been viewed
-        top5.forEach(job => {
+        visibleJobs.forEach(job => {
             const id = job.job_id || job.id;
             if (!viewedJobIds.has(id) && !fetchingJobIdsRef.current.has(id)) {
                 // Mark as fetching immediately
@@ -999,23 +1000,39 @@ export default function DashboardPage() {
                                                     let rtGr = job?.runtime_context?.grading_result;
                                                     if (typeof rtGr === 'string') { try { rtGr = JSON.parse(rtGr); } catch { rtGr = null; } }
 
-                                                    const govScoreRaw = gr?.overall_score ??
-                                                        rtGr?.overall_score ??
+                                                    // Also check grader step artifacts embedded in job.steps[]
+                                                    let stepGr: any = null;
+                                                    const steps: any[] = (job as any)?.steps ?? [];
+                                                    const graderStep = steps.find((s: any) => s?.step_type === 'evaluation' && s?.status === 'completed');
+                                                    if (graderStep?.output_ref) {
+                                                        // output_ref is an artifact ID — content not inline, skip
+                                                    }
+                                                    // Check grading_result inside steps output if available inline
+                                                    if (graderStep?.result) {
+                                                        stepGr = typeof graderStep.result === 'string' ? (() => { try { return JSON.parse(graderStep.result); } catch { return null; } })() : graderStep.result;
+                                                    }
+
+                                                    const govScoreRaw = job?.grade_score ??
+                                                        gr?.overall_score ??
                                                         gr?.score ??
+                                                        gr?.value ??
+                                                        rtGr?.overall_score ??
                                                         rtGr?.score ??
+                                                        rtGr?.value ??
+                                                        stepGr?.overall_score ??
+                                                        stepGr?.score ??
                                                         gr?.compliance_score ??
                                                         job?.compliance_score ??
-                                                        job?.grade_score ??
                                                         job?.grader_params?.score;
 
                                                     if (govScoreRaw === undefined || govScoreRaw === null) {
                                                         return <span className="text-[10px] text-slate-700 italic font-bold">--</span>;
                                                     }
 
-                                                    let score = typeof govScoreRaw === 'object' ? (govScoreRaw.value || 0) : Number(govScoreRaw);
+                                                    let score = typeof govScoreRaw === 'object' ? ((govScoreRaw as any).value || 0) : Number(govScoreRaw);
                                                     if (score <= 10 && score > 0) score = score * 10;
 
-                                                    const gradeLabel = gr?.grade || (score >= 90 ? "A" : score >= 80 ? "B" : score >= 70 ? "C" : score >= 60 ? "D" : "F");
+                                                    const gradeLabel = job?.grade_label || gr?.grade || stepGr?.grade || (score >= 90 ? "A" : score >= 80 ? "B" : score >= 70 ? "C" : score >= 60 ? "D" : "F");
 
                                                     return (
                                                         <span className={cn(
