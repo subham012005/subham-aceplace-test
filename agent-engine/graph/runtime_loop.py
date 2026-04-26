@@ -87,6 +87,9 @@ def run_envelope(envelope_id: str, instance_id: str) -> None:
     _safe_transition(envelope_id, "executing")
 
     # ── Main Step Loop ─────────────────────────────────────────────────────────
+    # Track grader output across iterations so it can be included in the final sync
+    _grader_score_cache: dict = {}
+
     while True:
         # Re-fetch for latest state
         envelope = get_envelope(envelope_id)
@@ -126,16 +129,20 @@ def run_envelope(envelope_id: str, instance_id: str) -> None:
                     job_id = envelope.get("job_id")
                     if job_id:
                         from services.firestore import sync_job_with_envelope
+                        final_extra: dict = {
+                            "active_stage": "GOVERNANCE" if not any_failed else "FAILED",
+                            "checkpoint_at": __import__("datetime").datetime.now(
+                                __import__("datetime").timezone.utc
+                            ).isoformat(),
+                        }
+                        # Always carry grader score forward into the final sync
+                        if _grader_score_cache:
+                            final_extra.update(_grader_score_cache)
                         sync_job_with_envelope(
                             job_id=job_id,
                             status="awaiting_approval" if not any_failed else "failed",
                             envelope_id=envelope_id,
-                            extra={
-                                "active_stage": "GOVERNANCE" if not any_failed else "FAILED",
-                                "checkpoint_at": __import__("datetime").datetime.now(
-                                    __import__("datetime").timezone.utc
-                                ).isoformat(),
-                            },
+                            extra=final_extra,
                         )
                 break
 
@@ -277,10 +284,22 @@ def run_envelope(envelope_id: str, instance_id: str) -> None:
                 try:
                     import json
                     parsed_out = json.loads(output_content) if isinstance(output_content, str) else output_content
+                    grade_score_val = None
                     if "overall_score" in parsed_out:
-                        extra["grade_score"] = parsed_out["overall_score"]
+                        grade_score_val = parsed_out["overall_score"]
                     elif "score" in parsed_out:
-                        extra["grade_score"] = parsed_out["score"]
+                        grade_score_val = parsed_out["score"]
+                    if grade_score_val is not None:
+                        extra["grade_score"] = grade_score_val
+                        extra["grading_result"] = json.dumps(parsed_out) if not isinstance(output_content, str) else output_content
+                        # Cache so the final awaiting_approval sync also gets the score
+                        _grader_score_cache["grade_score"] = grade_score_val
+                        _grader_score_cache["grading_result"] = extra["grading_result"]
+                        _grader_score_cache["grade_label"] = parsed_out.get("grade", "")
+                        _grader_score_cache["grade_recommendation"] = parsed_out.get("recommendation", "")
+                        _grader_score_cache["graded_at"] = __import__("datetime").datetime.now(
+                            __import__("datetime").timezone.utc
+                        ).isoformat()
                 except Exception:
                     pass
 
