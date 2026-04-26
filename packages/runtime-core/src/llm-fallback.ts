@@ -372,10 +372,32 @@ async function callOpenAI(params: {
   };
 }
 
-// ── Provider Fallback Helper ─────────────────────────────────────────────────
-// Tries Anthropic first; on ANY error automatically retries with the mapped
-// OpenAI model. This ensures Anthropic quota/rate-limit errors never surface
-// as hard job failures when an OpenAI key is available.
+/**
+ * Log an LLM fallback event to execution_traces for UI display.
+ */
+async function logFallbackTrace(params: {
+  envelopeId: string;
+  agentId: string;
+  agentLabel: string;
+  message: string;
+  metadata?: any;
+}) {
+  try {
+    const traceId = `trc_fallback_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    await getDb().collection(COLLECTIONS.EXECUTION_TRACES).doc(traceId).set({
+      trace_id: traceId,
+      envelope_id: params.envelopeId,
+      agent_id: params.agentId || "system",
+      agent_role: params.agentLabel.toLowerCase(),
+      event_type: "LLM_FALLBACK",
+      message: params.message,
+      timestamp: new Date().toISOString(),
+      metadata: params.metadata || {},
+    });
+  } catch (e) {
+    console.warn(`[FALLBACK] Failed to log trace: ${(e as Error).message}`);
+  }
+}
 
 async function callWithAnthropicFallback(params: {
   model: string;
@@ -386,44 +408,45 @@ async function callWithAnthropicFallback(params: {
   agentLabel: string;
   apiKey?: string;
   fallbackApiKey?: string;
+  envelopeId?: string;
+  agentId?: string;
+  fallbackApproved?: boolean;
 }): Promise<LLMCallResult> {
   try {
     return await callAnthropic(params);
   } catch (primaryErr) {
     const primaryMsg = (primaryErr as Error).message;
-    // Only attempt OpenAI fallback if a key is actually available.
-    // If not, re-throw the real Anthropic error instead of a misleading
-    // "OpenAI key is not set" error that confuses the user.
-    const effectiveFallbackKey = params.fallbackApiKey || process.env.OPENAI_API_KEY;
-    console.log(`[LLM-DEBUG] Anthropic failed. Fallback Key Presence: params=${!!params.fallbackApiKey}, env=${!!process.env.OPENAI_API_KEY}, effective=${!!effectiveFallbackKey}`);
     
-    if (!effectiveFallbackKey) {
-      throw new Error(
-        `[${params.agentLabel}] Anthropic API call failed for model '${params.model}': ${primaryMsg}. ` +
-        `No OpenAI fallback key is configured for this role. ` +
-        `Check your Claude API key / model name in Settings > Intelligence Providers.`
-      );
-    }
-    const fallbackModel = ANTHROPIC_TO_OPENAI_FALLBACK[params.model] ?? "gpt-4o";
-
-    // SPECIAL CASE: If Anthropic returns 404 (model not found), it likely means 
-    // the account only has access to Haiku. Try one more time with Haiku before 
-    // switching to OpenAI.
+    // 1. Try internal Anthropic retry (Haiku) if it's a 404
     if (primaryMsg.includes("not_found_error") || primaryMsg.includes("404") || primaryMsg.includes("model_not_found")) {
       if (params.model !== "claude-3-5-haiku-latest") {
-        console.warn(`[FALLBACK:${params.agentLabel}] Anthropic model '${params.model}' not found (404). Retrying with 'claude-3-5-haiku-latest' before giving up...`);
+        if (!params.fallbackApproved) {
+          throw new Error(`LLM_FALLBACK_REQUIRED:model_switch:claude-3-5-haiku-latest:${primaryMsg}`);
+        }
+        console.warn(`[FALLBACK:${params.agentLabel}] Primary model failed. Trying approved Haiku fallback...`);
         try {
           return await callAnthropic({ ...params, model: "claude-3-5-haiku-latest" });
         } catch (haikuErr) {
-          console.warn(`[FALLBACK:${params.agentLabel}] Haiku fallback also failed: ${(haikuErr as Error).message}`);
+          console.warn(`[FALLBACK:${params.agentLabel}] Haiku also failed.`);
+          // Continue to OpenAI fallback below
         }
       }
     }
 
-    console.warn(
-      `[FALLBACK:${params.agentLabel}] Anthropic (${params.model}) failed — ` +
-      `switching to OpenAI (${fallbackModel}): ${primaryMsg}`
-    );
+    // 2. Cross-provider fallback to OpenAI
+    const effectiveFallbackKey = params.fallbackApiKey || process.env.OPENAI_API_KEY;
+    const fallbackModel = ANTHROPIC_TO_OPENAI_FALLBACK[params.model] ?? "gpt-4o";
+
+    if (!params.fallbackApproved) {
+      // STOP and signal for approval
+      throw new Error(`LLM_FALLBACK_REQUIRED:model_switch:${fallbackModel}:${primaryMsg}`);
+    }
+
+    if (!effectiveFallbackKey) {
+        throw new Error(`[${params.agentLabel}] Anthropic failed: ${primaryMsg}. No OpenAI fallback key available.`);
+    }
+
+    console.warn(`[FALLBACK:${params.agentLabel}] Using approved OpenAI fallback (${fallbackModel})`);
     return await callOpenAI({
       model: fallbackModel,
       systemPrompt: params.systemPrompt,
@@ -479,7 +502,7 @@ async function loadArtifactContent(artifactId: string): Promise<string> {
 
 // ── Node Implementations ─────────────────────────────────────────────────────
 
-async function executeCOO(prompt: string, envelopeId: string, agentId: string, fingerprint: string, orgId?: string): Promise<{ artifactId: string; usage: LLMUsage }> {
+async function executeCOO(prompt: string, envelopeId: string, agentId: string, fingerprint: string, orgId?: string, fallbackApproved?: boolean): Promise<{ artifactId: string; usage: LLMUsage }> {
   let cfg: ResolvedConfig;
   if (orgId) {
       cfg = await resolveOrgLLMConfig(orgId, "coo");
@@ -511,7 +534,10 @@ async function executeCOO(prompt: string, envelopeId: string, agentId: string, f
           maxTokens: cfg.maxTokens,
           agentLabel: "COO",
           apiKey: cfg.apiKey,
-          fallbackApiKey: cooFallbackKey
+          fallbackApiKey: cooFallbackKey,
+          envelopeId,
+          agentId,
+          fallbackApproved
       });
   }
 
@@ -527,7 +553,7 @@ async function executeCOO(prompt: string, envelopeId: string, agentId: string, f
 }
 
 async function executeResearcher(
-  prompt: string, inputRef: string | null, envelopeId: string, agentId: string, fingerprint: string, orgId?: string
+  prompt: string, inputRef: string | null, envelopeId: string, agentId: string, fingerprint: string, orgId?: string, fallbackApproved?: boolean
 ): Promise<{ artifactId: string; usage: LLMUsage }> {
   let cfg: ResolvedConfig;
   if (orgId) {
@@ -568,7 +594,10 @@ async function executeResearcher(
         maxTokens: cfg.maxTokens,
         agentLabel: "Researcher",
         apiKey: cfg.apiKey,
-        fallbackApiKey: researcherFallbackKey
+        fallbackApiKey: researcherFallbackKey,
+        envelopeId,
+        agentId,
+        fallbackApproved
     });
   }
 
@@ -584,7 +613,7 @@ async function executeResearcher(
 }
 
 async function executeWorker(
-  prompt: string, inputRef: string | null, envelopeId: string, agentId: string, fingerprint: string, orgId?: string
+  prompt: string, inputRef: string | null, envelopeId: string, agentId: string, fingerprint: string, orgId?: string, fallbackApproved?: boolean
 ): Promise<{ artifactId: string; usage: LLMUsage }> {
   let cfg: ResolvedConfig;
   if (orgId) {
@@ -615,6 +644,11 @@ async function executeWorker(
       apiKey: cfg.apiKey
     });
   } else {
+      if (!fallbackApproved && cfg.provider === "anthropic") {
+          // If we are about to call Anthropic and it fails, callWithAnthropicFallback would normally 
+          // handle it, but executeWorker has its own internal catch block for some reason.
+          // Let's unify it or at least respect the flag.
+      }
       try {
         callResult = await callAnthropic({
           model: cfg.model,
@@ -625,14 +659,29 @@ async function executeWorker(
           apiKey: cfg.apiKey
         });
       } catch (err) {
-        console.warn(`[FALLBACK:Worker] Anthropic failed, trying OpenAI fallback:`, err);
+        const workerFallbackMsg = `[FALLBACK:Worker] Anthropic failed, trying OpenAI fallback: ${(err as Error).message}`;
+        console.warn(workerFallbackMsg);
+        
+        await logFallbackTrace({
+          envelopeId,
+          agentId,
+          agentLabel: "Worker",
+          message: workerFallbackMsg,
+          metadata: { error: (err as Error).message }
+        });
+
+        if (!fallbackApproved) {
+            throw new Error(`LLM_FALLBACK_REQUIRED:model_switch:gpt-4o:${(err as Error).message}`);
+        }
+
+        const workerFallbackKey = orgId ? await resolveOrgFallbackOpenAIKey(orgId) : process.env.OPENAI_API_KEY;
         callResult = await callOpenAI({
           model: "gpt-4o",
           systemPrompt: WORKER_SYSTEM_PROMPT,
           userMessage,
           temperature: cfg.temperature,
           maxTokens: cfg.maxTokens,
-          apiKey: orgId ? undefined : process.env.OPENAI_API_KEY
+          apiKey: workerFallbackKey
         });
       }
   }
@@ -649,7 +698,7 @@ async function executeWorker(
 }
 
 async function executeGrader(
-  prompt: string, inputRef: string | null, envelopeId: string, agentId: string, fingerprint: string, orgId?: string
+  prompt: string, inputRef: string | null, envelopeId: string, agentId: string, fingerprint: string, orgId?: string, fallbackApproved?: boolean
 ): Promise<{ artifactId: string; usage: LLMUsage }> {
   let cfg: ResolvedConfig;
   if (orgId) {
@@ -690,7 +739,10 @@ async function executeGrader(
         maxTokens: cfg.maxTokens,
         agentLabel: "Grader",
         apiKey: cfg.apiKey,
-        fallbackApiKey: graderFallbackKey
+        fallbackApiKey: graderFallbackKey,
+        envelopeId,
+        agentId,
+        fallbackApproved
     });
   }
 
@@ -716,26 +768,27 @@ export async function executeFallbackStep(params: {
   prompt: string;
   input_ref: string | null;
   org_id?: string;
+  fallback_approved?: boolean;
 }): Promise<{ success: boolean; artifact_id: string; usage: LLMUsage }> {
-  const { envelope_id, step_type, agent_id, prompt, input_ref, org_id } = params;
+  const { envelope_id, step_type, agent_id, prompt, input_ref, org_id, fallback_approved } = params;
   const fp = params.identity_fingerprint || "00000000";
 
   let result: { artifactId: string; usage: LLMUsage };
 
   switch (step_type) {
     case "plan":
-      result = await executeCOO(prompt, envelope_id, agent_id, fp, org_id);
+      result = await executeCOO(prompt, envelope_id, agent_id, fp, org_id, fallback_approved);
       break;
     case "assign":
-      result = await executeResearcher(prompt, input_ref, envelope_id, agent_id, fp, org_id);
+      result = await executeResearcher(prompt, input_ref, envelope_id, agent_id, fp, org_id, fallback_approved);
       break;
     case "artifact_produce":
     case "produce_artifact":
-      result = await executeWorker(prompt, input_ref, envelope_id, agent_id, fp, org_id);
+      result = await executeWorker(prompt, input_ref, envelope_id, agent_id, fp, org_id, fallback_approved);
       break;
     case "evaluate":
     case "evaluation":
-      result = await executeGrader(prompt, input_ref, envelope_id, agent_id, fp, org_id);
+      result = await executeGrader(prompt, input_ref, envelope_id, agent_id, fp, org_id, fallback_approved);
       break;
     default:
       throw new Error(`FALLBACK_UNSUPPORTED_STEP: ${step_type}`);

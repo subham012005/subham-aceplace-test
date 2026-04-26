@@ -692,9 +692,10 @@ export default function DashboardPage() {
                                     </div>
                                     <div className="flex flex-col min-w-0">
                                         <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-emerald-400 truncate">{job.prompt}</span>
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-[7px] uppercase font-bold text-slate-600 tracking-tighter italic">Status: {formatStatus(deriveHomeStatus(job))}</span>
-                                            <span className="text-[6px] font-mono text-slate-700 tracking-tighter">ID: {(job.job_id || job.id || "").slice(-6)}</span>
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="text-[7px] uppercase font-bold text-slate-600 tracking-tighter italic shrink-0">Status: {formatStatus(deriveHomeStatus(job))}</span>
+                                            <span className="text-[7px] font-mono text-purple-500/60 uppercase truncate">{(() => { const raw = job.identity_fingerprint || job.identity_id; if (!raw) return "PENDING_REGISTRATION"; return "0x" + String(raw).replace(/^hex:0x|^0x|^hex:/i, ""); })()}</span>
+                                            <span className="text-[6px] font-mono text-slate-700 tracking-tighter shrink-0">ID: {(job.job_id || job.id || "").slice(-6)}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -752,9 +753,10 @@ export default function DashboardPage() {
                                     </div>
                                     <div className="flex flex-col min-w-0">
                                         <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-cyan-400 truncate">{job.prompt}</span>
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-[7px] uppercase font-bold text-slate-600 tracking-tighter italic">Status: {formatStatus(deriveHomeStatus(job))}</span>
-                                            <span className="text-[6px] font-mono text-slate-700 tracking-tighter">ID: {(job.job_id || job.id || "").slice(-6)}</span>
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="text-[7px] uppercase font-bold text-slate-600 tracking-tighter italic shrink-0">Status: {formatStatus(deriveHomeStatus(job))}</span>
+                                            <span className="text-[7px] font-mono text-purple-500/60 uppercase truncate">{(() => { const raw = job.identity_fingerprint || job.identity_id; if (!raw) return "PENDING_REGISTRATION"; return "0x" + String(raw).replace(/^hex:0x|^0x|^hex:/i, ""); })()}</span>
+                                            <span className="text-[6px] font-mono text-slate-700 tracking-tighter shrink-0">ID: {(job.job_id || job.id || "").slice(-6)}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -940,6 +942,7 @@ export default function DashboardPage() {
                                         <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500">Task</th>
                                         <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500">Status</th>
                                         <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500 text-cyan-500/80">Grader Score</th>
+                                        <th className="py-2 text-[9px] uppercase font-black tracking-widest text-purple-500/80">Agent Fingerprint</th>
                                         <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500">Timestamp</th>
                                     </tr>
                                 </thead>
@@ -947,7 +950,7 @@ export default function DashboardPage() {
                                     {isJobsSyncing ? (
                                         Array.from({ length: 6 }).map((_, i) => (
                                             <tr key={i} className="border-b border-cyan-500/10 bg-cyan-950/5 relative overflow-hidden">
-                                                <td colSpan={7} className="p-0">
+                                                <td colSpan={8} className="p-0">
                                                     <div className="flex items-center px-4 py-3 gap-4">
                                                         <div className="w-12 h-2 bg-cyan-500/20 rounded animate-pulse" />
                                                         <div className="w-24 h-2 bg-cyan-500/20 rounded animate-pulse" />
@@ -1024,6 +1027,9 @@ export default function DashboardPage() {
                                                     );
                                                 })()}
                                             </td>
+                                            <td className="py-3 text-[9px] font-mono text-purple-400/70 tracking-tighter max-w-[100px] truncate" title={(() => { const raw = job.identity_fingerprint || job.identity_id; return raw ? "0x" + String(raw).replace(/^hex:0x|^0x|^hex:/i, '') : undefined; })()}>
+                                                {(() => { const raw = job.identity_fingerprint || job.identity_id; if (!raw) return <span className="text-slate-700 italic">PENDING_REGISTRATION</span>; return "0x" + String(raw).replace(/^hex:0x|^0x|^hex:/i, ''); })()}
+                                            </td>
                                             <td className="py-3 text-[9px] font-mono text-slate-500 italic">
                                                 {(() => {
                                                     const date = parseFirestoreDate(job.updated_at || job.created_at);
@@ -1033,7 +1039,7 @@ export default function DashboardPage() {
                                         </tr>
                                     )) : (
                                         <tr key="empty-logs">
-                                            <td colSpan={7} className="py-12 text-center text-[9px] uppercase font-black tracking-[0.3em] text-slate-600 italic">
+                                            <td colSpan={8} className="py-12 text-center text-[9px] uppercase font-black tracking-[0.3em] text-slate-600 italic">
                                                 Trace logs empty. Initialize dimensionality.
                                             </td>
                                         </tr>

@@ -194,6 +194,19 @@ export interface ExecutionEnvelope {
   user_id?: string;
   prompt?: string;
 
+  // ─── Fallback State Management ─────────────────────────────────────────────
+  /** If true, a failure occurred that can be recovered via LLM/Runtime fallback. */
+  fallback_suggested?: boolean;
+  /** Metadata describing the failed attempt and the proposed fallback. */
+  fallback_metadata?: {
+    reason: string;
+    original_error: string;
+    step_id: string;
+    suggested_action: "model_switch" | "runtime_switch";
+    target_model?: string;
+    agent_id?: string;
+  } | null;
+
   // ─── Phase 1 Backward-Compat (read-only UI display) ────────────────────────
   // These are optional nullable fields purely for UI components that haven't
   // been migrated yet. Never write to these from the runtime.
@@ -297,6 +310,7 @@ export interface ExecutionTrace {
   step_id?: string;
   artifact_id?: string;
   message_id?: string;
+  message?: string;
   metadata?: Record<string, unknown>;
 }
 

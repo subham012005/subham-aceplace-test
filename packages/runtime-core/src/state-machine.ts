@@ -28,7 +28,14 @@ export async function transition(
   const now = new Date().toISOString();
 
   let traceAgentId = (metadata?.agent_id as string) || "runtime_worker";
-  let traceFingerprint = "0000000000000000000000000000000000000000000000000000000000000000";
+  
+  // Use a deterministic hash for system entities instead of hardcoded zeros
+  const systemFp = (id: string) => {
+    const { createHash } = require("crypto");
+    return createHash("sha256").update(id, "utf8").digest("hex");
+  };
+
+  let traceFingerprint = systemFp(traceAgentId);
 
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
@@ -77,7 +84,12 @@ export async function transition(
     // Sync legacy jobs collection if job_id is present
     if (envelope.job_id) {
       const jobRef = db.collection(COLLECTIONS.JOBS).doc(envelope.job_id);
-      const jobUpdate: Record<string, unknown> = { status: newStatus, updated_at: now };
+      const jobUpdate: Record<string, unknown> = { 
+        status: newStatus, 
+        updated_at: now,
+        identity_id: traceFingerprint, // Sync for UI compatibility
+        identity_fingerprint: traceFingerprint // Native field
+      };
       if (newStatus === "failed" && failureReason) {
         jobUpdate.failure_reason = failureReason;
       }
