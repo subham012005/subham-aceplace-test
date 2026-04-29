@@ -7,7 +7,7 @@ import * as admin from "firebase-admin";
 function initializeAdmin() {
     if (admin.apps.length > 0) return true;
 
-    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT;
     const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
     const privateKey = process.env.FIREBASE_PRIVATE_KEY;
 
