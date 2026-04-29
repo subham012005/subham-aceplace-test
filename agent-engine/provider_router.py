@@ -25,15 +25,28 @@ def get_llm_config(org_id: str, role: str) -> dict:
         raise ValueError("BYO_LLM_ERROR: Missing org_id in envelope.")
 
     db = get_db()
-    # In ACEPLACE, configurations are stored in the 'jobs' collection with a prefix
-    # to bypass restrictive production rules during development.
-    doc_id = f"provider_config_{org_id}"
-    doc = db.collection("jobs").document(doc_id).get()
+    
+    print("\n" + "="*80)
+    print(f" [BYO-LLM ROUTER] RESOLVING FOR ROLE: {role.upper()}")
+    print(f" [BYO-LLM ROUTER] ORG ID: {org_id}")
+    print("="*80)
+
+    # Try canonical collection first
+    doc_ref = db.collection("org_intelligence_providers").document(org_id)
+    doc = doc_ref.get()
     
     if not doc.exists:
-        raise ValueError(f"BYO_LLM_ERROR: No intelligence provider config found for org {org_id} (Path: jobs/{doc_id}).")
+        # Fallback to the 'jobs' collection
+        doc_id = f"provider_config_{org_id}"
+        doc = db.collection("jobs").document(doc_id).get()
+    
+    if not doc.exists:
+        print(f"[ROUTER] Config MISSING for org {org_id}")
+        raise ValueError(f"BYO_LLM_ERROR: No intelligence provider config found for org {org_id}.")
 
     config = doc.to_dict()
+    # Redact config for logging
+    log_config = {k: v for k, v in config.items() if k != "providers"}
     providers = config.get("providers", {})
     agent_models = config.get("agent_models", {})
 
@@ -73,10 +86,23 @@ def get_llm_config(org_id: str, role: str) -> dict:
             "researcher": "gemini-1.5-pro",
             "worker": "gemini-1.5-flash",
             "grader": "gemini-1.5-flash"
+        },
+        "custom": {
+            "coo": "custom-model",
+            "researcher": "custom-model",
+            "worker": "custom-model",
+            "grader": "custom-model"
         }
     }
+    
+    # Prefer the explicit model chosen by the user for this provider
+    saved_model = p_config.get("model")
+    if saved_model and saved_model.strip():
+        model = saved_model.strip()
+    else:
+        model = MODEL_MAP.get(provider_key, {}).get(role, "unknown")
 
-    model = MODEL_MAP.get(provider_key, {}).get(role, "unknown")
+    print(f"[ROUTER] Resolved BYO-LLM: org={org_id} role={role} provider={provider_key} model={model}")
     
     return {
         "provider": provider_key,

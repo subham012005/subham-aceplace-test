@@ -119,6 +119,28 @@ export interface ExecutionEnvelope {
         target_model?: string;
         agent_id?: string;
     } | null;
+    knowledge_context?: {
+        collections?: string[];
+        direct_text?: string;
+        chunks_used?: number;
+        grounding_indicators?: any;
+        enabled: boolean;
+    };
+    instruction_context?: {
+        profiles?: string[];
+        enabled: boolean;
+    };
+    web_search_context?: {
+        enabled: boolean;
+        queries?: string[];
+        sources_used?: string[];
+    };
+    token_usage?: {
+        total_tokens: number;
+        input_tokens: number;
+        output_tokens: number;
+        cost: number;
+    };
     /** @deprecated Use envelope.status instead */
     execution_context?: {
         status: string;
@@ -255,6 +277,18 @@ export interface DispatchRequest {
     user_id: string;
     org_id?: string;
     agent_id?: string;
+    knowledge_context?: {
+        collections?: string[];
+        direct_text?: string;
+        enabled: boolean;
+    };
+    instruction_context?: {
+        profiles?: string[];
+        enabled: boolean;
+    };
+    web_search_context?: {
+        enabled: boolean;
+    };
 }
 export interface DispatchResponse {
     success: boolean;

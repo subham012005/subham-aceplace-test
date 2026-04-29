@@ -155,6 +155,9 @@ async function dispatch(params) {
             identity_contexts,
             role_assignments,
             steps: plannedSteps,
+            knowledge_context: params.knowledge_context,
+            instruction_context: params.instruction_context,
+            web_search_context: params.web_search_context,
         });
         if (identityFailure) {
             envelope.status = "quarantined";
@@ -193,6 +196,7 @@ async function dispatch(params) {
             const jobRef = db.collection(constants_1.COLLECTIONS.JOBS).doc(params.jobId);
             tx.set(jobRef, {
                 envelope_id: envelope.envelope_id,
+                execution_id: envelope.envelope_id,
                 user_id: params.userId,
                 prompt: params.prompt,
                 updated_at: new Date().toISOString(),

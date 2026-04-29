@@ -29,6 +29,9 @@ export async function dispatch(params: {
   jobId?: string;
   orgId?: string;
   agentId?: string;
+  knowledge_context?: { collections?: string[]; direct_text?: string; enabled: boolean };
+  instruction_context?: { profiles?: string[]; enabled: boolean };
+  web_search_context?: { enabled: boolean; queries?: string[]; sources_used?: string[] };
 }): Promise<DispatchResponse> {
   const db = getDb();
   const agentId = params.agentId || "agent_coo";
@@ -138,6 +141,9 @@ export async function dispatch(params: {
       identity_contexts, 
       role_assignments,    
       steps: plannedSteps,
+      knowledge_context: params.knowledge_context,
+      instruction_context: params.instruction_context,
+      web_search_context: params.web_search_context,
     });
 
     if (identityFailure) {
@@ -181,8 +187,9 @@ export async function dispatch(params: {
 
     if (params.jobId) {
       const jobRef = db.collection(COLLECTIONS.JOBS).doc(params.jobId);
-      tx.set(jobRef, { 
-        envelope_id: envelope.envelope_id, 
+      tx.set(jobRef, {
+        envelope_id: envelope.envelope_id,
+        execution_id: envelope.envelope_id,
         user_id: params.userId,
         prompt: params.prompt,
         updated_at: new Date().toISOString(),

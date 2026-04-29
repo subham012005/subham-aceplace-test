@@ -152,7 +152,9 @@ async def execute_step(request: ExecuteStepRequest):
     Returns artifact_id of produced output.
     """
     from services.firestore import create_artifact
-    print(f"[ENGINE] Received execute-step request: {request.dict()}")
+    print("\n" + "="*40)
+    print(f"[ENGINE] EXECUTING STEP: {request.step_id} ({request.step_type})")
+    print("="*40 + "\n")
 
     try:
         # Import the handler for this step type
@@ -164,7 +166,7 @@ async def execute_step(request: ExecuteStepRequest):
 
         handler_fn, _verb = handler_info
 
-        output_content = handler_fn({
+        output_data = handler_fn({
             "envelope_id": request.envelope_id,
             "step_id": request.step_id,
             "step_type": request.step_type,
@@ -175,15 +177,20 @@ async def execute_step(request: ExecuteStepRequest):
             "input_ref": request.input_ref,
         })
 
+        # Handle dict return from updated agents
+        actual_content = output_data
+        if isinstance(output_data, dict) and "content" in output_data:
+            actual_content = output_data["content"]
+
         artifact_id = create_artifact(
             envelope_id=request.envelope_id,
             agent_id=request.agent_id,
             identity_fingerprint="",
             artifact_type=request.step_type,
-            content=output_content if isinstance(output_content, str) else str(output_content),
+            content=actual_content if isinstance(actual_content, str) else str(actual_content),
         )
 
-        return {"success": True, "artifact_id": artifact_id}
+        return {"success": True, "artifact_id": artifact_id, "token_usage": output_data.get("token_usage", {})}
 
     except Exception as e:
         return {"success": False, "error": str(e), "traceback": traceback.format_exc()}

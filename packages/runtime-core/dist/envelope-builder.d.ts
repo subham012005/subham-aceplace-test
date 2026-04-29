@@ -22,6 +22,20 @@ export declare function buildEnvelope(params: {
     role_assignments?: Record<string, string>;
     stepPipeline?: string[];
     steps?: EnvelopeStep[];
+    knowledge_context?: {
+        collections?: string[];
+        direct_text?: string;
+        enabled: boolean;
+    };
+    instruction_context?: {
+        profiles?: string[];
+        enabled: boolean;
+    };
+    web_search_context?: {
+        enabled: boolean;
+        queries?: string[];
+        sources_used?: string[];
+    };
 }): ExecutionEnvelope;
 /**
  * Build a minimal identity context (no agent store lookup).

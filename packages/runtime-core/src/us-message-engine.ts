@@ -16,6 +16,8 @@ import type {
 import { createDecompositionPlan, expandWorkerSteps, aggregateArtifacts } from "./decomposition";
 import { emitRuntimeMetric } from "./telemetry/emitRuntimeMetric";
 import { transition } from "./state-machine";
+import { executeFallbackStep } from "./llm-fallback";
+import { addTrace, addTokenUsage } from "./kernels/persistence";
 
 export function createUSMessage(
   input: Omit<USMessage, "protocol" | "version" | "metadata">
@@ -82,9 +84,6 @@ export function mapStepTypeToUSMessage(stepType: string): ProtocolVerb {
   }
 }
 
-import { executeFallbackStep } from "./llm-fallback";
-import { addTrace } from "./kernels/persistence";
-
 const AGENT_ENGINE_URL = process.env.AGENT_ENGINE_URL || "http://localhost:8001";
 
 function isNetworkError(err: unknown): boolean {
@@ -96,7 +95,6 @@ function isNetworkError(err: unknown): boolean {
   return searchTerms.some(term => msg.includes(term) || cause.includes(term));
 }
 
-/** BYO_LLM errors mean the org config is missing in Firestore — the TS LLM fallback will now strictly enforce this. */
 function isBYOLLMError(err: unknown): boolean {
   const error = err as any;
   const msg = String(error?.message || error?.code || error || "");
@@ -137,7 +135,6 @@ async function suggestFallback(params: {
     updated_at: new Date().toISOString(),
   });
   
-  // Also reset the step to 'ready' so it can be re-run after approval
   const steps = (params.envelope.steps || []).map(s => 
     s.step_id === params.stepId ? { ...s, status: "ready", claimed_by_instance_id: null, claimed_at: null } : s
   );
@@ -157,7 +154,6 @@ export async function handleUSMessage(msg: USMessage): Promise<USMessage | null>
   if (!snap.exists) throw new Error("ENVELOPE_NOT_FOUND");
   const envelope = snap.data() as ExecutionEnvelope;
 
-  // Strict Per-Step Identity and Lease Validation for the TS Runtime Fallback
   const agent_id = msg.identity.agent_id;
   const identity_contexts = envelope.identity_contexts || {};
   const expected_fp = identity_contexts[agent_id]?.identity_fingerprint;
@@ -171,7 +167,6 @@ export async function handleUSMessage(msg: USMessage): Promise<USMessage | null>
   const authority_leases = envelope.authority_leases || {};
   const lease = authority_leases[agent_id];
   if (!lease || !lease.lease_expires_at) {
-    // If we're fully strict, we block here. For TS fallback gracefully log this.
     console.warn(`[TS-FALLBACK] No lease found for ${agent_id}. Assuming system override.`);
   } else if (new Date(lease.lease_expires_at) < new Date()) {
     throw new Error(`[TS-FALLBACK] Lease expired for ${agent_id}. Halting.`);
@@ -207,14 +202,12 @@ async function runFallbackForStep(
     "ts-fallback", fallbackReason,
   );
 
-  // 1. Clear any existing manual fallback suggestion flag on the envelope
-  // This ensures the UI banner disappears if we are auto-resuming from an engine failure
   const db = getDb();
   await db.collection(COLLECTIONS.EXECUTION_ENVELOPES).doc(msg.execution.envelope_id).update({
     fallback_suggested: false,
     fallback_metadata: null,
     updated_at: new Date().toISOString(),
-  }).catch(() => {}); // Ignore if already cleared
+  }).catch(() => {});
 
   try {
     const result = await executeFallbackStep({
@@ -272,16 +265,29 @@ async function handleTaskPlan(msg: USMessage, envelope: ExecutionEnvelope): Prom
       }),
     });
 
-    if (!res.ok) throw new Error(`Agent Engine error: ${await res.text()}`);
-    const result = await res.json() as { success: boolean; error?: string; artifact_id: string };
-    if (!result.success) throw new Error(result.error || "Agent Engine failed");
+    if (!res.ok) {
+      throw new Error(`Agent Engine error: ${await res.text()}`);
+    }
+
+    const result = (await res.json()) as { success: boolean; error?: string; artifact_id: string; token_usage?: any };
+    if (!result.success) {
+      throw new Error(result.error || "Agent Engine failed");
+    }
+
+    if (result.token_usage) {
+      await addTokenUsage(msg.execution.envelope_id, result.token_usage).catch(e => {
+        console.warn(`[#us#] Failed to aggregate tokens for ${msg.execution.step_id}: ${e.message}`);
+      });
+    }
 
     await logComputeProvider(
       msg.execution.envelope_id, msg.execution.step_id,
       msg.identity.agent_id, msg.identity.identity_fingerprint, "python",
     );
+
     await attachArtifactToStep(msg.execution.envelope_id, msg.execution.step_id, result.artifact_id);
     await attachArtifactToEnvelope(msg.execution.envelope_id, result.artifact_id);
+
   } catch (err) {
     if (isNetworkError(err) || isBYOLLMError(err)) {
       const isNetwork = isNetworkError(err);
@@ -292,8 +298,6 @@ async function handleTaskPlan(msg: USMessage, envelope: ExecutionEnvelope): Prom
       const step = envelope.steps.find(s => s.step_id === msg.execution.step_id);
       const metadata = (step as any)?.metadata || {};
       
-      // RULE: Only pause for approval if it's NOT a network/engine error.
-      // Connection failures to the Python engine switch to TS runtime automatically.
       if (!isNetwork && !metadata.fallback_approved) {
         console.warn(`[#us#] ${reason}. Stopping for fallback approval.`);
         await suggestFallback({
@@ -325,7 +329,6 @@ async function handleTaskPlan(msg: USMessage, envelope: ExecutionEnvelope): Prom
 
 async function handleTaskAssign(msg: USMessage, envelope: ExecutionEnvelope): Promise<USMessage | null> {
   const planArtifactRef = envelope.artifact_refs?.find(id => id.startsWith('art_plan')) || null;
-
   let richArtifactId: string | null = null;
 
   console.log(`[#us#] Dispatching RESEARCHER execution to Agent Engine: ${msg.execution.step_id}`);
@@ -348,11 +351,15 @@ async function handleTaskAssign(msg: USMessage, envelope: ExecutionEnvelope): Pr
       }),
     });
 
-      if (res.ok) {
-        const result = await res.json() as { success: boolean; error?: string; artifact_id: string };
-        if (result.success) {
-
+    if (res.ok) {
+      const result = await res.json() as { success: boolean; error?: string; artifact_id: string; token_usage?: any };
+      if (result.success) {
         richArtifactId = result.artifact_id;
+        if (result.token_usage) {
+          await addTokenUsage(msg.execution.envelope_id, result.token_usage).catch(e => 
+            console.warn(`[#us#] Failed to aggregate tokens for ${msg.execution.step_id}: ${e.message}`)
+          );
+        }
         await logComputeProvider(
           msg.execution.envelope_id, msg.execution.step_id,
           msg.identity.agent_id, msg.identity.identity_fingerprint, "python",
@@ -377,7 +384,6 @@ async function handleTaskAssign(msg: USMessage, envelope: ExecutionEnvelope): Pr
       const step = envelope.steps.find(s => s.step_id === msg.execution.step_id);
       const metadata = (step as any)?.metadata || {};
 
-      // RULE: Only pause for approval if it's NOT a network/engine error.
       if (!isNetwork && !metadata.fallback_approved) {
         console.warn(`[#us#] ${reason}. Stopping for fallback approval.`);
         await suggestFallback({
@@ -455,7 +461,6 @@ async function handleTaskAssign(msg: USMessage, envelope: ExecutionEnvelope): Pr
     research_artifact_id: richArtifactId || undefined
   });
 
-  // If we didn't get a rich artifact from the agent, create the boilerplate one
   if (!richArtifactId) {
     const artifactId = `art_assign_${Date.now()}`;
     const missionObjective = envelope.prompt || decompositionPlan.work_units[0]?.objective || "mission";
@@ -494,6 +499,7 @@ async function handleArtifactProduce(msg: USMessage, envelope: ExecutionEnvelope
     : null;
 
   console.log(`[#us#] Dispatching WORKER execution to Agent Engine: ${msg.execution.step_id}`);
+
   try {
     const res = await fetch(`${AGENT_ENGINE_URL}/execute-step`, {
       method: "POST",
@@ -518,18 +524,28 @@ async function handleArtifactProduce(msg: USMessage, envelope: ExecutionEnvelope
       console.error(`[#us#] Agent Engine error (${res.status}): ${errText}`);
       throw new Error(`Agent Engine error: ${errText}`);
     }
-    const result = await res.json() as { success: boolean; error?: string; artifact_id: string };
-    if (!result.success) throw new Error(result.error || "Agent Engine execution failed");
+
+    const result = (await res.json()) as { success: boolean; error?: string; artifact_id: string; token_usage?: any };
+    if (!result.success) {
+      throw new Error(result.error || "Agent Engine execution failed");
+    }
+
+    if (result.token_usage) {
+      await addTokenUsage(msg.execution.envelope_id, result.token_usage).catch(e => {
+        console.warn(`[#us#] Failed to aggregate tokens for ${msg.execution.step_id}: ${e.message}`);
+      });
+    }
 
     await logComputeProvider(
       msg.execution.envelope_id, msg.execution.step_id,
       msg.identity.agent_id, msg.identity.identity_fingerprint, "python",
     );
+
     await attachArtifactToStep(msg.execution.envelope_id, msg.execution.step_id, result.artifact_id);
     await attachArtifactToEnvelope(msg.execution.envelope_id, result.artifact_id);
 
     const traceId = randomUUID();
-    await getDb().collection(COLLECTIONS.EXECUTION_TRACES).doc(traceId).set({
+    const traceData = {
       trace_id: traceId,
       envelope_id: msg.execution.envelope_id,
       step_id: msg.execution.step_id,
@@ -538,7 +554,10 @@ async function handleArtifactProduce(msg: USMessage, envelope: ExecutionEnvelope
       event_type: "#us#.artifact.produce",
       artifact_id: result.artifact_id,
       timestamp: new Date().toISOString(),
-    });
+    };
+
+    await getDb().collection(COLLECTIONS.EXECUTION_TRACES).doc(traceId).set(traceData);
+
   } catch (err) {
     if (isNetworkError(err) || isBYOLLMError(err)) {
       const isNetwork = isNetworkError(err);
@@ -549,7 +568,6 @@ async function handleArtifactProduce(msg: USMessage, envelope: ExecutionEnvelope
       const step = envelope.steps.find(s => s.step_id === msg.execution.step_id);
       const metadata = (step as any)?.metadata || {};
 
-      // RULE: Only pause for approval if it's NOT a network/engine error.
       if (!isNetwork && !metadata.fallback_approved) {
         console.warn(`[#us#] ${reason}. Stopping for fallback approval.`);
         await suggestFallback({
@@ -588,7 +606,6 @@ async function handleArtifactProduce(msg: USMessage, envelope: ExecutionEnvelope
 }
 
 async function handleEvaluation(msg: USMessage, envelope: ExecutionEnvelope): Promise<USMessage | null> {
-  // 1. Gather all Worker artifacts for the Grader to evaluate
   const out = (s: EnvelopeStep) => {
     const r = s.output_ref;
     if (typeof r === "object" && r?.artifact_id) return r.artifact_id as string;
@@ -606,9 +623,10 @@ async function handleEvaluation(msg: USMessage, envelope: ExecutionEnvelope): Pr
   const artifactIds = workerSteps.map((s) => out(s)!).filter(Boolean);
   const aggregatedContent = artifactIds.length > 0 ? await aggregateArtifacts(artifactIds) : "";
 
-  let graderArtifactId: string;
+  let graderArtifactId: string | null = null;
 
   console.log(`[#us#] Dispatching GRADER execution to Agent Engine: ${msg.execution.step_id}`);
+
   try {
     const res = await fetch(`${AGENT_ENGINE_URL}/execute-step`, {
       method: "POST",
@@ -628,14 +646,30 @@ async function handleEvaluation(msg: USMessage, envelope: ExecutionEnvelope): Pr
       }),
     });
 
-    if (!res.ok) throw new Error(`Agent Engine error: ${await res.text()}`);
-    const result = await res.json() as { success: boolean; error?: string; artifact_id: string };
-    if (!result.success) throw new Error(result.error || "Agent Engine execution failed");
+    if (!res.ok) {
+      throw new Error(`Agent Engine error: ${await res.text()}`);
+    }
+
+    const result = (await res.json()) as { success: boolean; error?: string; artifact_id: string; token_usage?: any };
+    if (!result.success) {
+      throw new Error(result.error || "Agent Engine execution failed");
+    }
     graderArtifactId = result.artifact_id;
+
+    if (result.token_usage) {
+      await addTokenUsage(msg.execution.envelope_id, result.token_usage).catch(e => {
+        console.warn(`[#us#] Failed to aggregate tokens for ${msg.execution.step_id}: ${e.message}`);
+      });
+    }
+
     await logComputeProvider(
       msg.execution.envelope_id, msg.execution.step_id,
       msg.identity.agent_id, msg.identity.identity_fingerprint, "python",
     );
+
+    await attachArtifactToStep(msg.execution.envelope_id, msg.execution.step_id, graderArtifactId);
+    await attachArtifactToEnvelope(msg.execution.envelope_id, graderArtifactId);
+
   } catch (err) {
     if (isNetworkError(err) || isBYOLLMError(err)) {
       const isNetwork = isNetworkError(err);
@@ -646,7 +680,6 @@ async function handleEvaluation(msg: USMessage, envelope: ExecutionEnvelope): Pr
       const step = envelope.steps.find(s => s.step_id === msg.execution.step_id);
       const metadata = (step as any)?.metadata || {};
 
-      // RULE: Only pause for approval if it's NOT a network/engine error.
       if (!isNetwork && !metadata.fallback_approved) {
         console.warn(`[#us#] ${reason}. Stopping for fallback approval.`);
         await suggestFallback({
@@ -667,11 +700,7 @@ async function handleEvaluation(msg: USMessage, envelope: ExecutionEnvelope): Pr
         msg.identity.agent_id, msg.identity.identity_fingerprint,
         "LLM_FALLBACK", undefined, { reason }, fbMsg
       );
-      await logComputeProvider(
-        msg.execution.envelope_id, msg.execution.step_id,
-        msg.identity.agent_id, msg.identity.identity_fingerprint,
-        "ts-fallback", reason,
-      );
+      
       try {
         const result = await executeFallbackStep({
           envelope_id: msg.execution.envelope_id,
@@ -680,11 +709,16 @@ async function handleEvaluation(msg: USMessage, envelope: ExecutionEnvelope): Pr
           agent_id: msg.identity.agent_id,
           identity_fingerprint: msg.identity.identity_fingerprint,
           prompt: envelope.prompt || "",
-          input_ref: artifactIds[0] || null,
+          input_ref: artifactIds.join(","),
           org_id: envelope.org_id,
           fallback_approved: metadata.fallback_approved,
         });
         graderArtifactId = result.artifact_id;
+        await logComputeProvider(
+          msg.execution.envelope_id, msg.execution.step_id,
+          msg.identity.agent_id, msg.identity.identity_fingerprint,
+          "ts-fallback", reason,
+        );
         await attachArtifactToStep(msg.execution.envelope_id, msg.execution.step_id, graderArtifactId);
         await attachArtifactToEnvelope(msg.execution.envelope_id, graderArtifactId);
       } catch (fbErr) {
@@ -706,6 +740,7 @@ async function handleEvaluation(msg: USMessage, envelope: ExecutionEnvelope): Pr
         throw fbErr;
       }
     } else {
+      console.error(`[#us#] EXCEPTION in handleEvaluation:`, err);
       throw err;
     }
   }
@@ -718,7 +753,7 @@ async function handleEvaluation(msg: USMessage, envelope: ExecutionEnvelope): Pr
     payload: {
       status: "success",
       role: "Grader",
-      artifact_id: graderArtifactId,
+      artifact_id: graderArtifactId || "",
       aggregated_content: aggregatedContent,
     },
   });
@@ -759,8 +794,6 @@ async function handleExecutionComplete(msg: USMessage): Promise<USMessage | null
     step_id: msg.execution.step_id,
     agent_id: msg.identity.agent_id,
   }).catch(() => undefined);
-
-  // 🛡️ Removed early transition: parallel-runner manages terminal states.
 
   return null;
 }

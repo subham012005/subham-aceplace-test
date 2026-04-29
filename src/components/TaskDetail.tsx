@@ -23,6 +23,8 @@ import { EnvelopeInspector } from "./EnvelopeInspector";
 import { Job, useJob, useForkProtection } from "@/hooks/useJobs";
 import { useEnvelope } from "@/hooks/useEnvelope";
 import { useJobActions } from "@/hooks/useJobActions";
+import { db, auth } from "@/lib/firebase";
+import { doc, onSnapshot } from "firebase/firestore";
 import { cn } from "@/lib/utils";
 
 interface TaskDetailProps {
@@ -34,7 +36,7 @@ interface TaskDetailProps {
 
 export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskDetailProps) {
     const { job, refreshing, refresh, isStalled } = useJob(initialJob.job_id, userId, onUpdate);
-    const { envelope, steps } = useEnvelope(job?.execution_id || null);
+    const { envelope, steps } = useEnvelope(job?.execution_id || job?.envelope_id || null);
     const displayJob = job || initialJob;
     const [activeTab, setActiveTab] = useState<"execution" | "grading" | "governance" | "resurrection" | "nexus">("execution");
     const { approveJob, rejectJob, resurrectJob, simulateFork, isProcessing, error, clearError } = useJobActions();
@@ -42,6 +44,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
     const [showRejectInput, setShowRejectInput] = useState(false);
     const [resurrectReason, setResurrectReason] = useState("");
     const [showResurrectInput, setShowResurrectInput] = useState(false);
+    const [collectionsStatus, setCollectionsStatus] = useState<Record<string, any>>({});
 
     // Fork Protection logic
     const { attemptsCount, latestEvent, loading: forkLoading } = useForkProtection(displayJob.job_id);
@@ -110,6 +113,25 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
         }
     };
 
+    // Subscribe to knowledge collections status
+    useEffect(() => {
+        const collectionIds = envelope?.knowledge_context?.collections || [];
+        const userId = envelope?.user_id || auth.currentUser?.uid;
+        if (collectionIds.length === 0 || !userId) return;
+
+        const unsubs = collectionIds.map(cid => {
+            // Updated path based on upload API structure
+            const docRef = doc(db, "user_knowledge_collections", userId, "collections", cid);
+            return onSnapshot(docRef, (snap) => {
+                if (snap.exists()) {
+                    setCollectionsStatus(prev => ({ ...prev, [cid]: { id: cid, ...snap.data() } }));
+                }
+            });
+        });
+
+        return () => unsubs.forEach(u => u());
+    }, [envelope?.knowledge_context?.collections, envelope?.user_id]);
+
     const statusColors: Record<string, string> = {
         created: "text-blue-400 border-blue-400/30 bg-blue-400/5",
         queued: "text-blue-400 border-blue-400/30 bg-blue-400/5",
@@ -127,7 +149,10 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
 
     const getGraderData = () => {
         // Preference for structured fields within runtime_context
-        const rcGrader = displayJob.runtime_context?.grading_result;
+        let rcGrader = displayJob.runtime_context?.grading_result;
+        if (typeof rcGrader === 'string') {
+            try { rcGrader = JSON.parse(rcGrader); } catch { /* keep as string */ }
+        }
         if (rcGrader || displayJob.grading_summary || displayJob.compliance_score !== undefined) {
             let flags: string[] = [];
             if (rcGrader?.risk_flags) {
@@ -140,7 +165,8 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                 flags = String(displayJob.risk_flags).split(",").map(f => String(f).trim());
             }
 
-            const scoreRaw = rcGrader?.compliance_score ??
+            const scoreRaw = rcGrader?.overall_score ??
+                rcGrader?.compliance_score ??
                 rcGrader?.score ??
                 displayJob.grading_result?.compliance_score ??
                 displayJob.grading_result?.score ??
@@ -150,15 +176,16 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
             let normalizedScore = typeof scoreRaw === 'object' ? (scoreRaw.value || 0) : Number(scoreRaw);
             if (normalizedScore > 10) normalizedScore = normalizedScore / 10;
 
-            const pass_fail = rcGrader?.pass_fail ?? displayJob.grading_result?.pass_fail ?? displayJob.pass_fail;
-            const isTrulyPass = String(pass_fail).toLowerCase() === 'pass' && normalizedScore > 3;
+            const pass_fail = rcGrader?.recommendation ?? rcGrader?.pass_fail ?? displayJob.grading_result?.pass_fail ?? displayJob.pass_fail;
+            const isApprove = String(pass_fail).toLowerCase() === 'approve' || String(pass_fail).toLowerCase() === 'pass';
+            const isTrulyPass = isApprove && normalizedScore > 3;
             const finalPassFail = isTrulyPass ? "pass" : "fail";
 
             return {
                 score: normalizedScore,
                 pass_fail: finalPassFail as "pass" | "fail",
                 risk_flags: flags,
-                reasoning_summary: rcGrader?.grading_summary || displayJob.grading_summary || displayJob.grading_result?.grading_summary || "No summary available."
+                reasoning_summary: rcGrader?.feedback || rcGrader?.summary || rcGrader?.grading_summary || displayJob.grading_summary || displayJob.grading_result?.grading_summary || "No summary available."
             };
         }
 
@@ -354,10 +381,10 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                             </HUDFrame>
 
                             {/* Phase 2 Envelope Inspector */}
-                            {displayJob.execution_id && (
+                            {(displayJob.execution_id || displayJob.envelope_id) && (
                                 <div className="animate-in fade-in slide-in-from-top-2 duration-500">
                                     <EnvelopeInspector
-                                        executionId={displayJob.execution_id}
+                                        executionId={displayJob.execution_id || displayJob.envelope_id!}
                                     />
                                 </div>
                             )}
@@ -588,6 +615,126 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                     </div>
                                 </div>
                             </HUDFrame>
+
+                            <HUDFrame title="Intelligence Grounding (Phase 3)" variant="glass">
+                                <div className="space-y-4 py-2">
+                                    {/* Knowledge Base Grounding */}
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[8px] uppercase font-black tracking-widest text-slate-500 flex items-center gap-1">
+                                                <Layers className="w-2 h-2 text-cyan-500" /> Knowledge Grounding
+                                            </span>
+                                            <span className={cn(
+                                                "text-[8px] font-black px-2 py-0.5 border scifi-clip",
+                                                envelope?.knowledge_context?.enabled ? "text-emerald-500 border-emerald-500/30 bg-emerald-500/5" : "text-slate-500 border-white/5"
+                                            )}>
+                                                {envelope?.knowledge_context?.enabled ? "ACTIVE" : "INACTIVE"}
+                                            </span>
+                                        </div>
+                                        {envelope?.knowledge_context?.enabled && (
+                                            <div className="pl-3 border-l border-white/10 space-y-3 mt-2">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Collections</span>
+                                                    <span className="text-[9px] text-white font-mono">{envelope.knowledge_context.collections?.length || 0} Targeted</span>
+                                                </div>
+                                                
+                                                {/* Progressive Status for each collection */}
+                                                <div className="space-y-3">
+                                                    {envelope.knowledge_context.collections?.map((cid: string) => {
+                                                        const status = collectionsStatus[cid];
+                                                        const isReady = status?.status === "ready";
+                                                        const isIndexing = status?.status === "indexing";
+                                                        const progress = status?.progress || 0;
+                                                        
+                                                        return (
+                                                            <div key={cid} className="space-y-1.5">
+                                                                <div className="flex items-center justify-between gap-2">
+                                                                    <span className="text-[8px] font-mono text-slate-500 truncate max-w-[150px]">{status?.name || cid}</span>
+                                                                    <span className={cn(
+                                                                        "text-[7px] font-black uppercase tracking-tighter px-1 border",
+                                                                        isReady ? "text-emerald-500 border-emerald-500/20 bg-emerald-500/5" : 
+                                                                        isIndexing ? "text-cyan-500 border-cyan-500/20 bg-cyan-500/5 animate-pulse" : 
+                                                                        "text-slate-500 border-white/5"
+                                                                    )}>
+                                                                        {status?.status || "PENDING"}
+                                                                    </span>
+                                                                </div>
+                                                                {!isReady && (
+                                                                    <div className="h-1 w-full bg-white/5 border border-white/5 rounded-full overflow-hidden">
+                                                                        <div 
+                                                                            className={cn(
+                                                                                "h-full transition-all duration-500 ease-out shadow-[0_0_8px_currentColor]",
+                                                                                isIndexing ? "bg-cyan-500 text-cyan-500" : "bg-slate-700 text-slate-700"
+                                                                            )}
+                                                                            style={{ width: `${isIndexing ? Math.max(progress, 5) : 0}%` }}
+                                                                        />
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+
+                                                <div className="flex justify-between items-center pt-1 border-t border-white/5">
+                                                    <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Total Grounding Data</span>
+                                                    <span className="text-[9px] text-cyan-400 font-mono">{envelope.knowledge_context.chunks_used || 0} Segmented Chunks</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Web Search Context */}
+                                    <div className="space-y-2 pt-2 border-t border-white/5">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[8px] uppercase font-black tracking-widest text-slate-500 flex items-center gap-1">
+                                                <Network className="w-2 h-2 text-cyan-500" /> Web Intelligence
+                                            </span>
+                                            <span className={cn(
+                                                "text-[8px] font-black px-2 py-0.5 border scifi-clip",
+                                                envelope?.web_search_context?.enabled ? "text-emerald-500 border-emerald-500/30 bg-emerald-500/5" : "text-slate-500 border-white/5"
+                                            )}>
+                                                {envelope?.web_search_context?.enabled ? "ENABLED" : "DISABLED"}
+                                            </span>
+                                        </div>
+                                        {envelope?.web_search_context?.enabled && (
+                                            <div className="pl-3 border-l border-white/10 space-y-2 mt-2">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Queries Executed</span>
+                                                    <span className="text-[9px] text-white font-mono">{envelope.web_search_context.queries?.length || 0} Deep Searches</span>
+                                                </div>
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Sources Cited</span>
+                                                    <span className="text-[9px] text-emerald-400 font-mono">{envelope.web_search_context.sources_used?.length || 0} External</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Instruction Profiles */}
+                                    <div className="space-y-2 pt-2 border-t border-white/5">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[8px] uppercase font-black tracking-widest text-slate-500 flex items-center gap-1">
+                                                <ShieldCheckIcon className="w-2 h-2 text-cyan-500" /> Custom Protocols
+                                            </span>
+                                            <span className={cn(
+                                                "text-[8px] font-black px-2 py-0.5 border scifi-clip",
+                                                envelope?.instruction_context?.enabled ? "text-cyan-500 border-cyan-500/30 bg-cyan-500/5" : "text-slate-500 border-white/5"
+                                            )}>
+                                                {envelope?.instruction_context?.enabled ? "ACTIVE" : "INACTIVE"}
+                                            </span>
+                                        </div>
+                                        {envelope?.instruction_context?.enabled && envelope.instruction_context.profiles && (
+                                            <div className="pl-3 border-l border-white/10 flex flex-wrap gap-1 mt-2">
+                                                {envelope.instruction_context.profiles.map((p: string) => (
+                                                    <span key={p} className="text-[7px] font-mono text-cyan-500/70 bg-cyan-500/5 px-1.5 py-0.5 border border-cyan-500/20">
+                                                        {p}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </HUDFrame>
                         </div>
                     )}
 
@@ -748,7 +895,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                         </div>
                                     </div>
 
-                                    {displayJob.status === "graded" ? (
+                                    {(displayJob.status === "graded" || displayJob.status === "awaiting_approval") ? (
                                         <div className="flex flex-col gap-4">
                                             {!showRejectInput ? (
                                                 <div className="grid grid-cols-2 gap-4">
@@ -807,7 +954,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                             <Lock className="w-8 h-8 text-slate-700 mb-4" />
                                             <p className="text-[10px] uppercase font-black tracking-widest text-slate-500 italic">Governance Controls Locked</p>
                                             <p className="text-[8px] uppercase font-bold text-slate-600 mt-2">
-                                                State must be <span className="text-orange-500">graded</span> to unlock decisions. Current: <span className="text-cyan-500">{displayJob.status}</span>
+                                                State must be <span className="text-orange-500">graded</span> or <span className="text-amber-500">awaiting approval</span> to unlock decisions. Current: <span className="text-cyan-500">{displayJob.status}</span>
                                             </p>
                                         </div>
                                     )}

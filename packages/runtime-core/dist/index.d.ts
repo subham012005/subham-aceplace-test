@@ -7,7 +7,7 @@
 export { transition, canTransition } from "./state-machine";
 export { verifyIdentity, verifyIdentityForAgent, buildIdentityContext, computeFingerprint, registerAgentIdentity, } from "./kernels/identity";
 export { getDb, setDb } from "./db";
-export { createEnvelope, getEnvelope, updateEnvelope, updateEnvelopeStep, getEnvelopeStep, getNextReadyStep, addTrace, createArtifact, linkJobToEnvelope, syncJobStatus, getJob, enqueueEnvelope, } from "./kernels/persistence";
+export { createEnvelope, getEnvelope, updateEnvelope, updateEnvelopeStep, getEnvelopeStep, getNextReadyStep, addTrace, createArtifact, linkJobToEnvelope, syncJobStatus, getJob, enqueueEnvelope, addTokenUsage, } from "./kernels/persistence";
 export { claimNextEnvelope, requeueEnvelope, finalizeQueueEntry, } from "./kernels/queue";
 export { setAgentSecrets, getAgentSecrets, listSecretNames, removeAgentSecret, } from "./kernels/secrets";
 export { acquireLease, releaseLease, hasValidLease, expireStaleLeases, } from "./kernels/authority";

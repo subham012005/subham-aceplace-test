@@ -49,6 +49,9 @@ class AceApiClient {
         root_task: string;
         job_id?: string;
         execution_policy?: { entry_agent: string };
+        knowledge_context?: { collections?: string[]; direct_text?: string; enabled: boolean };
+        instruction_context?: { profiles?: string[]; enabled: boolean };
+        web_search_context?: { enabled: boolean; queries?: string[]; sources_used?: string[] };
     }) {
         const response = await this.secureFetch("/api/runtime/dispatch/from-dashboard", {
             method: "POST",
@@ -284,6 +287,11 @@ class AceApiClient {
     async getExplorerTelemetryAgent(agentId: string) {
         const response = await this.secureFetch(`/api/explorer/telemetry/agent/${agentId}`);
         return this.handleResponse(response);
+    }
+
+    /** 🔓 Public alias for secureFetch — for use by components that need direct authenticated calls */
+    async secureFetchPublic(url: string, init: RequestInit = {}) {
+        return this.secureFetch(url, init);
     }
 
     /** 🔒 Private helper to inject Authorization Bearer token */

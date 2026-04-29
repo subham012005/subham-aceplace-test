@@ -14,7 +14,6 @@ export default function LandingPage() {
     const RELOAD_INTERVAL = 5 * 60 * 1000;
 
     const interval = setInterval(() => {
-      console.log("[SYSTEM] Periodic reload triggered.");
       window.location.reload();
     }, RELOAD_INTERVAL);
 

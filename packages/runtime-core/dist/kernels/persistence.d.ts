@@ -46,6 +46,15 @@ export declare function getJob(jobId: string): Promise<{
 } | null>;
 export declare function deleteAgent(agentId: string): Promise<void>;
 /**
+ * Atomically aggregate token usage for an envelope and its linked job.
+ */
+export declare function addTokenUsage(envelopeId: string, usage: {
+    total_tokens: number;
+    input_tokens: number;
+    output_tokens: number;
+    cost: number;
+}): Promise<void>;
+/**
  * Enqueue a created envelope for the runtime-worker to claim and execute.
  * Writes to `execution_queue` Firestore collection.
  */

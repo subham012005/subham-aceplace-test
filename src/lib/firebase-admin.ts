@@ -12,17 +12,14 @@ function initializeAdmin() {
     const privateKey = process.env.FIREBASE_PRIVATE_KEY;
 
     if (!clientEmail || !privateKey) {
-        console.error("[ADMIN] Missing credentials:", { hasEmail: !!clientEmail, hasKey: !!privateKey });
         return false;
     }
 
     if (privateKey.includes("Your-Private-Key-Here")) {
-        console.error("[ADMIN] Placeholder key detected.");
         return false;
     }
 
     if (!privateKey.startsWith("-----BEGIN PRIVATE KEY-----")) {
-        console.error("[ADMIN] Invalid key format. Starts with:", privateKey.substring(0, 20));
         return false;
     }
 
@@ -44,7 +41,6 @@ function initializeAdmin() {
             }),
             projectId,
         });
-        console.log("[ADMIN] Firebase Admin SDK initialized successfully.");
         return true;
     } catch (error) {
         console.error("[ADMIN] Failed to initialize Firebase Admin SDK:", error);
@@ -55,9 +51,6 @@ function initializeAdmin() {
 const isBackendReady = initializeAdmin();
 
 if (!isBackendReady) {
-    console.error("[ADMIN] Firebase Admin SDK NOT initialized.");
-} else {
-    console.log("[ADMIN] Firebase Admin SDK is ready.");
 }
 
 // Export proxies that return a special state if not initialized
