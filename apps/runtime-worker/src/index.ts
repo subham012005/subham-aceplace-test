@@ -191,7 +191,7 @@ function startAgentEngine() {
     cwd: engineDir,
     stdio: "inherit", // Pipe Python logs directly to our stdout/stderr
     shell: true,
-    env: { ...process.env, PYTHONPATH: engineDir }
+    env: { ...process.env, PYTHONPATH: engineDir, PYTHONUNBUFFERED: "1" }
   });
 
   engine.on("error", (err) => {

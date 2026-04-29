@@ -84,14 +84,14 @@ export function mapStepTypeToUSMessage(stepType: string): ProtocolVerb {
   }
 }
 
-const AGENT_ENGINE_URL = process.env.AGENT_ENGINE_URL || "http://localhost:8001";
+const AGENT_ENGINE_URL = process.env.AGENT_ENGINE_URL || "http://127.0.0.1:8001";
 
 function isNetworkError(err: unknown): boolean {
   const error = err as any;
   const msg = String(error?.message || error?.code || error || "").toLowerCase();
   const cause = String(error?.cause || "").toLowerCase();
   
-  const searchTerms = ["econnrefused", "fetch failed", "network", "unreachable", "eai_again", "etimedout"];
+  const searchTerms = ["econnrefused", "fetch failed", "network", "unreachable", "eai_again", "etimedout", "timeout", "aborted"];
   return searchTerms.some(term => msg.includes(term) || cause.includes(term));
 }
 
@@ -263,6 +263,7 @@ async function handleTaskPlan(msg: USMessage, envelope: ExecutionEnvelope): Prom
         input_ref: null,
         message_id: null
       }),
+      signal: AbortSignal.timeout(300_000)
     });
 
     if (!res.ok) {
@@ -349,6 +350,7 @@ async function handleTaskAssign(msg: USMessage, envelope: ExecutionEnvelope): Pr
         input_ref: planArtifactRef,
         message_id: null
       }),
+      signal: AbortSignal.timeout(300_000)
     });
 
     if (res.ok) {
@@ -517,6 +519,7 @@ async function handleArtifactProduce(msg: USMessage, envelope: ExecutionEnvelope
         input_ref: inputRef,
         message_id: null
       }),
+      signal: AbortSignal.timeout(300_000)
     });
 
     if (!res.ok) {
@@ -644,6 +647,7 @@ async function handleEvaluation(msg: USMessage, envelope: ExecutionEnvelope): Pr
         input_ref: artifactIds.join(","),
         message_id: null
       }),
+      signal: AbortSignal.timeout(300_000)
     });
 
     if (!res.ok) {
