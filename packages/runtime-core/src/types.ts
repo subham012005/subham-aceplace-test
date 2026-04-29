@@ -207,6 +207,30 @@ export interface ExecutionEnvelope {
     agent_id?: string;
   } | null;
 
+  // ─── Phase 3 Features: Grounding & Web Search ──────────────────────────────
+  knowledge_context?: {
+    collections?: string[];
+    direct_text?: string;
+    chunks_used?: number;
+    grounding_indicators?: any;
+    enabled: boolean;
+  };
+  instruction_context?: {
+    profiles?: string[];
+    enabled: boolean;
+  };
+  web_search_context?: {
+    enabled: boolean;
+    queries?: string[];
+    sources_used?: string[];
+  };
+  token_usage?: {
+    total_tokens: number;
+    input_tokens: number;
+    output_tokens: number;
+    cost: number;
+  };
+
   // ─── Phase 1 Backward-Compat (read-only UI display) ────────────────────────
   // These are optional nullable fields purely for UI components that haven't
   // been migrated yet. Never write to these from the runtime.
@@ -373,6 +397,9 @@ export interface DispatchRequest {
   user_id: string;
   org_id?: string;
   agent_id?: string;
+  knowledge_context?: { collections?: string[]; direct_text?: string; enabled: boolean };
+  instruction_context?: { profiles?: string[]; enabled: boolean };
+  web_search_context?: { enabled: boolean };
 }
 
 export interface DispatchResponse {

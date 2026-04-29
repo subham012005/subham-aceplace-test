@@ -752,8 +752,27 @@ export default function DashboardPage() {
                                     <div className="w-4 h-4 border border-cyan-500/50 flex items-center justify-center shrink-0">
                                         {job.status === "graded" ? <ShieldCheck className="w-3 h-3 text-orange-500" /> : <CheckCircle2 className="w-3 h-3 text-cyan-500 opacity-80" />}
                                     </div>
-                                    <div className="flex flex-col min-w-0">
-                                        <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-cyan-400 truncate">{job.prompt}</span>
+                                    <div className="flex flex-col min-w-0 flex-1">
+                                        <div className="flex items-center justify-between gap-2 mb-0.5">
+                                            <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-cyan-400 truncate">{job.prompt}</span>
+                                            {(() => {
+                                                const env = jobEnvelopeMap.get(job.job_id || job.id || "");
+                                                const chunks = env?.knowledge_context?.chunks_used || 0;
+                                                const hasKb = env?.knowledge_context?.enabled;
+                                                if (!hasKb) return null;
+                                                return (
+                                                    <div className="flex items-center gap-1.5 shrink-0" title={`${chunks} knowledge segments retrieved`}>
+                                                        <div className="w-12 h-1 bg-white/5 border border-white/10 rounded-full overflow-hidden">
+                                                            <div 
+                                                                className="h-full bg-cyan-400 shadow-[0_0_8px_#22d3ee] transition-all duration-1000"
+                                                                style={{ width: `${Math.min((chunks / 10) * 100, 100)}%` }}
+                                                            />
+                                                        </div>
+                                                        <span className="text-[7px] font-black text-cyan-400/80 font-mono">KB:{chunks}</span>
+                                                    </div>
+                                                );
+                                            })()}
+                                        </div>
                                         <div className="flex items-center justify-between gap-2">
                                             <span className="text-[7px] uppercase font-bold text-slate-600 tracking-tighter italic shrink-0">Status: {formatStatus(deriveHomeStatus(job))}</span>
                                             <span className="text-[7px] font-mono text-purple-500/60 uppercase truncate">{(() => { const raw = job.identity_fingerprint || job.identity_id; if (!raw) return "PENDING_REGISTRATION"; return "0x" + String(raw).replace(/^hex:0x|^0x|^hex:/i, ""); })()}</span>

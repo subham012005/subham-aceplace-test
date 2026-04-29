@@ -114,6 +114,21 @@ export function useAgentLogs(envelopeId: string | null): UseAgentLogsReturn {
     };
   }, [envelopeId]);
 
+  // [DEBUG] Browser Console Mirror
+  useEffect(() => {
+    if (agentLogs.length > 0) {
+      const lastLog = agentLogs[agentLogs.length - 1];
+      if (lastLog.event === "START") {
+        console.log(`%c[AGENT:${lastLog.agent_role.toUpperCase()}] STARTING MISSION`, "color: #00f2ff; font-weight: bold; background: #000; padding: 2px 5px;");
+        console.log(`Input Summary: ${lastLog.input_summary}`);
+        if (lastLog.metadata) console.log("Metadata:", lastLog.metadata);
+      } else if (lastLog.event === "COMPLETE") {
+        console.log(`%c[AGENT:${lastLog.agent_role.toUpperCase()}] MISSION COMPLETE`, "color: #00ff88; font-weight: bold; background: #000; padding: 2px 5px;");
+        console.log(`Output Summary: ${lastLog.output_summary}`);
+      }
+    }
+  }, [agentLogs]);
+
   // Unified Sort and Map
   const unifiedLogs: UnifiedLogEntry[] = [
     ...agentLogs.map(l => ({

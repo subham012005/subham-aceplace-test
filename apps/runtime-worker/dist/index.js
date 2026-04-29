@@ -54,6 +54,8 @@ const env_1 = require("@next/env");
 const crypto_1 = require("crypto");
 const http = __importStar(require("http"));
 const https = __importStar(require("https"));
+const child_process_1 = require("child_process");
+const path = __importStar(require("path"));
 const runtime_core_1 = require("@aceplace/runtime-core");
 // ── Status Server for Render Free Tier / UptimeRobot ──────────────────────────
 function startHealthCheckServer() {
@@ -72,7 +74,7 @@ let _app;
 // ── Constants ─────────────────────────────────────────────────────────────────
 const WORKER_ID = `worker_${(0, crypto_1.randomUUID)().replace(/-/g, "").slice(0, 12)}`;
 const POLL_INTERVAL_MS = 1000;
-const EXECUTION_QUEUE_COLLECTION = "execution_queue";
+const EXECUTION_QUEUE_COLLECTION = runtime_core_1.COLLECTIONS.EXECUTION_QUEUE;
 const SELF_PING_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes (Render sleep is 15m)
 const PUBLIC_URL = process.env.PUBLIC_URL || "https://subham-aceplace-test.onrender.com/";
 console.log(`\n╔═══════════════════════════════════════════════════╗`);
@@ -88,14 +90,10 @@ function startSelfPing(workerId) {
         console.warn(`[WORKER:${workerId}] No PUBLIC_URL provided. Self-ping disabled.`);
         return null;
     }
-    console.log(`[WORKER:${workerId}] Self-ping enabled for ${PUBLIC_URL}`);
     const ping = () => {
-        console.log(`[WORKER:${workerId}] Sending self-ping to ${PUBLIC_URL}...`);
         const protocol = PUBLIC_URL.startsWith("https") ? https : http;
         protocol.get(PUBLIC_URL, (res) => {
-            console.log(`[WORKER:${workerId}] Self-ping response: ${res.statusCode}`);
         }).on("error", (err) => {
-            console.error(`[WORKER:${workerId}] Self-ping failed:`, err.message);
         });
     };
     // Ping immediately then set interval
@@ -177,10 +175,47 @@ async function runWorker(workerId = WORKER_ID) {
     }
     console.log(`[WORKER:${workerId}] Worker stopped.`);
 }
+/**
+ * Starts the Python Agent Engine as a background process.
+ * This allows running both the TS Worker and Python Engine on a single Render instance.
+ */
+function startAgentEngine() {
+    const isWindows = process.platform === "win32";
+    // On Render/Linux, we usually want 'python3'. Locally on Windows 'python'.
+    const pythonCmd = isWindows ? "python" : "python3";
+    const engineDir = path.join(process.cwd(), "agent-engine");
+    console.log(`\n[SYSTEM] 🚀 Spawning Agent Engine: ${pythonCmd} main.py`);
+    console.log(`[SYSTEM] CWD: ${engineDir}\n`);
+    const engine = (0, child_process_1.spawn)(pythonCmd, ["main.py"], {
+        cwd: engineDir,
+        stdio: "inherit", // Pipe Python logs directly to our stdout/stderr
+        shell: true,
+        env: { ...process.env, PYTHONPATH: engineDir }
+    });
+    engine.on("error", (err) => {
+        console.error("[SYSTEM] ❌ Failed to start Agent Engine:", err);
+    });
+    engine.on("exit", (code) => {
+        if (code !== 0 && code !== null) {
+            console.error(`[SYSTEM] ⚠️ Agent Engine process exited with code ${code}`);
+        }
+        else {
+            console.log(`[SYSTEM] Agent Engine process exited gracefully.`);
+        }
+    });
+    return engine;
+}
 // Only run if this is the main module
 if (require.main === module) {
+    // 1. Start the Python Agent Engine in the background
+    const engineProcess = startAgentEngine();
+    // 2. Start the Node.js Worker polling loop
     runWorker().catch((err) => {
         console.error("[WORKER] Fatal startup error:", err);
+        if (engineProcess)
+            engineProcess.kill();
         process.exit(1);
     });
+    // Ensure Python dies if Node dies
+    process.on("exit", () => engineProcess.kill());
 }

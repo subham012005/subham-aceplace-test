@@ -17,6 +17,17 @@ function parseJobFields(job: any): any {
     if (typeof parsed.runtime_context === 'string') {
         try { parsed.runtime_context = JSON.parse(parsed.runtime_context); } catch (e) { /* keep as string */ }
     }
+    if (typeof parsed.token_usage === 'string') {
+        try { parsed.token_usage = JSON.parse(parsed.token_usage); } catch (e) { /* keep as string */ }
+    }
+    // Parse nested runtime_context string fields
+    if (parsed.runtime_context && typeof parsed.runtime_context === 'object') {
+        for (const key of ['plan', 'research_result', 'worker_result', 'final_result', 'grading_result']) {
+            if (typeof parsed.runtime_context[key] === 'string') {
+                try { parsed.runtime_context[key] = JSON.parse(parsed.runtime_context[key]); } catch { /* keep as string */ }
+            }
+        }
+    }
     // grading_result may also be stringified
     if (typeof parsed.grading_result === 'string') {
         try { parsed.grading_result = JSON.parse(parsed.grading_result); } catch (e) { /* keep as string */ }

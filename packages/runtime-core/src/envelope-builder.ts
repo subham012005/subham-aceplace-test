@@ -31,6 +31,9 @@ export function buildEnvelope(params: {
   role_assignments?: Record<string, string>;
   stepPipeline?: string[];        // canonical step types from Python engine
   steps?: EnvelopeStep[];         // explicitly mapped steps from the planner
+  knowledge_context?: { collections?: string[]; direct_text?: string; enabled: boolean };
+  instruction_context?: { profiles?: string[]; enabled: boolean };
+  web_search_context?: { enabled: boolean; queries?: string[]; sources_used?: string[] };
 }): ExecutionEnvelope {
   const now = new Date().toISOString();
   const envelopeId = params.envelopeId ?? `env_${randomUUID().replace(/-/g, "").slice(0, 20)}`;
@@ -125,6 +128,11 @@ export function buildEnvelope(params: {
     job_id: params.jobId,
     user_id: params.userId,
     prompt: params.prompt,
+
+    // Phase 3 Context
+    knowledge_context: params.knowledge_context,
+    instruction_context: params.instruction_context,
+    web_search_context: params.web_search_context,
   };
 }
 

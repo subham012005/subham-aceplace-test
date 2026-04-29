@@ -88,6 +88,7 @@ export interface ExecutionEnvelope {
     envelope_id: string;
     org_id: string;
     status: EnvelopeStatus;
+    failure_reason?: string;
     license_id?: string;
     root_task_id?: string;
     coordinator_agent_id?: string;
@@ -107,6 +108,39 @@ export interface ExecutionEnvelope {
     job_id?: string;
     user_id?: string;
     prompt?: string;
+    /** If true, a failure occurred that can be recovered via LLM/Runtime fallback. */
+    fallback_suggested?: boolean;
+    /** Metadata describing the failed attempt and the proposed fallback. */
+    fallback_metadata?: {
+        reason: string;
+        original_error: string;
+        step_id: string;
+        suggested_action: "model_switch" | "runtime_switch";
+        target_model?: string;
+        agent_id?: string;
+    } | null;
+    knowledge_context?: {
+        collections?: string[];
+        direct_text?: string;
+        chunks_used?: number;
+        grounding_indicators?: any;
+        enabled: boolean;
+    };
+    instruction_context?: {
+        profiles?: string[];
+        enabled: boolean;
+    };
+    web_search_context?: {
+        enabled: boolean;
+        queries?: string[];
+        sources_used?: string[];
+    };
+    token_usage?: {
+        total_tokens: number;
+        input_tokens: number;
+        output_tokens: number;
+        cost: number;
+    };
     /** @deprecated Use envelope.status instead */
     execution_context?: {
         status: string;
@@ -195,6 +229,7 @@ export interface ExecutionTrace {
     step_id?: string;
     artifact_id?: string;
     message_id?: string;
+    message?: string;
     metadata?: Record<string, unknown>;
 }
 export interface AgentIdentity {
@@ -242,6 +277,18 @@ export interface DispatchRequest {
     user_id: string;
     org_id?: string;
     agent_id?: string;
+    knowledge_context?: {
+        collections?: string[];
+        direct_text?: string;
+        enabled: boolean;
+    };
+    instruction_context?: {
+        profiles?: string[];
+        enabled: boolean;
+    };
+    web_search_context?: {
+        enabled: boolean;
+    };
 }
 export interface DispatchResponse {
     success: boolean;

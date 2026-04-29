@@ -152,9 +152,12 @@ const USER_ID = "user_e2e_tester";
             envelope_id: envelopeId,
             status: "created",
             multi_agent: false,
-            identity_context: {
-                agent_id: tamperedAgentId,
-                identity_fingerprint: "different_fingerprint_to_trigger_mismatch"
+            identity_contexts: {
+                [tamperedAgentId]: {
+                    agent_id: tamperedAgentId,
+                    identity_fingerprint: "different_fingerprint_to_trigger_mismatch",
+                    verified: true
+                }
             },
             steps: [{ step_id: "step_1", status: "ready", assigned_agent_id: tamperedAgentId }],
             created_at: new Date().toISOString()
@@ -263,7 +266,7 @@ const USER_ID = "user_e2e_tester";
         const original = process.env.ALLOW_PENDING_IDENTITY;
         process.env.ALLOW_PENDING_IDENTITY = "false";
         try {
-            const result = await verifyIdentity("env_pending", agentId, env);
+            const result = await verifyIdentity("env_pending", agentId, env.identity_context.identity_fingerprint);
             (0, vitest_1.expect)(result.verified).toBe(false);
             (0, vitest_1.expect)(result.reason).toBe("IDENTITY_NOT_VERIFIED");
             // Verify quarantined state in DB

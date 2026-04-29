@@ -28,7 +28,7 @@ export declare function getEnvelopeStep(envelopeId: string, stepId: string): Pro
  */
 export declare function getNextReadyStep(envelope: ExecutionEnvelope): EnvelopeStep | null;
 export declare function setEnvelopeStatus(envelopeId: string, status: EnvelopeStatus): Promise<void>;
-export declare function addTrace(envelopeId: string, stepId: string, agentId: string, identityFingerprint: string, eventType: string, userId?: string, metadata?: Record<string, unknown>): Promise<void>;
+export declare function addTrace(envelopeId: string, stepId: string, agentId: string, identityFingerprint: string, eventType: string, userId?: string, metadata?: Record<string, unknown>, message?: string): Promise<void>;
 export declare function createArtifact(artifact: Artifact): Promise<void>;
 export declare function getArtifact(artifactId: string): Promise<Artifact | null>;
 /**
@@ -45,6 +45,15 @@ export declare function getJob(jobId: string): Promise<{
     envelope_id: string;
 } | null>;
 export declare function deleteAgent(agentId: string): Promise<void>;
+/**
+ * Atomically aggregate token usage for an envelope and its linked job.
+ */
+export declare function addTokenUsage(envelopeId: string, usage: {
+    total_tokens: number;
+    input_tokens: number;
+    output_tokens: number;
+    cost: number;
+}): Promise<void>;
 /**
  * Enqueue a created envelope for the runtime-worker to claim and execute.
  * Writes to `execution_queue` Firestore collection.

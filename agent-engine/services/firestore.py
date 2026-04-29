@@ -344,6 +344,7 @@ def log_agent_action(
     artifact_id: str = "",
     error: str = "",
     duration_ms: int = 0,
+    metadata: Optional[dict] = None,
 ) -> str:
     """
     Write a structured agent log entry to agent_logs/{log_id}.
@@ -353,7 +354,7 @@ def log_agent_action(
     now = datetime.now(timezone.utc).isoformat()
     log_id = f"log_{agent_role}_{event.lower()}_{int(time.time() * 1_000_000)}"
 
-    db.collection(COLLECTION_AGENT_LOGS).document(log_id).set({
+    log_doc = {
         "log_id": log_id,
         "envelope_id": envelope_id,
         "step_id": step_id,
@@ -367,7 +368,10 @@ def log_agent_action(
         "error": error[:500] if error else "",
         "duration_ms": duration_ms,
         "timestamp": now,
-    })
+        "metadata": metadata or {},
+    }
+
+    db.collection(COLLECTION_AGENT_LOGS).document(log_id).set(log_doc)
     return log_id
 
 
@@ -391,17 +395,31 @@ def sync_job_with_envelope(
     }
     if envelope_id:
         payload["envelope_id"] = envelope_id
-        
+        payload["execution_id"] = envelope_id
+
         # Sync steps from envelope directly to jobs
         envelope = get_envelope(envelope_id)
         if envelope and "steps" in envelope:
             payload["steps"] = envelope["steps"]
             if "execution_context" in envelope:
                 payload["execution_context"] = envelope["execution_context"]
+            if "token_usage" in envelope:
+                payload["token_usage"] = envelope["token_usage"]
 
+    # Split extra into regular keys and dot-notation keys (nested field paths).
+    # set(merge=True) treats dots as literal field names; update() treats them
+    # as nested paths — so dot-keys go through a separate update() call.
+    dotpath_fields = {}
     if extra:
-        payload.update(extra)
+        for k, v in list(extra.items()):
+            if "." in k:
+                dotpath_fields[k] = v
+            else:
+                payload[k] = v
     db.collection(COLLECTION_JOBS).document(job_id).set(payload, merge=True)
+    if dotpath_fields:
+        dotpath_fields["updated_at"] = datetime.now(timezone.utc).isoformat()
+        db.collection(COLLECTION_JOBS).document(job_id).update(dotpath_fields)
 
 
 # ─── Trace Logging ────────────────────────────────────────────────────────────

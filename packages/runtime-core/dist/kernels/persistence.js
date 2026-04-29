@@ -26,6 +26,7 @@ exports.linkJobToEnvelope = linkJobToEnvelope;
 exports.syncJobStatus = syncJobStatus;
 exports.getJob = getJob;
 exports.deleteAgent = deleteAgent;
+exports.addTokenUsage = addTokenUsage;
 exports.enqueueEnvelope = enqueueEnvelope;
 const db_1 = require("../db");
 const constants_1 = require("../constants");
@@ -113,7 +114,7 @@ async function setEnvelopeStatus(envelopeId, status) {
         .update({ status, updated_at: new Date().toISOString() });
 }
 // ─── Trace Operations ─────────────────────────────────────────────────────────
-async function addTrace(envelopeId, stepId, agentId, identityFingerprint, eventType, userId, metadata) {
+async function addTrace(envelopeId, stepId, agentId, identityFingerprint, eventType, userId, metadata, message) {
     const traceId = (0, hash_1.generateTraceId)(eventType);
     const trace = {
         trace_id: traceId,
@@ -123,6 +124,7 @@ async function addTrace(envelopeId, stepId, agentId, identityFingerprint, eventT
         identity_fingerprint: identityFingerprint,
         event_type: eventType,
         user_id: userId,
+        message,
         timestamp: new Date().toISOString(),
         metadata: metadata ?? {},
     };
@@ -208,6 +210,37 @@ async function deleteAgent(agentId) {
         .collection(constants_1.COLLECTIONS.AGENTS)
         .doc(agentId)
         .delete();
+}
+/**
+ * Atomically aggregate token usage for an envelope and its linked job.
+ */
+async function addTokenUsage(envelopeId, usage) {
+    const db = (0, db_1.getDb)();
+    const ref = db.collection(constants_1.COLLECTIONS.EXECUTION_ENVELOPES).doc(envelopeId);
+    await db.runTransaction(async (tx) => {
+        const snap = await tx.get(ref);
+        if (!snap.exists)
+            return;
+        const envelope = snap.data();
+        const current = envelope.token_usage || { total_tokens: 0, input_tokens: 0, output_tokens: 0, cost: 0 };
+        const updated = {
+            total_tokens: (current.total_tokens || 0) + (usage.total_tokens || 0),
+            input_tokens: (current.input_tokens || 0) + (usage.input_tokens || 0),
+            output_tokens: (current.output_tokens || 0) + (usage.output_tokens || 0),
+            cost: (current.cost || 0) + (usage.cost || 0),
+        };
+        tx.update(ref, {
+            token_usage: updated,
+            updated_at: new Date().toISOString()
+        });
+        // Also sync to job if exists
+        if (envelope.job_id) {
+            tx.set(db.collection(constants_1.COLLECTIONS.JOBS).doc(envelope.job_id), {
+                token_usage: updated,
+                updated_at: new Date().toISOString()
+            }, { merge: true });
+        }
+    });
 }
 // ─── Execution Queue ──────────────────────────────────────────────────────────
 /**

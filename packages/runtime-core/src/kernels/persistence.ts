@@ -260,6 +260,45 @@ export async function deleteAgent(agentId: string): Promise<void> {
     .delete();
 }
 
+/**
+ * Atomically aggregate token usage for an envelope and its linked job.
+ */
+export async function addTokenUsage(
+  envelopeId: string,
+  usage: { total_tokens: number; input_tokens: number; output_tokens: number; cost: number }
+): Promise<void> {
+  const db = getDb();
+  const ref = db.collection(COLLECTIONS.EXECUTION_ENVELOPES).doc(envelopeId);
+  
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) return;
+    
+    const envelope = snap.data() as ExecutionEnvelope;
+    const current = envelope.token_usage || { total_tokens: 0, input_tokens: 0, output_tokens: 0, cost: 0 };
+    
+    const updated = {
+      total_tokens: (current.total_tokens || 0) + (usage.total_tokens || 0),
+      input_tokens: (current.input_tokens || 0) + (usage.input_tokens || 0),
+      output_tokens: (current.output_tokens || 0) + (usage.output_tokens || 0),
+      cost: (current.cost || 0) + (usage.cost || 0),
+    };
+    
+    tx.update(ref, { 
+      token_usage: updated, 
+      updated_at: new Date().toISOString() 
+    });
+
+    // Also sync to job if exists
+    if (envelope.job_id) {
+       tx.set(db.collection(COLLECTIONS.JOBS).doc(envelope.job_id), {
+         token_usage: updated,
+         updated_at: new Date().toISOString()
+       }, { merge: true });
+    }
+  });
+}
+
 // ─── Execution Queue ──────────────────────────────────────────────────────────
 
 /**

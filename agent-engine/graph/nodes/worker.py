@@ -1,16 +1,17 @@
 """
-Worker Agent Node — Phase 2
+Worker Agent Node — Phase 3
 Step type: "artifact_produce"  |  Verb: #us#.artifact.produce
 
-Receives:  prompt + research from input_ref
-Produces:  structured deliverable (artifact)
-Returns:   artifact content string for persistence
+Phase 3: strict grounding from research + KB + web search.
+All claims must be backed by sources. No fabrication.
+INSUFFICIENT DATA if sources are missing.
 """
 
 import json
 import time
-import traceback
-from services.firestore import get_artifact, log_agent_action
+from services.firestore import get_artifact, log_agent_action, get_envelope
+from services.knowledge_service import extract_phase3_context, log_phase3_usage
+from services.token_service import extract_token_usage
 from provider_router import get_llm_config
 from langchain_anthropic import ChatAnthropic
 from langchain_openai import ChatOpenAI
@@ -18,69 +19,73 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
 
 
-WORKER_SYSTEM_PROMPT = """You are the Production Worker agent in the ACEPLACE Phase 2 runtime.
-Your mission is to synthesize the research intelligence and produce a comprehensive, professional-grade deliverable.
+WORKER_SYSTEM_PROMPT = """You are the Production Worker of ACEPLACE. Your mission is to produce a MASSIVE, HIGH-FIDELITY masterpiece.
 
-You MUST:
-1. Read and deeply understand ALL research findings provided
-2. Pay special attention to the Researcher's "Recommended Approach" and incorporate its structure and tactical advice into your work
-3. Draw explicit conclusions from each research finding
-4. Produce a fully detailed, long-form deliverable — not a brief summary
-5. Structure the output professionally with clear sections and sub-sections
-6. Reference specific research findings where relevant in your output
-7. Provide actionable recommendations based on synthesized insights
-8. Ensure the final deliverable is a seamless merge of the mission goal and the intelligence findings
+### 🚀 OUTPUT VOLUME & DEPTH (CRITICAL)
+- **EXTENSIVE PRODUCTION:** You MUST write at least 1500+ words. Short responses will be rejected.
+- **STRUCTURAL DEPTH:** You must provide at least 8+ detailed sections. 
+- **CONTENT DENSITY:** Each section body must be at least 5-8 paragraphs long, filled with deep analysis and professional insights.
+- **PRECISION:** Cite every fact using [KB-N] or [WEB-N].
 
-Return ONLY valid JSON in this exact structure:
+### 🛡️ GROUNDING PROTOCOL
+- **DO:** Prioritize [KB-0] and [KB-N] data. 
+- **DO:** Cite all sources explicitly.
+- **DON'T:** Copy instructions or placeholders from this prompt. Populate fields with ACTUAL content.
+- **DON'T:** Be brief. Expand on every finding with professional detail.
+
+### 📝 OUTPUT STRUCTURE (JSON ONLY)
 {
-  "deliverable_summary": "Crisp 2-sentence executive description of what was produced and its value",
-  "deliverable_type": "report|analysis|plan|code|specification|document",
-  "executive_summary": "3-5 paragraph high-level overview of the complete deliverable and its conclusions",
-  "content": "The FULL, complete deliverable content here — this must be comprehensive, detailed, and long-form. Do NOT truncate or summarize. Include all sections, analysis, conclusions, and recommendations.",
+  "deliverable_summary": "Professional executive summary of the artifact.",
+  "content": "The full, massive long-form deliverable (1500+ words). Use extensive markdown formatting.",
   "sections": [
-    {
-      "title": "Section title",
-      "body": "Full section content with detailed analysis and conclusions drawn from research"
+    { 
+      "title": "Descriptive Section Title", 
+      "body": "Extensive, multi-paragraph content (min 5 paragraphs) providing deep analysis and cited facts." 
     }
   ],
-  "key_conclusions": [
-    {
-      "conclusion": "Specific conclusion drawn from the research",
-      "evidence": "The research finding(s) that support this conclusion",
-      "recommendation": "Actionable recommendation based on this conclusion"
-    }
-  ],
-  "research_synthesis": "Paragraph explicitly describing how the researcher's findings were incorporated into this deliverable",
-  "limitations": ["Any limitation or caveat in the deliverable"],
-  "quality_notes": "Assessment of deliverable completeness and areas for potential enhancement"
+  "source_references": [{ "ref_id": "[KB-1]", "title": "Source Title" }],
+  "grounding_report": { "kb_chunks_cited": 0, "web_sources_cited": 0, "fabrication_check": "VERIFIED" }
 }"""
 
 
-def execute(ctx: dict) -> str:
-    """
-    Execute the Worker artifact production step.
-    Returns JSON string of the produced deliverable.
-    """
+def _parse_json_text(text: str) -> dict | None:
+    cleaned = text.strip()
+    for fence in ("```json", "```"):
+        if cleaned.startswith(fence):
+            cleaned = cleaned[len(fence):]
+    if cleaned.endswith("```"):
+        cleaned = cleaned[:-3]
+    cleaned = cleaned.strip()
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        first, last = cleaned.find("{"), cleaned.rfind("}")
+        if first != -1 and last > first:
+            try:
+                return json.loads(cleaned[first:last + 1])
+            except Exception:
+                return None
+    return None
+
+
+def execute(ctx: dict) -> dict:
     prompt = ctx.get("prompt", "")
     envelope_id = ctx.get("envelope_id", "")
     step_id = ctx.get("step_id", "")
     agent_id = ctx.get("agent_id", "agent_worker")
+    fingerprint = ctx.get("identity_fingerprint", "")
     input_ref = ctx.get("input_ref")
     start_ms = int(time.time() * 1000)
+    model_name = "unknown"
 
-    print(f"[WORKER] Producing artifact for envelope {envelope_id}")
+    print(f"[WORKER] Producing grounded artifact for envelope {envelope_id}")
 
-    # ── Step 5: Resolve Provider Configuration (BYO-LLM) ────────────────────────
-    llm_cfg = get_llm_config(ctx.get("org_id"), "worker")
-    provider = llm_cfg["provider"]
-    model_name = llm_cfg["model"]
-
-    # Load research from previous step artifact
+    # Load research from previous step
     research_context = ""
     work_unit_context = ""
-    
+    researcher_grounding_meta = {}
+
     if input_ref:
-        # Extract research artifact ID and work unit if structured
         research_art_id = None
         if isinstance(input_ref, dict):
             research_art_id = input_ref.get("artifact_id")
@@ -94,114 +99,131 @@ def execute(ctx: dict) -> str:
             try:
                 artifact = get_artifact(research_art_id)
                 if artifact:
-                    research_context = f"\n\nResearch Findings:\n{artifact.get('artifact_content', '')}"
+                    research_content = artifact.get("artifact_content", "")
+                    research_context = f"\n\nResearch Findings:\n{research_content}"
+                    try:
+                        res_data = json.loads(research_content)
+                        researcher_grounding_meta = res_data.get("_grounding_meta", {})
+                    except Exception:
+                        pass
             except Exception:
                 pass
 
-    # ── Log: START ─────────────────────────────────────────────────────────────
+    # Phase 3 context — re-fetch for worker
+    envelope = get_envelope(envelope_id) or {}
+    phase3 = extract_phase3_context(envelope, prompt)
+
+    kb_stats = f"KB: {len(phase3['knowledge_chunks'])} chunks"
+    if phase3['has_knowledge']:
+        kb_stats += " + Direct Text"
+
     log_agent_action(
-        envelope_id=envelope_id,
-        step_id=step_id,
-        agent_role="worker",
-        agent_id=agent_id,
-        event="START",
-        model=model_name,
-        input_summary=f"Produce deliverable for: {prompt[:300]}",
+        envelope_id, step_id, "worker", agent_id, "START", 
+        input_summary=f"Producing: {prompt[:200]} | {kb_stats}",
+        metadata={"kb_chunks": len(phase3['knowledge_chunks']), "has_direct_text": phase3['has_knowledge']}
     )
 
+    log_phase3_usage(envelope_id, step_id, agent_id, fingerprint, phase3)
 
     try:
-        combined_prompt = f"Mission Prompt: {prompt}{work_unit_context}"
-        raw_text = _call_llm(provider, model_name, llm_cfg, combined_prompt, research_context)
+        llm_cfg = get_llm_config(ctx.get("org_id"), "worker")
+        provider = llm_cfg["provider"]
+        model_name = llm_cfg["model"]
+        api_key = llm_cfg["api_key"]
+        base_url = llm_cfg.get("base_url")
 
-        cleaned = raw_text.strip()
-        for fence in ("```json", "```"):
-            if cleaned.startswith(fence):
-                cleaned = cleaned[len(fence):]
-        if cleaned.endswith("```"):
-            cleaned = cleaned[:-3]
-        cleaned = cleaned.strip()
+        if provider == "anthropic":
+            llm = ChatAnthropic(model=model_name, temperature=llm_cfg["temperature"],
+                                api_key=api_key, base_url=base_url or None, max_tokens=16000, timeout=300)
+        elif provider == "openai":
+            llm = ChatOpenAI(model=model_name, temperature=llm_cfg["temperature"],
+                             api_key=api_key, base_url=base_url or None, max_tokens=12000)
+        elif provider == "gemini":
+            llm = ChatGoogleGenerativeAI(model=model_name, temperature=llm_cfg["temperature"], google_api_key=api_key)
+        else:
+            raise ValueError(f"Unsupported provider: {provider}")
 
-        try:
-            result = json.loads(cleaned)
-        except json.JSONDecodeError:
+        # Enumerate web sources for worker reference
+        web_source_index = ""
+        if phase3["web_results"]:
+            lines = ["\n\nWEB SOURCE INDEX (use these refs in your output):"]
+            for i, r in enumerate(phase3["web_results"][:15], 1):
+                lines.append(f"[WEB-{i}] {r.get('title', '')} — {r.get('url', '')}")
+            web_source_index = "\n".join(lines)
+
+        kb_source_index = ""
+        if phase3["knowledge_chunks"]:
+            lines = ["\n\nKB SOURCE INDEX:"]
+            for i, c in enumerate(phase3["knowledge_chunks"][:8], 1):
+                lines.append(f"[KB-{i}] Collection: {c['collection_id']} (relevance: {c['score']:.2f})")
+            kb_source_index = "\n".join(lines)
+
+        grounding_note = (
+            f"\n\nGROUNDING REQUIREMENTS:"
+            f"\n- Cite all facts with [WEB-N] or [KB-N] references"
+            f"\n- KB chunks available: {len(phase3['knowledge_chunks'])}"
+            f"\n- Web search results available: {len(phase3['web_results'])}"
+            f"\n- Research findings: attached below"
+            f"\n- Write INSUFFICIENT DATA if a required claim has no source"
+            f"\n- This deliverable must be investor-ready and fully sourced"
+        )
+
+        combined_prompt = f"Mission: {prompt}{work_unit_context}"
+        human_content = (
+            f"{combined_prompt}"
+            f"{grounding_note}"
+            f"{kb_source_index}"
+            f"{web_source_index}"
+            f"{phase3['instr_block']}"
+            f"{research_context}"
+            f"{phase3['kb_block']}"
+            f"{phase3['web_block']}"
+            f"\n\nProduce the complete, highly detailed, grounded deliverable."
+        )
+
+        messages = [
+            SystemMessage(content=WORKER_SYSTEM_PROMPT),
+            HumanMessage(content=human_content),
+        ]
+        response = llm.invoke(messages)
+        raw_text = response.content if isinstance(response.content, str) else str(response.content)
+
+        result = _parse_json_text(raw_text)
+        if not result:
             result = {
                 "deliverable_summary": "Worker output",
                 "deliverable_type": "document",
                 "content": raw_text,
                 "quality_notes": "Raw output — JSON parse failed",
+                "grounding_report": {"kb_chunks_cited": 0, "web_sources_cited": 0, "insufficient_data_items": [], "fabrication_check": "UNKNOWN"},
             }
 
+        result["_grounding_meta"] = {
+            "kb_chunks_used": len(phase3["knowledge_chunks"]),
+            "web_results_used": len(phase3["web_results"]),
+            "web_sources": [r.get("url") for r in phase3["web_results"][:15] if r.get("url")],
+            "instruction_profiles_used": phase3["profile_ids"],
+            "researcher_grounding_meta": researcher_grounding_meta,
+        }
+
+        usage = extract_token_usage(response, model_name)
         duration_ms = int(time.time() * 1000) - start_ms
 
-        # ── Log: COMPLETE ───────────────────────────────────────────────────────
-        log_agent_action(
-            envelope_id=envelope_id,
-            step_id=step_id,
-            agent_role="worker",
-            agent_id=agent_id,
-            event="COMPLETE",
-            model=model_name,
-            input_summary=f"Task: {prompt[:200]}",
-            output_summary=result.get("deliverable_summary", "Artifact produced")[:500],
-            duration_ms=duration_ms,
-        )
+        log_agent_action(envelope_id, step_id, "worker", agent_id, "COMPLETE",
+                         model=model_name,
+                         output_summary=result.get("deliverable_summary", "")[:500],
+                         duration_ms=duration_ms,
+                         metadata={"token_usage": usage})
 
-        print(f"[WORKER] Artifact produced for envelope {envelope_id}")
-        return json.dumps(result, indent=2)
+        print(f"[WORKER] Complete | Tokens: {usage.get('total_tokens', 0)} | KB: {len(phase3['knowledge_chunks'])} | Web: {len(phase3['web_results'])}")
+        return {
+            "content": json.dumps(result, indent=2),
+            "token_usage": usage
+        }
 
     except Exception as e:
         duration_ms = int(time.time() * 1000) - start_ms
         print(f"[WORKER] ERROR: {e}")
-
-        log_agent_action(
-            envelope_id=envelope_id,
-            step_id=step_id,
-            agent_role="worker",
-            agent_id=agent_id,
-            event="ERROR",
-            model=model_name,
-            error=str(e),
-            duration_ms=duration_ms,
-        )
+        log_agent_action(envelope_id, step_id, "worker", agent_id, "ERROR",
+                         model=model_name, error=str(e), duration_ms=duration_ms)
         raise
-
-
-def _call_llm(provider: str, model_name: str, cfg: dict, prompt: str, research_context: str) -> str:
-    """Call the resolved LLM provider and return raw text."""
-    api_key = cfg["api_key"]
-    base_url = cfg.get("base_url")
-
-    if provider == "openai":
-        llm = ChatOpenAI(
-            model=model_name,
-            temperature=cfg["temperature"],
-            api_key=api_key,
-            base_url=base_url if base_url else None,
-            max_tokens=8192,
-            timeout=300,
-        )
-    elif provider == "anthropic":
-        llm = ChatAnthropic(
-            model=model_name,
-            temperature=cfg["temperature"],
-            api_key=api_key,
-            base_url=base_url if base_url else None,
-            max_tokens=8192,
-            timeout=300,
-        )
-    elif provider == "gemini":
-        llm = ChatGoogleGenerativeAI(
-            model=model_name,
-            temperature=cfg["temperature"],
-            google_api_key=api_key,
-        )
-    else:
-        raise ValueError(f"BYO_LLM_ERROR: Unsupported provider {provider}")
-
-    messages = [
-        SystemMessage(content=WORKER_SYSTEM_PROMPT),
-        HumanMessage(content=f"Task:\n\n{prompt}{research_context}\n\nProduce the deliverable."),
-    ]
-    response = llm.invoke(messages)
-    return response.content if isinstance(response.content, str) else str(response.content)

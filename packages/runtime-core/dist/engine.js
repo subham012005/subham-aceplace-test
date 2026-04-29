@@ -148,13 +148,16 @@ async function dispatch(params) {
         // ── Step 2: Build Envelope ────────────────────────────────────────────────
         const envelope = (0, envelope_builder_1.buildEnvelope)({
             envelopeId: suggestedEnvId,
-            orgId: params.orgId ?? "default",
+            orgId: params.orgId || params.userId,
             jobId: params.jobId,
             userId: params.userId,
             prompt: params.prompt,
             identity_contexts,
             role_assignments,
             steps: plannedSteps,
+            knowledge_context: params.knowledge_context,
+            instruction_context: params.instruction_context,
+            web_search_context: params.web_search_context,
         });
         if (identityFailure) {
             envelope.status = "quarantined";
@@ -193,6 +196,7 @@ async function dispatch(params) {
             const jobRef = db.collection(constants_1.COLLECTIONS.JOBS).doc(params.jobId);
             tx.set(jobRef, {
                 envelope_id: envelope.envelope_id,
+                execution_id: envelope.envelope_id,
                 user_id: params.userId,
                 prompt: params.prompt,
                 updated_at: new Date().toISOString(),

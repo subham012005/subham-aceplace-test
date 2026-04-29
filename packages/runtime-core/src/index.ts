@@ -32,6 +32,7 @@ export {
   syncJobStatus,
   getJob,
   enqueueEnvelope,
+  addTokenUsage,
 } from "./kernels/persistence";
 export {
   claimNextEnvelope,

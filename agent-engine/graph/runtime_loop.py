@@ -33,7 +33,10 @@ from services.firestore import (
     create_artifact,
     append_trace,
     send_protocol_message,
+    sync_job_with_envelope,
 )
+from services.token_service import aggregate_tokens
+from provider_router import get_llm_config
 
 # Step type → agent node function + #us# verb
 from graph.nodes.coo import execute as coo_execute
@@ -134,10 +137,13 @@ def run_envelope(envelope_id: str, instance_id: str) -> None:
                             "checkpoint_at": __import__("datetime").datetime.now(
                                 __import__("datetime").timezone.utc
                             ).isoformat(),
+                            "token_usage": envelope.get("token_usage", {}),
+                            "cost": envelope.get("token_usage", {}).get("cost", 0.0)
                         }
                         # Always carry grader score forward into the final sync
                         if _grader_score_cache:
                             final_extra.update(_grader_score_cache)
+
                         sync_job_with_envelope(
                             job_id=job_id,
                             status="awaiting_approval" if not any_failed else "failed",
@@ -184,6 +190,23 @@ def run_envelope(envelope_id: str, instance_id: str) -> None:
         # ── Sync job status for stage start ────────────────────────────────────
         job_id = envelope.get("job_id")
         if job_id:
+            ROLE_MAP = {
+                "plan": "coo",
+                "assign": "researcher",
+                "artifact_produce": "worker",
+                "evaluation": "grader"
+            }
+            role = ROLE_MAP.get(step_type, "worker")
+            
+            # Resolve LLM info for dashboard transparency
+            llm_info = {"model": "unknown", "provider": "unknown"}
+            try:
+                llm_cfg = get_llm_config(envelope.get("org_id", "default"), role)
+                llm_info["model"] = llm_cfg.get("model", "unknown")
+                llm_info["provider"] = llm_cfg.get("provider", "unknown")
+            except Exception as e:
+                print(f"[RUNTIME] Could not resolve LLM info for sync: {e}")
+
             STATUS_MAP = {
                 "plan": "coo_planning",
                 "assign": "research_execution",
@@ -191,12 +214,16 @@ def run_envelope(envelope_id: str, instance_id: str) -> None:
                 "evaluation": "grading"
             }
             mapped_status = STATUS_MAP.get(step_type, f"{step_type}_execution")
-            from services.firestore import sync_job_with_envelope
             sync_job_with_envelope(
                 job_id=job_id,
                 status=mapped_status,
                 envelope_id=envelope_id,
-                extra={"active_stage": step_type, "current_step": step_id},
+                extra={
+                    "active_stage": step_type, 
+                    "current_step": step_id,
+                    "model_used": llm_info["model"],
+                    "model_provider": llm_info["provider"]
+                },
             )
 
         # ── Step 5: Generate #us# Message ─────────────────────────────────────
@@ -238,20 +265,39 @@ def run_envelope(envelope_id: str, instance_id: str) -> None:
                                     f"Node error: {traceback.format_exc()}")
             break
 
+        # Handle dict return from updated agents
+        token_usage = {}
+        actual_output = output_content
+        if isinstance(output_content, dict) and "content" in output_content:
+            token_usage = output_content.get("token_usage", {})
+            actual_output = output_content["content"]
+
         # ── Step 7: Persist Artifact ───────────────────────────────────────────
         artifact_id = create_artifact(
             envelope_id=envelope_id,
             agent_id=agent_id,
             identity_fingerprint=fingerprint,
             artifact_type=step_type,
-            content=output_content if isinstance(output_content, str)
-                    else str(output_content),
+            content=actual_output if isinstance(actual_output, str)
+                    else str(actual_output),
         )
 
-        # Update artifact_refs in envelope
+        # Update artifact_refs and total_token_usage in envelope
         envelope = get_envelope(envelope_id) or envelope
         existing_refs = envelope.get("artifact_refs", []) or []
-        update_envelope(envelope_id, {"artifact_refs": existing_refs + [artifact_id]})
+        
+        current_total_usage = envelope.get("token_usage", {
+            "input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "cost": 0.0
+        })
+        new_total_usage = aggregate_tokens(current_total_usage, token_usage)
+        
+        print(f"[{step_type.upper()}] 📊 Token Usage: {token_usage.get('total_tokens', 0)} (In: {token_usage.get('input_tokens', 0)}, Out: {token_usage.get('output_tokens', 0)})")
+        print(f"[{step_type.upper()}] 💰 Running Total: {new_total_usage.get('total_tokens', 0)} tokens | Est. Cost: ${new_total_usage.get('cost', 0.0):.4f}")
+
+        update_envelope(envelope_id, {
+            "artifact_refs": existing_refs + [artifact_id],
+            "token_usage": new_total_usage
+        })
 
         # ── Step 8: Update Step Status ─────────────────────────────────────────
         update_envelope_step(envelope_id, step_id, {
@@ -278,28 +324,43 @@ def run_envelope(envelope_id: str, instance_id: str) -> None:
                 "evaluation": "grading"
             }
             mapped_status = STATUS_MAP.get(step_type, f"{step_type}_execution")
-            extra = {"active_stage": step_type, "last_completed_step": step_id}
+            extra = {
+                "active_stage": step_type, 
+                "last_completed_step": step_id,
+                "token_usage": new_total_usage,  # Sync total tokens to job
+                "cost": new_total_usage.get("cost", 0.0)
+            }
             
-            if step_type == "evaluation" and output_content:
+            if actual_output:
                 try:
                     import json
-                    parsed_out = json.loads(output_content) if isinstance(output_content, str) else output_content
-                    grade_score_val = None
-                    if "overall_score" in parsed_out:
-                        grade_score_val = parsed_out["overall_score"]
-                    elif "score" in parsed_out:
-                        grade_score_val = parsed_out["score"]
-                    if grade_score_val is not None:
-                        extra["grade_score"] = grade_score_val
-                        extra["grading_result"] = json.dumps(parsed_out) if not isinstance(output_content, str) else output_content
-                        # Cache so the final awaiting_approval sync also gets the score
-                        _grader_score_cache["grade_score"] = grade_score_val
-                        _grader_score_cache["grading_result"] = extra["grading_result"]
-                        _grader_score_cache["grade_label"] = parsed_out.get("grade", "")
-                        _grader_score_cache["grade_recommendation"] = parsed_out.get("recommendation", "")
-                        _grader_score_cache["graded_at"] = __import__("datetime").datetime.now(
-                            __import__("datetime").timezone.utc
-                        ).isoformat()
+                    output_str = actual_output if isinstance(actual_output, str) else json.dumps(actual_output)
+                    if step_type == "plan":
+                        extra["runtime_context.plan"] = output_str
+                    elif step_type == "assign":
+                        extra["runtime_context.research_result"] = output_str
+                    elif step_type == "artifact_produce":
+                        extra["runtime_context.worker_result"] = output_str
+                        extra["runtime_context.final_result"] = output_str
+                    elif step_type == "evaluation":
+                        parsed_out = json.loads(output_str) if isinstance(actual_output, str) else actual_output
+                        if isinstance(parsed_out, dict):
+                            grade_score_val = parsed_out.get("overall_score")
+                            if grade_score_val is None:
+                                grade_score_val = parsed_out.get("score")
+                            if grade_score_val is None:
+                                grade_score_val = parsed_out.get("value")
+                            if grade_score_val is not None:
+                                extra["grade_score"] = grade_score_val
+                                extra["grading_result"] = parsed_out
+                                extra["runtime_context.grading_result"] = parsed_out
+                                _grader_score_cache["grade_score"] = grade_score_val
+                                _grader_score_cache["grading_result"] = parsed_out
+                                _grader_score_cache["grade_label"] = parsed_out.get("grade", "")
+                                _grader_score_cache["grade_recommendation"] = parsed_out.get("recommendation", "")
+                                _grader_score_cache["graded_at"] = __import__("datetime").datetime.now(
+                                    __import__("datetime").timezone.utc
+                                ).isoformat()
                 except Exception:
                     pass
 
@@ -319,7 +380,7 @@ def run_envelope(envelope_id: str, instance_id: str) -> None:
 def _safe_transition(envelope_id: str, new_status: str) -> None:
     """Update envelope status only if valid from current state."""
     VALID_TRANSITIONS = {
-        "created":        {"leased", "failed"},
+        "created":        {"leased", "executing", "failed"},
         "leased":         {"planned", "executing", "quarantined", "failed"},
         "planned":        {"executing", "failed"},
         "executing":      {"awaiting_human", "approved", "failed", "quarantined"},

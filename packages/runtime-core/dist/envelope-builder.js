@@ -79,7 +79,7 @@ function buildEnvelope(params) {
     }
     return {
         envelope_id: envelopeId,
-        org_id: params.orgId ?? "default",
+        org_id: params.orgId ?? params.userId ?? "default",
         status: "created",
         // Steps EMBEDDED (not external collection)
         steps,
@@ -97,6 +97,10 @@ function buildEnvelope(params) {
         job_id: params.jobId,
         user_id: params.userId,
         prompt: params.prompt,
+        // Phase 3 Context
+        knowledge_context: params.knowledge_context,
+        instruction_context: params.instruction_context,
+        web_search_context: params.web_search_context,
     };
 }
 /**

@@ -15,7 +15,6 @@ export async function GET(
         const { searchParams } = new URL(req.url);
         const userId = searchParams.get("user_id");
 
-        console.log(`[ADMIN] Fetching job details: ${jobId} (User: ${userId || 'ANY'})`);
 
         if (!adminDb) {
             return NextResponse.json({

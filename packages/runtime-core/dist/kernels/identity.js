@@ -185,7 +185,7 @@ function computeFingerprint(canonicalJson) {
  * Handles canonical JSON generation, fingerprinting, and persistence.
  */
 async function registerAgentIdentity(params) {
-    const { display_name, role, mission, org_id, tier = "builder" } = params;
+    const { display_name, role, mission, org_id, tier = "builder", acelogic_id } = params;
     // 1. Generate or validate agent_id
     const slug = display_name.toLowerCase().replace(/[^a-z0-9]/g, "_").slice(0, 32);
     const suffix = (0, crypto_1.randomBytes)(3).toString("hex");
@@ -215,6 +215,7 @@ async function registerAgentIdentity(params) {
         tier: tier, // Compat with existing schema
         created_at: new Date().toISOString(),
         last_verified_at: new Date().toISOString(),
+        ...(acelogic_id ? { acelogic_id } : {}),
     };
     await (0, db_1.getDb)()
         .collection(constants_1.COLLECTIONS.AGENTS)

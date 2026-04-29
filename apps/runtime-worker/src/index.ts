@@ -20,6 +20,8 @@ import { randomUUID } from "crypto";
 import * as admin from "firebase-admin";
 import * as http from "http";
 import * as https from "https";
+import { spawn } from "child_process";
+import * as path from "path";
 
 import {
   getDb,
@@ -74,15 +76,11 @@ function startSelfPing(workerId: string) {
     return null;
   }
 
-  console.log(`[WORKER:${workerId}] Self-ping enabled for ${PUBLIC_URL}`);
   
   const ping = () => {
-    console.log(`[WORKER:${workerId}] Sending self-ping to ${PUBLIC_URL}...`);
     const protocol = PUBLIC_URL.startsWith("https") ? https : http;
     protocol.get(PUBLIC_URL, (res) => {
-      console.log(`[WORKER:${workerId}] Self-ping response: ${res.statusCode}`);
     }).on("error", (err) => {
-      console.error(`[WORKER:${workerId}] Self-ping failed:`, err.message);
     });
   };
 
@@ -176,11 +174,54 @@ export async function runWorker(workerId: string = WORKER_ID) {
   console.log(`[WORKER:${workerId}] Worker stopped.`);
 }
 
+/**
+ * Starts the Python Agent Engine as a background process.
+ * This allows running both the TS Worker and Python Engine on a single Render instance.
+ */
+function startAgentEngine() {
+  const isWindows = process.platform === "win32";
+  // On Render/Linux, we usually want 'python3'. Locally on Windows 'python'.
+  const pythonCmd = isWindows ? "python" : "python3";
+  const engineDir = path.join(process.cwd(), "agent-engine");
+
+  console.log(`\n[SYSTEM] 🚀 Spawning Agent Engine: ${pythonCmd} main.py`);
+  console.log(`[SYSTEM] CWD: ${engineDir}\n`);
+  
+  const engine = spawn(pythonCmd, ["main.py"], {
+    cwd: engineDir,
+    stdio: "inherit", // Pipe Python logs directly to our stdout/stderr
+    shell: true,
+    env: { ...process.env, PYTHONPATH: engineDir }
+  });
+
+  engine.on("error", (err) => {
+    console.error("[SYSTEM] ❌ Failed to start Agent Engine:", err);
+  });
+
+  engine.on("exit", (code) => {
+    if (code !== 0 && code !== null) {
+      console.error(`[SYSTEM] ⚠️ Agent Engine process exited with code ${code}`);
+    } else {
+      console.log(`[SYSTEM] Agent Engine process exited gracefully.`);
+    }
+  });
+
+  return engine;
+}
+
 // Only run if this is the main module
 if (require.main === module) {
+  // 1. Start the Python Agent Engine in the background
+  const engineProcess = startAgentEngine();
+
+  // 2. Start the Node.js Worker polling loop
   runWorker().catch((err) => {
     console.error("[WORKER] Fatal startup error:", err);
+    if (engineProcess) engineProcess.kill();
     process.exit(1);
   });
+
+  // Ensure Python dies if Node dies
+  process.on("exit", () => engineProcess.kill());
 }
 

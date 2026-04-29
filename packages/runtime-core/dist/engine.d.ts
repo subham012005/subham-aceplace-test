@@ -16,6 +16,20 @@ export declare function dispatch(params: {
     jobId?: string;
     orgId?: string;
     agentId?: string;
+    knowledge_context?: {
+        collections?: string[];
+        direct_text?: string;
+        enabled: boolean;
+    };
+    instruction_context?: {
+        profiles?: string[];
+        enabled: boolean;
+    };
+    web_search_context?: {
+        enabled: boolean;
+        queries?: string[];
+        sources_used?: string[];
+    };
 }): Promise<DispatchResponse>;
 /**
  * Get the current state of an envelope by ID.

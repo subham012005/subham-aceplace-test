@@ -22,6 +22,8 @@ export declare function executeFallbackStep(params: {
     identity_fingerprint: string;
     prompt: string;
     input_ref: string | null;
+    org_id?: string;
+    fallback_approved?: boolean;
 }): Promise<{
     success: boolean;
     artifact_id: string;

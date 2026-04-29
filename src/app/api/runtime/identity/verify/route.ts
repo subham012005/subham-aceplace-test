@@ -52,7 +52,6 @@ export async function POST(req: Request) {
       const normFp = (v: string) => v.trim().replace(/^hex:/i, "").replace(/^0x/i, "").toLowerCase();
       const verified = normFp(recomputed) === normFp(fingerprint);
       
-      console.log(`[IDENTITY_VERIFY] Global Check: agent=${agentId}, recomputed=${recomputed}, received=${fingerprint}, match=${verified}`);
       
       return NextResponse.json({ 
         verified, 

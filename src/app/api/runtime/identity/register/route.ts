@@ -31,6 +31,7 @@ export async function POST(req: Request) {
 
     // Optional override — use with caution
     const agentId = typeof body.agent_id === "string" ? body.agent_id : undefined;
+    const acelogicId = typeof body.acelogic_id === "string" ? body.acelogic_id.trim() : undefined;
 
     // 📋 3. Execute Registration
     const result = await registerAgentIdentity({
@@ -39,6 +40,7 @@ export async function POST(req: Request) {
       mission,
       org_id: orgId,
       agent_id: agentId,
+      acelogic_id: acelogicId,
     });
 
     // 🚢 4. Return secure response

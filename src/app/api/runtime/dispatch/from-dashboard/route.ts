@@ -4,14 +4,8 @@ import { sanitisePrompt, safeErrorResponse, secureJson, verifyUserApiKey } from 
 /**
  * POST /api/runtime/dispatch/from-dashboard
  *
- * Dashboard-only dispatch helper that:
- *  - Authenticates via Firebase ID token (verifyUserApiKey)
- *  - Accepts a raw prompt and optional job_id/agent_id
- *  - Calls the deterministic runtime engine dispatcher
- *
- * This keeps the public /api/runtime/dispatch contract intact for
- * server-to-server/API-key callers while giving the GUI an explicit
- * entry point that matches the docs' TaskComposer → dispatch flow.
+ * Phase 3: accepts knowledge_context, instruction_context, web_search_context
+ * and passes them into the execution envelope as grounding context.
  */
 export async function POST(req: Request) {
   try {
@@ -20,7 +14,6 @@ export async function POST(req: Request) {
 
     const body = (await req.json()) as Record<string, unknown>;
 
-    // Support phase-2 API Contract: root_task and execution_policy
     const prompt = sanitisePrompt((body.root_task || body.prompt) as string);
 
     let agentId: string | undefined = undefined;
@@ -34,11 +27,26 @@ export async function POST(req: Request) {
         agentId = body.agent_id.trim().slice(0, 128);
     }
 
-    // Keep jobId for UI compat until completely removed
     const jobId =
       typeof body.job_id === "string" && body.job_id.trim()
         ? body.job_id.trim().slice(0, 128)
         : undefined;
+
+    // ── Phase 3: Extract grounding context from request ────────────────────
+    const knowledge_context = (body.knowledge_context && typeof body.knowledge_context === "object")
+        ? body.knowledge_context as { collections?: string[]; direct_text?: string; enabled: boolean }
+        : undefined;
+
+    const instruction_context = (body.instruction_context && typeof body.instruction_context === "object")
+        ? body.instruction_context as { profiles?: string[]; enabled: boolean }
+        : undefined;
+
+    // Web search always enabled
+    const web_search_context = {
+        enabled: true,
+        queries: [] as string[],
+        sources_used: [] as string[],
+    };
 
     const result = await dispatch({
       prompt,
@@ -46,7 +54,11 @@ export async function POST(req: Request) {
       jobId,
       orgId,
       agentId,
-    });
+      // Phase 3 envelope grounding fields
+      knowledge_context,
+      instruction_context,
+      web_search_context,
+    } as any);
 
     if (!result.success) {
       return secureJson({
@@ -60,4 +72,3 @@ export async function POST(req: Request) {
     return safeErrorResponse(error, "DASHBOARD_DISPATCH", 500);
   }
 }
-

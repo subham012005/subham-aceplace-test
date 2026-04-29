@@ -28,6 +28,24 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
 
+    // ── Phase 3: Knowledge Base & Instructions ──────────────────────────────
+    
+    // Knowledge Collections metadata
+    match /user_knowledge_collections/{userId}/collections/{collId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Knowledge Chunks (read by anyone with access to collection, write by owner)
+    match /user_knowledge_chunks/{collId}/chunks/{chunkId} {
+      allow read: if true; // Chunks are retrieved via collectionId lookup
+      allow write: if request.auth != null; // Managed by upload API
+    }
+
+    // Instruction Profiles
+    match /user_instruction_profiles/{userId}/profiles/{profileId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
     // Default deny
     match /{document=**} {
       allow read, write: if false;
