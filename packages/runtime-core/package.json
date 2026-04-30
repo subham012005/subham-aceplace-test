@@ -18,7 +18,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.90.0",
+    "@anthropic-ai/sdk": "^0.33.1",
     "firebase-admin": "^13.7.0",
     "openai": "^6.34.0"
   },
