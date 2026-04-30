@@ -13,7 +13,8 @@
   },
   "dependencies": {
     "@aceplace/runtime-core": "*",
-    "firebase-admin": "^13.7.0"
+    "firebase-admin": "^10.1.0",
+    "firebase-tools": "1.2.0"
   },
   "devDependencies": {
     "@types/node": "^20",

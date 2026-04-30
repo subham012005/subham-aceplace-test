@@ -39,6 +39,7 @@ interface ProviderConfig {
   api_key: string;
   model?: string;    // user-selected model for this provider
   base_url?: string;
+  max_tokens?: number; // user-selected max tokens limit
 }
 
 interface AgentProviderMap {
@@ -56,10 +57,10 @@ interface IntelligenceConfig {
 // ── Default state ──────────────────────────────────────────────────────────
 const DEFAULT_CONFIG: IntelligenceConfig = {
   providers: {
-    openai:    { enabled: false, api_key: "", model: "gpt-4o" },
-    anthropic: { enabled: false, api_key: "", model: "claude-sonnet-4-6" },
-    gemini:    { enabled: false, api_key: "", model: "gemini-1.5-pro" },
-    custom:    { enabled: false, api_key: "" },
+    openai:    { enabled: false, api_key: "", model: "gpt-4o-mini", max_tokens: 4096 },
+    anthropic: { enabled: false, api_key: "", model: "claude-sonnet-4-6", max_tokens: 4096 },
+    gemini:    { enabled: false, api_key: "", model: "gemini-1.5-pro", max_tokens: 4096 },
+    custom:    { enabled: false, api_key: "", max_tokens: 4096 },
   },
   agent_models: {
     coo:        "anthropic",
@@ -248,6 +249,23 @@ function ProviderCard({
               </p>
             </div>
           )}
+
+          {/* Max Tokens selection */}
+          <div className="pt-2 border-t border-white/5">
+            <label className="text-[7px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1 mb-1">
+              <Zap className="w-2.5 h-2.5" /> Max Tokens (Optional)
+            </label>
+            <input
+              type="number"
+              value={config.max_tokens || ""}
+              onChange={(e) => onChange({ ...config, max_tokens: e.target.value ? parseInt(e.target.value) : undefined })}
+              placeholder="e.g. 4096"
+              className="w-full bg-black/60 border border-white/10 px-2 py-1.5 text-[9px] font-mono text-cyan-400 placeholder:text-slate-700 focus:outline-none focus:border-cyan-500/50 transition-all"
+            />
+            <p className="text-[6px] text-slate-500 mt-1 uppercase tracking-tighter">
+              Limits the maximum number of output tokens. Lower values reduce TPM rate-limit risk.
+            </p>
+          </div>
         </div>
       )}
     </div>
