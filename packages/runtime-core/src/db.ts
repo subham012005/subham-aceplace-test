@@ -34,6 +34,10 @@ function initializeRuntimeDb(): admin.firestore.Firestore {
     }
     const formattedPrivateKey = cleanedKey.replace(/\\n/g, '\n');
 
+    if (!projectId) {
+        throw new Error("[RUNTIME-CORE] Missing FIREBASE_PROJECT_ID or NEXT_PUBLIC_FIREBASE_PROJECT_ID environment variable.");
+    }
+
     admin.initializeApp({
         credential: admin.credential.cert({
             projectId,
