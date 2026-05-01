@@ -13,9 +13,9 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "worker": "cross-env NODE_OPTIONS='--max-old-space-size=1024' ts-node -r tsconfig-paths/register apps/runtime-worker/src/index.ts",
+    "worker": "cross-env NODE_OPTIONS='--max-old-space-size=512' ts-node -r tsconfig-paths/register apps/runtime-worker/src/index.ts",
     "worker:build": "tsc --build apps/runtime-worker/tsconfig.json",
-    "worker:start": "cross-env NODE_OPTIONS='--max-old-space-size=1024' node apps/runtime-worker/dist/index.js",
+    "worker:start": "cross-env NODE_OPTIONS='--max-old-space-size=512' node apps/runtime-worker/dist/index.js",
     "test:e2e": "vitest run apps/runtime-worker/src/__tests__/e2e-runtime.test.ts",
     "audit": "npm audit --audit-level=moderate",
     "certify": "ts-node --project tsconfig.json -e \"require('./scripts/phase2-live-certification.ts')\""
