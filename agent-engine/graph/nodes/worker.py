@@ -109,21 +109,23 @@ def execute(ctx: dict) -> dict:
             except Exception:
                 pass
 
-    # Phase 3 context — re-fetch for worker
+    # Phase 3 context — re-fetch for worker (Skip KB for Worker)
     envelope = get_envelope(envelope_id) or {}
     phase3 = extract_phase3_context(envelope, prompt)
+    
+    # We explicitly disable KB for Worker to save tokens
+    # The worker should rely on the Researcher's report instead
+    phase3["knowledge_chunks"] = []
+    phase3["kb_block"] = ""
+    phase3["has_knowledge"] = False
 
-    kb_stats = f"KB: {len(phase3['knowledge_chunks'])} chunks"
-    if phase3['has_knowledge']:
-        kb_stats += " + Direct Text"
+    kb_stats = "KB: Skipped (using Research Report)"
 
     log_agent_action(
         envelope_id, step_id, "worker", agent_id, "START", 
         input_summary=f"Producing: {prompt[:200]} | {kb_stats}",
-        metadata={"kb_chunks": len(phase3['knowledge_chunks']), "has_direct_text": phase3['has_knowledge']}
+        metadata={"kb_chunks": 0, "has_direct_text": False}
     )
-
-    log_phase3_usage(envelope_id, step_id, agent_id, fingerprint, phase3)
 
     try:
         llm_cfg = get_llm_config(ctx.get("org_id"), "worker")
@@ -151,17 +153,9 @@ def execute(ctx: dict) -> dict:
                 lines.append(f"[WEB-{i}] {r.get('title', '')} — {r.get('url', '')}")
             web_source_index = "\n".join(lines)
 
-        kb_source_index = ""
-        if phase3["knowledge_chunks"]:
-            lines = ["\n\nKB SOURCE INDEX:"]
-            for i, c in enumerate(phase3["knowledge_chunks"][:8], 1):
-                lines.append(f"[KB-{i}] Collection: {c['collection_id']} (relevance: {c['score']:.2f})")
-            kb_source_index = "\n".join(lines)
-
         grounding_note = (
             f"\n\nGROUNDING REQUIREMENTS:"
-            f"\n- Cite all facts with [WEB-N] or [KB-N] references"
-            f"\n- KB chunks available: {len(phase3['knowledge_chunks'])}"
+            f"\n- Cite all facts with [WEB-N] references or info from Research Report"
             f"\n- Web search results available: {len(phase3['web_results'])}"
             f"\n- Research findings: attached below"
             f"\n- Write INSUFFICIENT DATA if a required claim has no source"
@@ -172,11 +166,9 @@ def execute(ctx: dict) -> dict:
         human_content = (
             f"{combined_prompt}"
             f"{grounding_note}"
-            f"{kb_source_index}"
             f"{web_source_index}"
             f"{phase3['instr_block']}"
             f"{research_context}"
-            f"{phase3['kb_block']}"
             f"{phase3['web_block']}"
             f"\n\nProduce the complete, highly detailed, grounded deliverable."
         )

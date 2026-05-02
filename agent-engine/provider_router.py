@@ -102,6 +102,11 @@ def get_llm_config(org_id: str, role: str) -> dict:
     else:
         model = MODEL_MAP.get(provider_key, {}).get(role, "unknown")
 
+    # [MITIGATION] Force gpt-4o-mini for Tier 1 orgs hitting the 30k TPM limit
+    if model == "gpt-4o":
+        print(f"[ROUTER] ⚠️ Swapping gpt-4o for gpt-4o-mini to avoid 429 rate limits")
+        model = "gpt-4o-mini"
+
     print(f"[ROUTER] Resolved BYO-LLM: org={org_id} role={role} provider={provider_key} model={model}")
     
     return {

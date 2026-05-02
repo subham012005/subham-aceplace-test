@@ -90,16 +90,19 @@ def execute(ctx: dict) -> str:
     start_ms = int(time.time() * 1000)
     model_name = "unknown"
 
-    # ── Phase 3: Extract knowledge + web search context ───────────────────────
+    # ── Phase 3: Extract web search context (Skip KB for COO) ──────────────────
     envelope = get_envelope(envelope_id) or {}
+    
+    # We explicitly disable KB for COO to save tokens
     phase3 = extract_phase3_context(envelope, prompt)
+    
+    # Override KB content to be empty for COO
+    phase3["knowledge_chunks"] = []
+    phase3["kb_block"] = ""
+    phase3["has_knowledge"] = False
 
-    kb_block   = phase3["kb_block"]
     web_block  = phase3["web_block"]
     instr_block = phase3["instr_block"]
-
-    # Log phase3 usage
-    log_phase3_usage(envelope_id, step_id, agent_id, fingerprint, phase3)
 
     try:
         # ── Resolve Provider Configuration (BYO-LLM) ─────────────────────────────
@@ -148,10 +151,10 @@ def execute(ctx: dict) -> str:
 
         human_content = (
             f"Use this knowledge base:\n"
-            f"{{ {grounding_note}\n{instr_block}{kb_block}{web_block} }}\n\n"
+            f"{{ {grounding_note}\n{instr_block}{web_block} }}\n\n"
             f"Then strategically answer the task:\n"
             f"{{ {prompt} }}\n\n"
-            f"Create the execution plan. Reference web search results and knowledge base in assignments."
+            f"Create the execution plan. Reference web search results in assignments."
         )
         messages = [
             SystemMessage(content=COO_SYSTEM_PROMPT),

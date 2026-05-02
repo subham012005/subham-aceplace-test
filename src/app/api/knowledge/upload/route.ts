@@ -128,6 +128,18 @@ export async function POST(req: NextRequest) {
                 }
             }
         }
+        
+        // --- TEXT SANITIZATION ---
+        // Ensure only readable text is stored, removing weird PDF artifacts, binary blobs, and excessive noise.
+        const sanitizeText = (text: string) => {
+            return text
+                .replace(/[^\x20-\x7E\n\r\t\u00A0-\u00FF\u0100-\u017F]/g, " ") // Keep basic Latin, extended Latin, and common whitespace
+                .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, " ")                // Explicitly remove non-printable control chars
+                .replace(/\s+/g, " ")                                         // Normalize multiple spaces/newlines to single space
+                .trim();
+        };
+
+        extractedText = sanitizeText(extractedText);
 
         if (!extractedText || extractedText.trim().length < 10) {
             return NextResponse.json({ error: "Could not extract text from file" }, { status: 422 });
