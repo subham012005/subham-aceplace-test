@@ -86,44 +86,17 @@ export async function POST(req: NextRequest) {
         if (ext === "txt") {
             extractedText = buffer.toString("utf-8");
         } else if (ext === "pdf") {
-            // Use pdf-parse for PDF extraction
             try {
+                // Use standard pdf-parse (pure JS)
                 const { createRequire } = await import("module");
                 const require = createRequire(import.meta.url);
-                const pdf = require("pdf-parse");
+                const pdf = require("pdf-parse/lib/pdf-parse.js");
                 
-                if (typeof pdf === 'function') {
-                    const data = await pdf(buffer);
-                    extractedText = data.text;
-                } else if (pdf.PDFParse) {
-                    const { PDFParse } = pdf;
-                    const parser = new PDFParse({ data: buffer });
-                    const result = await parser.getText();
-                    extractedText = result.text || "";
-                    await parser.destroy();
-                } else {
-                    throw new Error("PDF parser function not found");
-                }
+                const data = await pdf(buffer);
+                extractedText = data.text || "";
             } catch (err: any) {
-                console.error("[UPLOAD] PDF extraction failed (primary):", err);
-                
-                // Fallback 1: Dynamic import
-                try {
-                    const pdfModule = await import("pdf-parse/node") as any;
-                    if (pdfModule.PDFParse) {
-                        const parser = new pdfModule.PDFParse({ data: buffer });
-                        const result = await parser.getText();
-                        extractedText = result.text || "";
-                        await parser.destroy();
-                    } else {
-                        throw new Error("PDFParse not found in fallback module");
-                    }
-                } catch (fallbackErr: any) {
-                    console.error("[UPLOAD] PDF extraction fallback failed:", fallbackErr);
-                    // Fallback 2: Removed raw buffer conversion to avoid binary noise from images/metadata
-                    console.error("[UPLOAD] PDF extraction failed completely for:", file.name);
-                    extractedText = ""; 
-                }
+                console.error("[UPLOAD] PDF extraction failed:", err);
+                extractedText = ""; 
             }
         }
         
