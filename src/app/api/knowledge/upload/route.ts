@@ -120,22 +120,36 @@ export async function POST(req: NextRequest) {
                     }
                 } catch (fallbackErr: any) {
                     console.error("[UPLOAD] PDF extraction fallback failed:", fallbackErr);
-                    // Fallback 2: Last resort raw buffer string cleanup
-                    extractedText = buffer.toString("utf-8").replace(/[^\x20-\x7E\n]/g, " ").replace(/\s+/g, " ");
-                    if (extractedText.length < 50) {
-                        extractedText = `[PDF: ${file.name}] Text extraction failed. Original Error: ${err.message}.`;
-                    }
+                    // Fallback 2: Removed raw buffer conversion to avoid binary noise from images/metadata
+                    console.error("[UPLOAD] PDF extraction failed completely for:", file.name);
+                    extractedText = ""; 
                 }
             }
         }
         
         // --- TEXT SANITIZATION ---
-        // Ensure only readable text is stored, removing weird PDF artifacts, binary blobs, and excessive noise.
+        // Ensure only clean, readable text is stored. 
+        // Strips binary blobs, image artifacts, and non-printable control characters.
         const sanitizeText = (text: string) => {
+            if (!text) return "";
             return text
-                .replace(/[^\x20-\x7E\n\r\t\u00A0-\u00FF\u0100-\u017F]/g, " ") // Keep basic Latin, extended Latin, and common whitespace
-                .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, " ")                // Explicitly remove non-printable control chars
-                .replace(/\s+/g, " ")                                         // Normalize multiple spaces/newlines to single space
+                // 1. Remove zero-width spaces and invisible formatting marks
+                .replace(/[\u200B-\u200D\uFEFF\u200E\u200F\u202A-\u202E]/g, "")
+                // 2. Remove all control characters except \n, \t, \r
+                .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
+                // 3. Keep printable ASCII + common Latin-1 characters (accents, etc.)
+                //    This is the most effective filter to ensure "Normal Text" and strip image binary noise.
+                .replace(/[^\x20-\x7E\n\r\t\u00A0-\u00FF]/g, " ")
+                // 4. Normalize line endings
+                .replace(/\r\n|\r/g, "\n")
+                // 5. Collapse multiple spaces and tabs
+                .replace(/[ \t]+/g, " ")
+                // 6. Normalize newlines (keep structure, but remove excessive gaps)
+                .replace(/\n{3,}/g, "\n\n")
+                // 7. Clean up each line and join back
+                .split("\n")
+                .map(line => line.trim())
+                .join("\n")
                 .trim();
         };
 
