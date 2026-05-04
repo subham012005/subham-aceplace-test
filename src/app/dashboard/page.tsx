@@ -84,10 +84,10 @@ const parseFirestoreDate = (date: any) => {
 };
 
 const AGENT_ROSTER = [
-    { name: "COO",        agentId: "agent_coo",        color: "text-blue-400",    border: "border-blue-500/30",    bg: "bg-blue-500/10" },
-    { name: "Researcher", agentId: "agent_researcher",  color: "text-purple-400",  border: "border-purple-500/30",  bg: "bg-purple-500/10" },
-    { name: "Worker",     agentId: "agent_worker",      color: "text-amber-400",   border: "border-amber-500/30",   bg: "bg-amber-500/10" },
-    { name: "Grader",     agentId: "agent_grader",      color: "text-emerald-400", border: "border-emerald-500/30", bg: "bg-emerald-500/10" },
+    { name: "COO", agentId: "agent_coo", color: "text-blue-400", border: "border-blue-500/30", bg: "bg-blue-500/10" },
+    { name: "Researcher", agentId: "agent_researcher", color: "text-purple-400", border: "border-purple-500/30", bg: "bg-purple-500/10" },
+    { name: "Worker", agentId: "agent_worker", color: "text-amber-400", border: "border-amber-500/30", bg: "bg-amber-500/10" },
+    { name: "Grader", agentId: "agent_grader", color: "text-emerald-400", border: "border-emerald-500/30", bg: "bg-emerald-500/10" },
 ] as const;
 
 function AgentIdentityRoster() {
@@ -785,7 +785,7 @@ export default function DashboardPage() {
                                                 return (
                                                     <div className="flex items-center gap-1.5 shrink-0" title={`${chunks} knowledge segments retrieved`}>
                                                         <div className="w-12 h-1 bg-white/5 border border-white/10 rounded-full overflow-hidden">
-                                                            <div 
+                                                            <div
                                                                 className="h-full bg-cyan-400 shadow-[0_0_8px_#22d3ee] transition-all duration-1000"
                                                                 style={{ width: `${Math.min((chunks / 10) * 100, 100)}%` }}
                                                             />
@@ -831,10 +831,10 @@ export default function DashboardPage() {
                                     </div>
                                 ))
                             ) : [
-                                { name: "COO",        agentId: "agent_coo",        capability: "planning",    modelClass: "high_reasoning", gate: "Omega-V" },
-                                { name: "Researcher", agentId: "agent_researcher",  capability: "research",     modelClass: "high_reasoning", gate: "Sigma-II" },
-                                { name: "Worker",     agentId: "agent_worker",      capability: "execution",    modelClass: "standard",       gate: "Alpha-X" },
-                                { name: "Grader",     agentId: "agent_grader",      capability: "evaluation",   modelClass: "standard",       gate: "Delta-VII" }
+                                { name: "COO", agentId: "agent_coo", capability: "planning", modelClass: "high_reasoning", gate: "Omega-V" },
+                                { name: "Researcher", agentId: "agent_researcher", capability: "research", modelClass: "high_reasoning", gate: "Sigma-II" },
+                                { name: "Worker", agentId: "agent_worker", capability: "execution", modelClass: "standard", gate: "Alpha-X" },
+                                { name: "Grader", agentId: "agent_grader", capability: "evaluation", modelClass: "standard", gate: "Delta-VII" }
                             ].map((agent: { name: string; agentId: string; capability: string; modelClass: string; gate: string }, i) => (
                                 <div
                                     key={agent.name}
@@ -1144,7 +1144,7 @@ export default function DashboardPage() {
                     </ErrorBoundary>
 
                     {/* ACEPLACE COMMAND */}
-                    <HUDFrame title="ACEPLACE COMMAND" className="min-h-[300px] lg:min-h-[350px] flex-none shrink-0 flex flex-col relative overflow-hidden group">
+                    <HUDFrame title="NOVA ACE COMMAND" className="min-h-[300px] lg:min-h-[350px] flex-none shrink-0 flex flex-col relative overflow-hidden group">
                         {/* Background subtle glow */}
                         <div className={cn("absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[180%] h-[180%] bg-cyan-500/10 blur-[80px] rounded-full transition-opacity duration-1000", isSpeaking ? "opacity-100" : "opacity-0")} />
 
@@ -1169,7 +1169,7 @@ export default function DashboardPage() {
                             <div className="mt-auto flex flex-col items-center w-full">
                                 <div className="text-center transition-all duration-500 group-hover:drop-shadow-[0_0_10px_rgba(34,211,238,0.5)]">
                                     <h4 className="text-xl md:text-2xl font-black text-white tracking-[0.25em] flex items-baseline justify-center gap-1">
-                                        ACEPLACE VOICE COMMAND<span className="text-[10px] align-top font-bold text-cyan-500/80">™</span>
+                                        VOICE COMMAND<span className="text-[10px] align-top font-bold text-cyan-500/80">™</span>
                                     </h4>
                                 </div>
 
