@@ -463,7 +463,7 @@ Output: [What the final deliverable should look like]`}
                              </div>
                              <button
                                onClick={(e) => { e.stopPropagation(); deleteSnippet(s.snippet_id); }}
-                               className="opacity-0 group-hover/snip:opacity-100 p-1 text-slate-600 hover:text-rose-400 transition-all"
+                               className="p-1 text-slate-600 hover:text-rose-400 transition-all"
                              >
                                <Trash2 className="w-2.5 h-2.5" />
                              </button>
@@ -626,7 +626,7 @@ Output: [What the final deliverable should look like]`}
                             <button
                               type="button"
                               onClick={ev => { ev.stopPropagation(); deleteCollection(c.collection_id); }}
-                              className="opacity-0 group-hover/coll:opacity-100 p-0.5 text-slate-600 hover:text-rose-400 transition-all"
+                              className="p-0.5 text-slate-600 hover:text-rose-400 transition-all"
                             >
                               <Trash2 className="w-3 h-3" />
                             </button>
@@ -706,7 +706,7 @@ Output: [What the final deliverable should look like]`}
                         <button
                           type="button"
                           onClick={ev => { ev.stopPropagation(); deleteProfile(p.profile_id); }}
-                          className="opacity-0 group-hover/prof:opacity-100 p-0.5 text-slate-600 hover:text-rose-400 transition-all"
+                          className="p-0.5 text-slate-600 hover:text-rose-400 transition-all"
                         >
                           <Trash2 className="w-3 h-3" />
                         </button>
