@@ -25,6 +25,11 @@ from services.token_service import extract_token_usage
 
 COO_SYSTEM_PROMPT = """You are the COO of ACEPLACE. Your goal is to plan a MASSIVE-SCALE mission based on the Knowledge Base (KB) and Web Search.
 
+### 🎯 THE "ANTI-GENERIC" PROTOCOL (CRITICAL)
+- **ELIMINATE VAGUENESS:** Do not use broad, generic terms. Use specific entities, technical domains, and data types found in the KB.
+- **DENSE STRATEGY:** Every assignment must be specific to the context. 
+- **NO TEMPLATES:** Do not create a generic plan. Create a unique, tailored execution strategy that leverages the unique aspects of the user's knowledge.
+
 ### 🎯 MISSION OBJECTIVE
 Create a comprehensive, high-detail plan that forces agents to produce a massive (1500+ word) masterpiece.
 
@@ -34,21 +39,34 @@ Create a comprehensive, high-detail plan that forces agents to produce a massive
 - **DO:** Prioritize [KB-N] for every historical, technical, or procedural detail.
 - **DON'T:** Create a simple plan. Create a roadmap for deep, professional analysis.
 
+### 🏗️ OUTPUT SPECIFICATION (CRITICAL)
+- **DEFINE THE MASTERPIECE:** You must explicitly define the 8+ sections required for the Worker's final output.
+- **WORD COUNT TARGETS:** Set explicit word count minimums for each section (e.g., "Section 1: Executive Summary - min 300 words").
+- **PRESENTATION STEPS:** Outline exactly how the information should be presented (e.g., "Use comparison tables for data," "Provide a SWOT analysis in section 4," "Include a technical roadmap").
+- **DEPTH MANDATE:** Demand that every section goes beyond surface-level observations into deep, structural analysis.
+
 ### 📝 PLAN STRUCTURE (JSON ONLY)
 {
-  "plan_summary": "Strategic overview",
-  "strategic_objective": "Extensive goal description",
-  "grounding_decision": { "use_knowledge_base": true, "use_web_search": true, "rationale": "Detailed reason" },
+  "plan_summary": "Strategic overview. Specific and dense.",
+  "strategic_objective": "Extensive goal description based on KB facts.",
+  "final_deliverable_specification": {
+    "total_word_count_target": "1500+ words",
+    "required_sections": [
+      { "title": "Section Title", "min_words": 200, "description": "Specific details to present here based on KB." }
+    ],
+    "presentation_style_requirements": ["Use tables for X", "Use mermaid diagrams for Y", "Detailed technical appendices"]
+  },
+  "grounding_decision": { "use_knowledge_base": true, "use_web_search": true, "rationale": "Detailed reason linked to KB content" },
   "assignments": [
     {
       "agent_role": "researcher",
-      "task": "Perform TOTAL EXTRACTION on [topic]. Extract 10-12+ granular findings from the KB. No summaries. Provide enough raw data for 1500+ words.",
-      "success_criteria": "Total intelligence extraction"
+      "task": "Perform TOTAL EXTRACTION on [specific KB topics]. Extract 10-12+ granular findings from the KB. No summaries. Provide enough raw data for 1500+ words.",
+      "success_criteria": "Total intelligence extraction of [specific detail]"
     },
     {
       "agent_role": "worker",
-      "task": "Produce a MASSIVE (1500+ word), 8+ section masterpiece deliverable. Expand on research with deep multi-paragraph analysis. Cite all sources.",
-      "success_criteria": "Large-scale, professional output"
+      "task": "Produce the MASSIVE deliverable as specified in the 'final_deliverable_specification'. Expand on research with deep multi-paragraph analysis. Cite all sources.",
+      "success_criteria": "Large-scale, professional output incorporating [KB detail]"
     }
   ],
   "web_search_queries_recommended": ["specific query 1", "specific query 2"],
@@ -90,17 +108,12 @@ def execute(ctx: dict) -> str:
     start_ms = int(time.time() * 1000)
     model_name = "unknown"
 
-    # ── Phase 3: Extract web search context (Skip KB for COO) ──────────────────
+    # ── Phase 3: Extract context ──────────────────
     envelope = get_envelope(envelope_id) or {}
     
-    # We explicitly disable KB for COO to save tokens
     phase3 = extract_phase3_context(envelope, prompt)
     
-    # Override KB content to be empty for COO
-    phase3["knowledge_chunks"] = []
-    phase3["kb_block"] = ""
-    phase3["has_knowledge"] = False
-
+    kb_block = phase3["kb_block"]
     web_block  = phase3["web_block"]
     instr_block = phase3["instr_block"]
 
@@ -141,7 +154,7 @@ def execute(ctx: dict) -> str:
         # Build grounding-aware human message
         grounding_summary = []
         if phase3["has_knowledge"]:
-            grounding_summary.append(f"- User Knowledge Base: {len(phase3['knowledge_chunks'])} relevant chunks from collections {phase3['collection_ids']}")
+            grounding_summary.append(f"- User Knowledge Base: {len(phase3['knowledge_chunks'])} relevant chunks loaded")
         if phase3["has_web"]:
             grounding_summary.append(f"- Web Search: {len(phase3['web_results'])} results retrieved")
         if phase3["has_instructions"]:
@@ -150,11 +163,11 @@ def execute(ctx: dict) -> str:
         grounding_note = "\n".join(grounding_summary) if grounding_summary else "- Web Search: always on for deep research"
 
         human_content = (
-            f"Use this knowledge base:\n"
-            f"{{ {grounding_note}\n{instr_block}{web_block} }}\n\n"
+            f"Use this knowledge context:\n"
+            f"{{ {grounding_note}\n{instr_block}{kb_block}{web_block} }}\n\n"
             f"Then strategically answer the task:\n"
             f"{{ {prompt} }}\n\n"
-            f"Create the execution plan. Reference web search results in assignments."
+            f"Create the execution plan. Reference knowledge base and web results in assignments."
         )
         messages = [
             SystemMessage(content=COO_SYSTEM_PROMPT),

@@ -21,22 +21,33 @@ from langchain_core.messages import SystemMessage, HumanMessage
 
 WORKER_SYSTEM_PROMPT = """You are the Production Worker of ACEPLACE. Your mission is to produce a MASSIVE, HIGH-FIDELITY masterpiece.
 
-### 🚀 OUTPUT VOLUME & DEPTH (CRITICAL)
+### 🎯 THE "ANTI-GENERIC" PROTOCOL (CRITICAL)
+- **BAN GENERIC CONTENT:** Never use "AI-sounding" filler, sweeping generalizations, or repetitive introductions.
+- **DENSE INFORMATION:** Every paragraph must contain at least 2-3 specific facts, data points, or technical details from the KB or Research.
+- **VOICE & TONE:** Write with professional authority. Be direct, technical, and precise. 
+- **NO SUMMARIES:** Do not summarize findings; synthesize them into a new, complex analysis.
+
+### 🚀 OUTPUT VOLUME & DEPTH
 - **EXTENSIVE PRODUCTION:** You MUST write at least 1500+ words. Short responses will be rejected.
 - **STRUCTURAL DEPTH:** You must provide at least 8+ detailed sections. 
 - **CONTENT DENSITY:** Each section body must be at least 5-8 paragraphs long, filled with deep analysis and professional insights.
 - **PRECISION:** Cite every fact using [KB-N] or [WEB-N].
 
+### 🏗️ MISSION EXECUTION (CRITICAL)
+- **FOLLOW THE PLAN:** You must strictly adhere to the `final_deliverable_specification` defined in the COO Execution Plan.
+- **SECTION BREAKDOWN:** Use the exact section titles and word count targets specified by the COO.
+- **PRESENTATION STYLE:** Implement all presentation style requirements (tables, diagrams, appendices) as requested.
+
 ### 🛡️ GROUNDING PROTOCOL
-- **DO:** Prioritize [KB-0] and [KB-N] data. 
-- **DO:** Cite all sources explicitly.
+- **DO:** Prioritize [KB-0] and [KB-N] data over general knowledge.
+- **DO:** Cite all sources explicitly at the point of use.
 - **DON'T:** Copy instructions or placeholders from this prompt. Populate fields with ACTUAL content.
 - **DON'T:** Be brief. Expand on every finding with professional detail.
 
 ### 📝 OUTPUT STRUCTURE (JSON ONLY)
 {
-  "deliverable_summary": "Professional executive summary of the artifact.",
-  "content": "The full, massive long-form deliverable (1500+ words). Use extensive markdown formatting.",
+  "deliverable_summary": "Professional executive summary of the artifact. Dense and specific.",
+  "content": "The full, massive long-form deliverable (1500+ words). Use extensive markdown formatting (headers, lists, tables).",
   "sections": [
     { 
       "title": "Descriptive Section Title", 
@@ -80,11 +91,13 @@ def execute(ctx: dict) -> dict:
 
     print(f"[WORKER] Producing grounded artifact for envelope {envelope_id}")
 
-    # Load research from previous step
+    # Load research and COO plan
     research_context = ""
+    plan_context = ""
     work_unit_context = ""
     researcher_grounding_meta = {}
 
+    # 1. Load context from input_ref (usually research)
     if input_ref:
         research_art_id = None
         if isinstance(input_ref, dict):
@@ -109,22 +122,30 @@ def execute(ctx: dict) -> dict:
             except Exception:
                 pass
 
-    # Phase 3 context — re-fetch for worker (Skip KB for Worker)
+    # 2. Re-fetch envelope to find the COO plan artifact
     envelope = get_envelope(envelope_id) or {}
+    steps = envelope.get("steps", [])
+    for s in steps:
+        if s.get("step_type") == "plan" and s.get("status") == "completed":
+            plan_art_id = s.get("output_ref")
+            if plan_art_id:
+                try:
+                    plan_art = get_artifact(plan_art_id)
+                    if plan_art:
+                        plan_context = f"\n\nCOO Execution Plan:\n{plan_art.get('artifact_content', '')}"
+                except Exception:
+                    pass
+            break
+
+    # Phase 3 context
     phase3 = extract_phase3_context(envelope, prompt)
     
-    # We explicitly disable KB for Worker to save tokens
-    # The worker should rely on the Researcher's report instead
-    phase3["knowledge_chunks"] = []
-    phase3["kb_block"] = ""
-    phase3["has_knowledge"] = False
-
-    kb_stats = "KB: Skipped (using Research Report)"
+    kb_stats = f"KB: {len(phase3['knowledge_chunks'])} chunks"
 
     log_agent_action(
         envelope_id, step_id, "worker", agent_id, "START", 
         input_summary=f"Producing: {prompt[:200]} | {kb_stats}",
-        metadata={"kb_chunks": 0, "has_direct_text": False}
+        metadata={"kb_chunks": len(phase3['knowledge_chunks']), "has_direct_text": phase3['has_knowledge']}
     )
 
     try:
@@ -155,7 +176,8 @@ def execute(ctx: dict) -> dict:
 
         grounding_note = (
             f"\n\nGROUNDING REQUIREMENTS:"
-            f"\n- Cite all facts with [WEB-N] references or info from Research Report"
+            f"\n- Cite all facts with [KB-N] or [WEB-N] references"
+            f"\n- Knowledge base chunks available: {len(phase3['knowledge_chunks'])}"
             f"\n- Web search results available: {len(phase3['web_results'])}"
             f"\n- Research findings: attached below"
             f"\n- Write INSUFFICIENT DATA if a required claim has no source"
@@ -168,7 +190,9 @@ def execute(ctx: dict) -> dict:
             f"{grounding_note}"
             f"{web_source_index}"
             f"{phase3['instr_block']}"
+            f"{plan_context}"
             f"{research_context}"
+            f"{phase3['kb_block']}"
             f"{phase3['web_block']}"
             f"\n\nProduce the complete, highly detailed, grounded deliverable."
         )

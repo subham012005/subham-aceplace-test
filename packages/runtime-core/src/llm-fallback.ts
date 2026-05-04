@@ -16,10 +16,10 @@ import { getDb } from "./db";
 import { COLLECTIONS } from "./constants";
 
 const DEFAULT_AGENT_MODELS = {
-  coo:        { provider: "anthropic" as const, model: "claude-sonnet-4-6",   temperature: 0.2, maxTokens: 4096 },
-  researcher: { provider: "anthropic" as const, model: "claude-sonnet-4-6",   temperature: 0.3, maxTokens: 8192 },
-  worker:     { provider: "openai"    as const, model: "gpt-4o",              temperature: 0.4, maxTokens: 8192 },
-  grader:     { provider: "anthropic" as const, model: "claude-haiku-4-5",    temperature: 0.1, maxTokens: 4096 },
+  coo:        { provider: "anthropic" as const, model: "claude-sonnet-4-6",   temperature: 0.0, maxTokens: 4096 },
+  researcher: { provider: "anthropic" as const, model: "claude-sonnet-4-6",   temperature: 0.0, maxTokens: 8192 },
+  worker:     { provider: "openai"    as const, model: "gpt-4o",              temperature: 0.0, maxTokens: 8192 },
+  grader:     { provider: "anthropic" as const, model: "claude-haiku-4-5",    temperature: 0.0, maxTokens: 4096 },
 } as const;
 
 interface ResolvedConfig {

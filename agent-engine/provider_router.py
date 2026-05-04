@@ -114,5 +114,5 @@ def get_llm_config(org_id: str, role: str) -> dict:
         "api_key": api_key,
         "base_url": p_config.get("base_url"),
         "model": model,
-        "temperature": 0.2 if role == "coo" else 0.3
+        "temperature": 0.0
     }

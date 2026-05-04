@@ -26,21 +26,21 @@ AGENT_MODELS = {
     "coo": {
         "provider": "anthropic",
         "model": "claude-sonnet-4-6",
-        "temperature": 0.2,
+        "temperature": 0.0,
     },
     "researcher": {
         "provider": "anthropic",
         "model": "claude-sonnet-4-6",
-        "temperature": 0.3,
+        "temperature": 0.0,
     },
     "worker": {
         "provider": "openai",
         "model": "gpt-4o",
-        "temperature": 0.4,
+        "temperature": 0.0,
     },
     "grader": {
         "provider": "anthropic",
         "model": "claude-haiku-4-5",
-        "temperature": 0.1,
+        "temperature": 0.0,
     },
 }
