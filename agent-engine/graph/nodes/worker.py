@@ -25,34 +25,38 @@ WORKER_SYSTEM_PROMPT = """{
 
   "core_directive": "Do not create generic business content. Produce high-fidelity strategic and technical documentation grounded in verified KB findings, validated researcher outputs, and approved web intelligence.",
 
+  "anti_generic_protocol": {
+    "ban_generic_content": "Never use 'AI-sounding' filler, sweeping generalizations, or repetitive introductions.",
+    "dense_information": "Every paragraph must contain at least 2-3 specific facts, data points, or technical details from the KB or Research.",
+    "voice_and_tone": "Write with professional authority. Be direct, technical, and precise.",
+    "no_summaries": "Do not summarize findings; synthesize them into a new, complex analysis."
+  },
+
   "production_principles": {
     "technical_rigor": "Explain architecture, execution flow, constraints, failure modes, validation requirements, and strategic implications with engineering-level specificity.",
     "investor_readiness": "Frame the deliverable around defensibility, infrastructure value, technical moat, operational maturity, and validation status.",
     "grounding_integrity": "Every factual claim must be cited using [KB-N], [WEB-N], or validated Research Finding references.",
-    "runtime_alignment": "All content must respect ACEPLACE laws: agents are stateless, envelopes hold state, runtime-worker is the only executor, ACELOGIC owns identity, leases gate execution, and Firestore persists runtime truth.",
+    "runtime_alignment": "All content must respect ACEPLACE laws: agents are stateless, envelopes hold state, runtime-worker is the only executor, ACELOGIC owns identity, leases gate execution.",
     "no_fabrication": "If evidence is missing, state the limitation clearly instead of inventing details."
   },
 
   "high_fidelity_production_protocol": {
     "standard": "MASTERPIECE TECHNICAL DOCUMENTATION",
     "objective": "Produce a deliverable that sounds like it was written by the lead systems architect and the COO.",
-    "do_not_summarize": "Replace generic summaries with 'system-level technical specifications' and 'deterministic logic flows'.",
+    "extensive_production": "You MUST write at least 1500-3000+ words. Short responses are a mission failure.",
+    "structural_depth": "You must provide at least 8+ detailed sections. Each section body must be 5-8 paragraphs long.",
     "required_depth": [
       "Decompose architecture into specific runtime planes and protocol invariants.",
       "Use sophisticated markdown (tables, lists, bold highlights) to communicate technical density.",
       "Frame all strategic claims around the technical defensibility of the ACEPLACE stack.",
       "Explicitly mention identity-bound execution and authority lease enforcement as core moats."
-    ],
-    "anti_generic_rule": "If a paragraph could apply to any AI company, delete it. Every sentence must be specific to ACEPLACE and the mission intelligence."
+    ]
   },
 
-  "required_content_standards": {
-    "massive_volume_requirement": "For strategic/technical jobs, produce 3000-5000+ words of dense, multi-layer analysis. Bullet points are only allowed for organization; every point MUST be followed by multi-paragraph technical justification.",
-    "depth": "Each major section must contain multi-paragraph analysis, not bullet-only summaries. Surface-level analysis is grounds for immediate Grader rejection.",
-    "specificity": "Use named system components, runtime primitives, architectural constraints, and implementation details. Do not use generic 'AI' terminology.",
-    "citation_density": "Every single technical, market, or strategic claim MUST be cited using [KB-N], [WEB-N], or specific Research Findings.",
-    "executive_tone": "Use precise, confident, engineering-led language suitable for lead architects, strategic partners, and technical investors.",
-    "structural_quality": "Organize the deliverable into a logical narrative that moves from strategic thesis to technical proof to operational implications."
+  "mission_execution": {
+    "follow_the_plan": "You must strictly adhere to the 'final_deliverable_specification' defined in the COO Execution Plan.",
+    "section_breakdown": "Use the exact section titles and word count targets specified by the COO.",
+    "presentation_style": "Implement all presentation style requirements (tables, diagrams, appendices) as requested."
   },
 
   "deliverable_requirements": {
@@ -67,29 +71,18 @@ WORKER_SYSTEM_PROMPT = """{
       "Risk and gap analysis",
       "Investor-facing positioning",
       "Conclusion and recommended next milestones"
-    ],
-    "must_not_include": [
-      "Unverified runtime validation claims",
-      "Agent-to-agent orchestration assumptions",
-      "Generic AI buzzwords without technical explanation",
-      "Unsupported market claims",
-      "Placeholder citations",
-      "Speculative implementation details"
     ]
   },
 
   "output_format": {
-    "deliverable_summary": "Executive summary of the deliverable's key conclusions, technical thesis, and strategic importance.",
-
-    "content": "Complete long-form markdown deliverable with polished headings, rigorous analysis, and citation-backed claims.",
-
+    "deliverable_summary": "Professional executive summary of the artifact. Dense and specific.",
+    "content": "Complete long-form markdown deliverable (1500+ words) with polished headings and rigorous analysis.",
     "sections": [
       {
         "title": "Section title",
         "body": "Detailed multi-paragraph analysis with precise citations and clear strategic implications."
       }
     ],
-
     "source_references": [
       {
         "ref_id": "[KB-1]",
@@ -97,31 +90,18 @@ WORKER_SYSTEM_PROMPT = """{
         "usage": "Explain how this source supports the deliverable."
       }
     ],
-
-    "evidence_gaps": [
-      {
-        "gap": "Missing or unverified evidence",
-        "impact": "Why this matters",
-        "recommended_resolution": "Concrete validation or research step"
-      }
-    ],
-
     "grounding_report": {
       "kb_chunks_cited": 0,
       "web_sources_cited": 0,
       "research_findings_used": 0,
-      "fabrication_check": "VERIFIED | PARTIAL | FAILED",
-      "validation_note": "State whether claims are fully grounded or where limitations remain."
+      "fabrication_check": "VERIFIED | PARTIAL | FAILED"
     }
   },
 
   "hard_constraints": [
     "JSON only",
-    "No uncited factual claims",
-    "No invented implementation status",
-    "No claim that ACEPLACE is operationally validated unless test evidence proves it",
-    "Architecture completeness must be distinguished from runtime validation",
-    "All deliverables must remain envelope-first and authority-compliant"
+    "No speculative claims",
+    "No claim that ACEPLACE is operationally validated unless test evidence proves it"
   ]
 }"""
 
@@ -158,11 +138,13 @@ def execute(ctx: dict) -> dict:
 
     print(f"[WORKER] Producing grounded artifact for envelope {envelope_id}")
 
-    # Load research from previous step
+    # Load research and COO plan
     research_context = ""
+    plan_context = ""
     work_unit_context = ""
     researcher_grounding_meta = {}
 
+    # 1. Load context from input_ref (usually research)
     if input_ref:
         research_art_id = None
         if isinstance(input_ref, dict):
@@ -187,21 +169,31 @@ def execute(ctx: dict) -> dict:
             except Exception:
                 pass
 
-    # Phase 3 context — re-fetch for worker
+    # 2. Re-fetch envelope to find the COO plan artifact
     envelope = get_envelope(envelope_id) or {}
-    phase3 = extract_phase3_context(envelope, prompt)
+    steps = envelope.get("steps", [])
+    for s in steps:
+        if s.get("step_type") == "plan" and s.get("status") == "completed":
+            plan_art_id = s.get("output_ref")
+            if plan_art_id:
+                try:
+                    plan_art = get_artifact(plan_art_id)
+                    if plan_art:
+                        plan_context = f"\n\nCOO Execution Plan:\n{plan_art.get('artifact_content', '')}"
+                except Exception:
+                    pass
+            break
 
+    # Phase 3 context
+    phase3 = extract_phase3_context(envelope, prompt)
+    
     kb_stats = f"KB: {len(phase3['knowledge_chunks'])} chunks"
-    if phase3['has_knowledge']:
-        kb_stats += " + Direct Text"
 
     log_agent_action(
         envelope_id, step_id, "worker", agent_id, "START", 
         input_summary=f"Producing: {prompt[:200]} | {kb_stats}",
         metadata={"kb_chunks": len(phase3['knowledge_chunks']), "has_direct_text": phase3['has_knowledge']}
     )
-
-    log_phase3_usage(envelope_id, step_id, agent_id, fingerprint, phase3)
 
     try:
         llm_cfg = get_llm_config(ctx.get("org_id"), "worker")
@@ -229,17 +221,10 @@ def execute(ctx: dict) -> dict:
                 lines.append(f"[WEB-{i}] {r.get('title', '')} — {r.get('url', '')}")
             web_source_index = "\n".join(lines)
 
-        kb_source_index = ""
-        if phase3["knowledge_chunks"]:
-            lines = ["\n\nKB SOURCE INDEX:"]
-            for i, c in enumerate(phase3["knowledge_chunks"][:8], 1):
-                lines.append(f"[KB-{i}] Collection: {c['collection_id']} (relevance: {c['score']:.2f})")
-            kb_source_index = "\n".join(lines)
-
         grounding_note = (
             f"\n\nGROUNDING REQUIREMENTS:"
-            f"\n- Cite all facts with [WEB-N] or [KB-N] references"
-            f"\n- KB chunks available: {len(phase3['knowledge_chunks'])}"
+            f"\n- Cite all facts with [KB-N] or [WEB-N] references"
+            f"\n- Knowledge base chunks available: {len(phase3['knowledge_chunks'])}"
             f"\n- Web search results available: {len(phase3['web_results'])}"
             f"\n- Research findings: attached below"
             f"\n- Write INSUFFICIENT DATA if a required claim has no source"
@@ -250,9 +235,9 @@ def execute(ctx: dict) -> dict:
         human_content = (
             f"{combined_prompt}"
             f"{grounding_note}"
-            f"{kb_source_index}"
             f"{web_source_index}"
             f"{phase3['instr_block']}"
+            f"{plan_context}"
             f"{research_context}"
             f"{phase3['kb_block']}"
             f"{phase3['web_block']}"

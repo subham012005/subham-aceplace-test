@@ -16,10 +16,10 @@ import { getDb } from "./db";
 import { COLLECTIONS } from "./constants";
 
 const DEFAULT_AGENT_MODELS = {
-  coo:        { provider: "anthropic" as const, model: "claude-sonnet-4-6",   temperature: 0.2, maxTokens: 4096 },
-  researcher: { provider: "anthropic" as const, model: "claude-sonnet-4-6",   temperature: 0.3, maxTokens: 8192 },
-  worker:     { provider: "openai"    as const, model: "gpt-4o-mini",              temperature: 0.4, maxTokens: 8192 },
-  grader:     { provider: "anthropic" as const, model: "claude-haiku-4-5",    temperature: 0.1, maxTokens: 4096 },
+  coo:        { provider: "anthropic" as const, model: "claude-sonnet-4-6",   temperature: 0.0, maxTokens: 4096 },
+  researcher: { provider: "anthropic" as const, model: "claude-sonnet-4-6",   temperature: 0.0, maxTokens: 8192 },
+  worker:     { provider: "openai"    as const, model: "gpt-4o",              temperature: 0.0, maxTokens: 8192 },
+  grader:     { provider: "anthropic" as const, model: "claude-haiku-4-5",    temperature: 0.0, maxTokens: 4096 },
 } as const;
 
 interface ResolvedConfig {
@@ -32,7 +32,7 @@ interface ResolvedConfig {
 
 // Fallback OpenAI model to use when the primary Anthropic model is unavailable
 const ANTHROPIC_TO_OPENAI_FALLBACK: Record<string, string> = {
-  "claude-sonnet-4-6": "gpt-4o-mini",
+  "claude-sonnet-4-6": "gpt-4o",
   "claude-haiku-4-5":  "gpt-4o-mini",
 };
 
@@ -233,7 +233,7 @@ async function resolveOrgLLMConfig(orgId: string, role: string): Promise<Resolve
     // Model mapping — ordered newest-first so newer API accounts always get a valid model.
     // If the user has saved a preferred model in their provider config, that takes priority.
     const MODEL_MAP: Record<string, Record<string, string>> = {
-        openai:    { coo: "gpt-4o-mini", researcher: "gpt-4o-mini", worker: "gpt-4o-mini", grader: "gpt-4o-mini" },
+        openai:    { coo: "gpt-4o", researcher: "gpt-4o", worker: "gpt-4o", grader: "gpt-4o" },
         anthropic: { 
           coo:        "claude-sonnet-4-6", 
           researcher: "claude-sonnet-4-6", 
@@ -246,10 +246,7 @@ async function resolveOrgLLMConfig(orgId: string, role: string): Promise<Resolve
     // Prefer the model explicitly saved by the user in their provider settings.
     // Falls back to the role-specific default in MODEL_MAP.
     const savedModel = providerConfig?.model as string | undefined;
-    let model = (savedModel && savedModel.trim()) ? savedModel.trim() : (MODEL_MAP[providerKey]?.[role] || "unknown");
-    if (model === "gpt-4o") {
-        model = "gpt-4o-mini"; // Force downgrade to bypass strict TPM limits for now
-    }
+    const model = (savedModel && savedModel.trim()) ? savedModel.trim() : (MODEL_MAP[providerKey]?.[role] || "unknown");
     const def = (DEFAULT_AGENT_MODELS as any)[role];
 
     return {
@@ -257,7 +254,7 @@ async function resolveOrgLLMConfig(orgId: string, role: string): Promise<Resolve
         apiKey: apiKey,
         model: model,
         temperature: def.temperature,
-        maxTokens: providerConfig?.max_tokens || def.maxTokens
+        maxTokens: def.maxTokens
     };
 }
 
@@ -674,12 +671,12 @@ async function executeWorker(
         });
 
         if (!fallbackApproved) {
-            throw new Error(`LLM_FALLBACK_REQUIRED:model_switch:gpt-4o-mini:${(err as Error).message}`);
+            throw new Error(`LLM_FALLBACK_REQUIRED:model_switch:gpt-4o:${(err as Error).message}`);
         }
 
         const workerFallbackKey = orgId ? await resolveOrgFallbackOpenAIKey(orgId) : process.env.OPENAI_API_KEY;
         callResult = await callOpenAI({
-          model: "gpt-4o-mini",
+          model: "gpt-4o",
           systemPrompt: WORKER_SYSTEM_PROMPT,
           userMessage,
           temperature: cfg.temperature,

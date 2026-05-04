@@ -20,6 +20,7 @@ import {
     Check,
     Hash,
     DollarSign,
+    Trash2,
     Settings as SettingsIcon
 } from "lucide-react";
 import { subscribeToUserStats } from "@/lib/user-stats";
@@ -145,7 +146,8 @@ export default function DashboardPage() {
         loading: jobsLoading,
         refreshing: jobsRefreshing,
         refresh: refreshJobs,
-        updateJobInList
+        updateJobInList,
+        deleteJob
     } = useJobs(userUid);
 
     // Envelope data — canonical source of truth for execution status
@@ -419,6 +421,19 @@ export default function DashboardPage() {
         });
     }, [logs, addLog]);
 
+    const handleDeleteJob = React.useCallback(async (e: React.MouseEvent, jobId: string) => {
+        e.stopPropagation(); // Prevent row click
+        if (window.confirm("Are you sure you want to delete this dimensional record? This cannot be undone.")) {
+            addLog(`[SYSTEM] Deleting job ${jobId.slice(-6)}...`);
+            const res = await deleteJob(jobId);
+            if (res.success) {
+                addLog(`[SUCCESS] Job ${jobId.slice(-6)} purged from history.`);
+            } else {
+                addLog(`[ERROR] Delete failed: ${res.error}`);
+            }
+        }
+    }, [deleteJob, addLog]);
+
     // Track persistent request count from Firestore
     React.useEffect(() => {
         if (!userUid) return;
@@ -691,7 +706,7 @@ export default function DashboardPage() {
                                     <div className="w-4 h-4 border border-emerald-500/50 flex items-center justify-center shrink-0">
                                         <CheckCircle2 className="w-3 h-3 text-emerald-500 opacity-80" />
                                     </div>
-                                    <div className="flex flex-col min-w-0">
+                                    <div className="flex flex-col min-w-0 flex-1">
                                         <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-emerald-400 truncate">{job.prompt}</span>
                                         <div className="flex items-center justify-between gap-2">
                                             <span className="text-[7px] uppercase font-bold text-slate-600 tracking-tighter italic shrink-0">Status: {formatStatus(deriveHomeStatus(job))}</span>
@@ -699,6 +714,13 @@ export default function DashboardPage() {
                                             <span className="text-[6px] font-mono text-slate-700 tracking-tighter shrink-0">ID: {(job.job_id || job.id || "").slice(-6)}</span>
                                         </div>
                                     </div>
+                                    <button
+                                        onClick={(e) => handleDeleteJob(e, job.job_id || job.id)}
+                                        className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-rose-500 transition-all shrink-0 z-10"
+                                        title="Delete Job"
+                                    >
+                                        <Trash2 className="w-3 h-3" />
+                                    </button>
                                 </div>
                             )) : (
                                 <div className="p-4 text-center border border-dashed border-white/5 text-[9px] uppercase font-black tracking-widest text-slate-600 italic">No completed tasks</div>
@@ -779,6 +801,13 @@ export default function DashboardPage() {
                                             <span className="text-[6px] font-mono text-slate-700 tracking-tighter shrink-0">ID: {(job.job_id || job.id || "").slice(-6)}</span>
                                         </div>
                                     </div>
+                                    <button
+                                        onClick={(e) => handleDeleteJob(e, job.job_id || job.id)}
+                                        className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-rose-500 transition-all shrink-0 z-10"
+                                        title="Delete Job"
+                                    >
+                                        <Trash2 className="w-3 h-3" />
+                                    </button>
                                 </div>
                             )) : (
                                 <div className="p-4 text-center border border-dashed border-white/5 text-[9px] uppercase font-black tracking-widest text-slate-600 italic">No active missions sync'd</div>
@@ -962,8 +991,8 @@ export default function DashboardPage() {
                                         <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500">Task</th>
                                         <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500">Status</th>
                                         <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500 text-cyan-500/80">Grader Score</th>
-                                        <th className="py-2 text-[9px] uppercase font-black tracking-widest text-purple-500/80">Agent Fingerprint</th>
                                         <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500">Timestamp</th>
+                                        <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-white/5">
@@ -1063,14 +1092,20 @@ export default function DashboardPage() {
                                                     );
                                                 })()}
                                             </td>
-                                            <td className="py-3 text-[9px] font-mono text-purple-400/70 tracking-tighter max-w-[100px] truncate" title={(() => { const raw = job.identity_fingerprint || job.identity_id; return raw ? "0x" + String(raw).replace(/^hex:0x|^0x|^hex:/i, '') : undefined; })()}>
-                                                {(() => { const raw = job.identity_fingerprint || job.identity_id; if (!raw) return <span className="text-slate-700 italic">PENDING_REGISTRATION</span>; return "0x" + String(raw).replace(/^hex:0x|^0x|^hex:/i, ''); })()}
-                                            </td>
                                             <td className="py-3 text-[9px] font-mono text-slate-500 italic">
                                                 {(() => {
                                                     const date = parseFirestoreDate(job.updated_at || job.created_at);
                                                     return date ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Recently";
                                                 })()}
+                                            </td>
+                                            <td className="py-3">
+                                                <button
+                                                    onClick={(e) => handleDeleteJob(e, job.job_id || job.id)}
+                                                    className="p-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-500 hover:bg-rose-500 hover:text-white transition-all scifi-clip-sm group/del"
+                                                    title="Delete Record"
+                                                >
+                                                    <Trash2 className="w-3 h-3 group-hover/del:scale-110 transition-transform" />
+                                                </button>
                                             </td>
                                         </tr>
                                     )) : (

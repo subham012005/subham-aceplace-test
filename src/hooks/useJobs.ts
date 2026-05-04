@@ -292,7 +292,18 @@ export function useJobs(userId: string | undefined) {
         };
     }, [userId]);
 
-    return { jobs, loading, refreshing, refresh, updateJobInList };
+    const deleteJob = useCallback(async (jobId: string) => {
+        try {
+            await aceApi.deleteJob(jobId, userId);
+            setJobs(prev => prev.filter(j => (j.job_id !== jobId && j.id !== jobId)));
+            return { success: true };
+        } catch (error: any) {
+            console.error("Failed to delete job:", error);
+            return { success: false, error: error.message };
+        }
+    }, [userId]);
+
+    return { jobs, loading, refreshing, refresh, updateJobInList, deleteJob };
 }
 
 export function useJob(jobId: string | null, userId: string | undefined, onUpdate?: (j: Job) => void) {

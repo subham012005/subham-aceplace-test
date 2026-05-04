@@ -8,6 +8,7 @@ Phase 3 additions:
   - Uses instruction profiles if provided in envelope
   - Decides and documents in plan whether web search & KB are needed for downstream agents
   - Outputs grounding decision in plan JSON
+  - Always enforces ACEPLACE runtime laws (Anti-Generic Protocol)
 """
 
 import json
@@ -25,9 +26,13 @@ from services.token_service import extract_token_usage
 
 COO_SYSTEM_PROMPT = """You are the Chief Operating Officer (COO) of ACEPLACE — a deterministic, identity-bound execution runtime.
 
-Your responsibility is NOT generic planning. Your role is to construct an execution-ready, envelope-aligned strategic plan that can be directly translated into a valid ACEPLACE Execution Envelope.
-
----
+### 🎯 THE "ANTI-GENERIC" PROTOCOL (CRITICAL)
+- **ELIMINATE VAGUENESS:** Do not use broad, generic terms. Use specific entities, technical domains, and data types found in the KB.
+- **DENSE STRATEGY:** Every assignment must be specific to the context. 
+- **NO TEMPLATES:** Do not create a generic plan. Create a unique, tailored execution strategy that leverages the unique aspects of the user's knowledge.
+- **DEFINE THE MASTERPIECE:** You must explicitly define the 8+ sections required for the Worker's final output.
+- **WORD COUNT TARGETS:** Set explicit word count minimums for each section (e.g., "Section 1: Executive Summary - min 300 words").
+- **PRESENTATION STEPS:** Outline exactly how the information should be presented (e.g., "Use comparison tables for data," "Provide a SWOT analysis in section 4," "Include a technical roadmap").
 
 ### 🎯 CORE MANDATE
 
@@ -48,20 +53,20 @@ The output must be immediately usable by the runtime-worker for downstream execu
 You MUST strictly adhere to ACEPLACE runtime laws:
 
 1. **Envelope is the source of truth**
-   - Plans must translate into execution steps, not narratives :contentReference[oaicite:0]{index=0}  
+   - Plans must translate into execution steps, not narratives
 
 2. **Agents are stateless**
    - Do NOT design agent-to-agent orchestration  
-   - All coordination happens via structured steps :contentReference[oaicite:1]{index=1}  
+   - All coordination happens via structured steps
 
 3. **Execution requires authority lease**
-   - Assume every step requires lease acquisition before execution :contentReference[oaicite:2]{index=2}  
+   - Assume every step requires lease acquisition before execution
 
 4. **Runtime-worker is the only executor**
    - Do NOT assign control flow to agents  
 
 5. **Task Graphs over linear flows**
-   - Prefer parallelizable research phases where applicable :contentReference[oaicite:3]{index=3}  
+   - Prefer parallelizable research phases where applicable
 
 6. **All outputs must be artifact-driven**
    - Every major step produces a persistent artifact  
@@ -115,6 +120,14 @@ Avoid:
 
   "strategic_objective": "Detailed mission objective including measurable success criteria, system impact, and execution scope.",
 
+  "final_deliverable_specification": {
+    "total_word_count_target": "1500+ words",
+    "required_sections": [
+      { "title": "Section Title", "min_words": 200, "description": "Specific details to present here based on KB." }
+    ],
+    "presentation_style_requirements": ["Use tables for X", "Use mermaid diagrams for Y", "Detailed technical appendices"]
+  },
+
   "grounding_decision": {
     "use_knowledge_base": true,
     "use_web_search": true,
@@ -135,22 +148,10 @@ Avoid:
       "success_criteria": "A citation-dense intelligence dossier containing 15-20+ discrete, verifiable findings from the Knowledge Base."
     },
     {
-      "agent_role": "researcher",
-      "task": "Conduct parallel market and competitor intelligence gathering focused on [Specific Market Angle]. Correlate web intelligence with KB-internal technical moats to identify non-obvious strategic advantages. Map external trends to specific ACEPLACE runtime primitives.",
-      "execution_notes": "Focus on strategic defensibility. How do ACEPLACE primitives (Leases, Envelopes) solve market-wide identity duplication or authority fragmentation issues?",
-      "success_criteria": "A cross-correlated research artifact that bridges technical architecture with strategic market positioning."
-    },
-    {
       "agent_role": "worker",
-      "task": "Synthesize all upstream research artifacts into a massive, multi-thousand-word strategic deliverable. You must produce a 'Master Architectural & Strategic Specification' that includes: 1. Deep-dive technical thesis, 2. Multi-layer system architecture analysis, 3. Investor-grade risk and gap analysis, 4. 12-month deterministic execution roadmap. Every section must contain multi-paragraph analysis, not just bullet points.",
+      "task": "Synthesize all upstream research artifacts into a massive, multi-thousand-word strategic deliverable as defined in final_deliverable_specification. You must produce a 'Master Architectural & Strategic Specification' that includes deep-dive technical thesis, multi-layer system architecture analysis, and investor-grade risk analysis.",
       "execution_notes": "This is the final production artifact. It must be polished, professional, and engineering-dense. Reject all generic business language in favor of specialized architectural narratives.",
       "success_criteria": "An investor-ready masterpiece document that demonstrates absolute technical mastery and strategic clarity."
-    },
-    {
-      "agent_role": "grader",
-      "task": "Evaluate final deliverable against runtime, technical, and strategic criteria.",
-      "execution_notes": "Must validate grounding, completeness, and execution alignment.",
-      "success_criteria": "Clear scoring with actionable improvement directives."
     }
   ],
 
@@ -211,16 +212,14 @@ def execute(ctx: dict) -> str:
     start_ms = int(time.time() * 1000)
     model_name = "unknown"
 
-    # ── Phase 3: Extract knowledge + web search context ───────────────────────
+    # ── Phase 3: Extract context ──────────────────
     envelope = get_envelope(envelope_id) or {}
+    
     phase3 = extract_phase3_context(envelope, prompt)
-
-    kb_block   = phase3["kb_block"]
+    
+    kb_block = phase3["kb_block"]
     web_block  = phase3["web_block"]
     instr_block = phase3["instr_block"]
-
-    # Log phase3 usage
-    log_phase3_usage(envelope_id, step_id, agent_id, fingerprint, phase3)
 
     try:
         # ── Resolve Provider Configuration (BYO-LLM) ─────────────────────────────
@@ -259,7 +258,7 @@ def execute(ctx: dict) -> str:
         # Build grounding-aware human message
         grounding_summary = []
         if phase3["has_knowledge"]:
-            grounding_summary.append(f"- User Knowledge Base: {len(phase3['knowledge_chunks'])} relevant chunks from collections {phase3['collection_ids']}")
+            grounding_summary.append(f"- User Knowledge Base: {len(phase3['knowledge_chunks'])} relevant chunks loaded")
         if phase3["has_web"]:
             grounding_summary.append(f"- Web Search: {len(phase3['web_results'])} results retrieved")
         if phase3["has_instructions"]:
@@ -268,11 +267,11 @@ def execute(ctx: dict) -> str:
         grounding_note = "\n".join(grounding_summary) if grounding_summary else "- Web Search: always on for deep research"
 
         human_content = (
-            f"Use this knowledge base:\n"
+            f"Use this knowledge context:\n"
             f"{{ {grounding_note}\n{instr_block}{kb_block}{web_block} }}\n\n"
             f"Then strategically answer the task:\n"
             f"{{ {prompt} }}\n\n"
-            f"Create the execution plan. Reference web search results and knowledge base in assignments."
+            f"Create the execution plan. Reference knowledge base and web results in assignments."
         )
         messages = [
             SystemMessage(content=COO_SYSTEM_PROMPT),

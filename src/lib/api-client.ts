@@ -72,6 +72,14 @@ class AceApiClient {
         return this.handleResponse(response);
     }
 
+    async deleteJob(jobId: string, userId?: string) {
+        const url = userId ? `/api/jobs/${jobId}?user_id=${userId}` : `/api/jobs/${jobId}`;
+        const response = await this.secureFetch(url, {
+            method: "DELETE"
+        });
+        return this.handleResponse(response);
+    }
+
     async approveJob(jobId: string) {
         const response = await this.secureFetch("/api/jobs/approve", {
             method: "POST",

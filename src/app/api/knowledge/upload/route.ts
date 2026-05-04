@@ -86,48 +86,47 @@ export async function POST(req: NextRequest) {
         if (ext === "txt") {
             extractedText = buffer.toString("utf-8");
         } else if (ext === "pdf") {
-            // Use pdf-parse for PDF extraction
             try {
+                // Use standard pdf-parse (pure JS)
                 const { createRequire } = await import("module");
                 const require = createRequire(import.meta.url);
-                const pdf = require("pdf-parse");
+                const pdf = require("pdf-parse/lib/pdf-parse.js");
                 
-                if (typeof pdf === 'function') {
-                    const data = await pdf(buffer);
-                    extractedText = data.text;
-                } else if (pdf.PDFParse) {
-                    const { PDFParse } = pdf;
-                    const parser = new PDFParse({ data: buffer });
-                    const result = await parser.getText();
-                    extractedText = result.text || "";
-                    await parser.destroy();
-                } else {
-                    throw new Error("PDF parser function not found");
-                }
+                const data = await pdf(buffer);
+                extractedText = data.text || "";
             } catch (err: any) {
-                console.error("[UPLOAD] PDF extraction failed (primary):", err);
-                
-                // Fallback 1: Dynamic import
-                try {
-                    const pdfModule = await import("pdf-parse/node") as any;
-                    if (pdfModule.PDFParse) {
-                        const parser = new pdfModule.PDFParse({ data: buffer });
-                        const result = await parser.getText();
-                        extractedText = result.text || "";
-                        await parser.destroy();
-                    } else {
-                        throw new Error("PDFParse not found in fallback module");
-                    }
-                } catch (fallbackErr: any) {
-                    console.error("[UPLOAD] PDF extraction fallback failed:", fallbackErr);
-                    // Fallback 2: Last resort raw buffer string cleanup
-                    extractedText = buffer.toString("utf-8").replace(/[^\x20-\x7E\n]/g, " ").replace(/\s+/g, " ");
-                    if (extractedText.length < 50) {
-                        extractedText = `[PDF: ${file.name}] Text extraction failed. Original Error: ${err.message}.`;
-                    }
-                }
+                console.error("[UPLOAD] PDF extraction failed:", err);
+                extractedText = ""; 
             }
         }
+        
+        // --- TEXT SANITIZATION ---
+        // Ensure only clean, readable text is stored. 
+        // Strips binary blobs, image artifacts, and non-printable control characters.
+        const sanitizeText = (text: string) => {
+            if (!text) return "";
+            return text
+                // 1. Remove zero-width spaces and invisible formatting marks
+                .replace(/[\u200B-\u200D\uFEFF\u200E\u200F\u202A-\u202E]/g, "")
+                // 2. Remove all control characters except \n, \t, \r
+                .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
+                // 3. Keep printable ASCII + common Latin-1 characters (accents, etc.)
+                //    This is the most effective filter to ensure "Normal Text" and strip image binary noise.
+                .replace(/[^\x20-\x7E\n\r\t\u00A0-\u00FF]/g, " ")
+                // 4. Normalize line endings
+                .replace(/\r\n|\r/g, "\n")
+                // 5. Collapse multiple spaces and tabs
+                .replace(/[ \t]+/g, " ")
+                // 6. Normalize newlines (keep structure, but remove excessive gaps)
+                .replace(/\n{3,}/g, "\n\n")
+                // 7. Clean up each line and join back
+                .split("\n")
+                .map(line => line.trim())
+                .join("\n")
+                .trim();
+        };
+
+        extractedText = sanitizeText(extractedText);
 
         if (!extractedText || extractedText.trim().length < 10) {
             return NextResponse.json({ error: "Could not extract text from file" }, { status: 422 });

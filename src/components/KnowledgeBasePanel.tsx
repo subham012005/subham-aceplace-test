@@ -373,13 +373,17 @@ export function KnowledgeBasePanel({ onContextChange, className }: KnowledgeBase
             {directTextExpanded && (
               <div className="p-4 pt-0 space-y-3">
                 <p className="text-[8px] text-slate-500 leading-relaxed">
-                  The information pasted here will be prioritized by the agent. Use this for specific exam dates, instructions, or meeting notes.
+                  The information pasted here is treated as high-priority context and will directly influence task execution. Use this to define objectives, constraints, requirements, or any critical domain knowledge.
                 </p>
                 <div className="relative">
                   <textarea
                     value={directText}
                     onChange={(e) => setDirectText(e.target.value)}
-                    placeholder="Example: My exam is on 26 April. I must reach by 12:30 PM."
+                    placeholder={`Example:
+Objective: [What needs to be done]
+Context: [Relevant background or company info]
+Constraints: [Requirements, limitations, or rules]
+Output: [What the final deliverable should look like]`}
                     rows={6}
                     className="w-full bg-slate-950/80 border border-white/10 p-3 text-[10px] text-white placeholder:text-slate-700 focus:outline-none focus:border-purple-500/40 font-mono resize-none"
                   />
@@ -459,7 +463,7 @@ export function KnowledgeBasePanel({ onContextChange, className }: KnowledgeBase
                              </div>
                              <button
                                onClick={(e) => { e.stopPropagation(); deleteSnippet(s.snippet_id); }}
-                               className="opacity-0 group-hover/snip:opacity-100 p-1 text-slate-600 hover:text-rose-400 transition-all"
+                               className="p-1 text-slate-600 hover:text-rose-400 transition-all"
                              >
                                <Trash2 className="w-2.5 h-2.5" />
                              </button>
@@ -622,7 +626,7 @@ export function KnowledgeBasePanel({ onContextChange, className }: KnowledgeBase
                             <button
                               type="button"
                               onClick={ev => { ev.stopPropagation(); deleteCollection(c.collection_id); }}
-                              className="opacity-0 group-hover/coll:opacity-100 p-0.5 text-slate-600 hover:text-rose-400 transition-all"
+                              className="p-0.5 text-slate-600 hover:text-rose-400 transition-all"
                             >
                               <Trash2 className="w-3 h-3" />
                             </button>
@@ -702,7 +706,7 @@ export function KnowledgeBasePanel({ onContextChange, className }: KnowledgeBase
                         <button
                           type="button"
                           onClick={ev => { ev.stopPropagation(); deleteProfile(p.profile_id); }}
-                          className="opacity-0 group-hover/prof:opacity-100 p-0.5 text-slate-600 hover:text-rose-400 transition-all"
+                          className="p-0.5 text-slate-600 hover:text-rose-400 transition-all"
                         >
                           <Trash2 className="w-3 h-3" />
                         </button>
