@@ -50,7 +50,8 @@ import {
     AlertCircle,
     Layers,
     ArrowRight,
-    ChevronDown
+    ChevronDown,
+    Download
 } from "lucide-react";
 import { useSettings } from "@/context/SettingsContext";
 import { cn } from "@/lib/utils";
@@ -58,6 +59,7 @@ import { HUDFrame } from "@/components/HUDFrame";
 import { SciFiFrame } from "@/components/SciFiFrame";
 import { MarkdownReport } from "@/components/MarkdownReport";
 import { DeliverableItem } from "@/components/DeliverableItem";
+import { exportToPDF } from "@/lib/pdf-export";
 import {
     Dialog,
     DialogContent,
@@ -546,6 +548,29 @@ export default function JobDetailsPage() {
                                 title="Refresh Data"
                             >
                                 <RefreshCcw className={cn("w-5 h-5 group-hover:rotate-180 transition-transform duration-500", jobLoading && "animate-spin")} />
+                            </button>
+                            <button
+                                onClick={() => {
+                                    const artifact = artifacts.find(a => ['artifact_produce', 'report', 'final', 'worker_result', 'worker', 'deliverable'].includes(a.artifact_type || ''));
+                                    const result = job?.runtime_context?.worker_result || job?.runtime_context?.final_result || job?.artifact || extractOutputData(job);
+                                    let rawContent = artifact?.artifact_content || result;
+                                    let workerData: any = rawContent;
+                                    if (typeof rawContent === 'string') {
+                                        try {
+                                            let clean = (rawContent as string).replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/i, '').trim();
+                                            workerData = JSON.parse(clean);
+                                        } catch (e) { workerData = { content: rawContent }; }
+                                    }
+                                    const content = workerData?.content || workerData?.report || workerData?.text || rawContent || '';
+                                    const finalContent = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
+                                    exportToPDF(finalContent, `job-${job?.job_id || jobId}-output.pdf`);
+                                }}
+                                disabled={actionLoading || !['grading', 'graded', 'awaiting_approval', 'approved', 'completed'].includes(derivedStatus)}
+                                className="px-4 py-2 glass border border-white/10 text-cyan-400 font-bold uppercase tracking-widest text-[10px] hover:bg-cyan-500/10 hover:border-cyan-500/30 transition-all cursor-target flex items-center justify-center gap-2 group disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:text-slate-500"
+                                title="Save PDF"
+                            >
+                                <Download className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                                Save PDF
                             </button>
 
                             {(() => {

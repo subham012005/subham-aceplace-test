@@ -13,7 +13,8 @@ import {
     Network,
     Layers,
     Fingerprint as FingerprintIcon,
-    ShieldCheck as ShieldCheckIcon
+    ShieldCheck as ShieldCheckIcon,
+    Download
 } from "lucide-react";
 import { HUDFrame } from "./HUDFrame";
 import { MarkdownReport } from "./MarkdownReport";
@@ -26,6 +27,7 @@ import { useJobActions } from "@/hooks/useJobActions";
 import { db, auth } from "@/lib/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
 import { cn } from "@/lib/utils";
+import { exportToPDF } from "@/lib/pdf-export";
 
 interface TaskDetailProps {
     job: Job;
@@ -542,7 +544,27 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                 </div>
                             </HUDFrame>
 
-                            <HUDFrame title="Artifact Output" variant="glass" isProcessing={displayJob.status === 'in_progress'}>
+                            <HUDFrame 
+                                title="Artifact Output" 
+                                variant="glass" 
+                                isProcessing={displayJob.status === 'in_progress'}
+                                headerAction={
+                                    <button
+                                        disabled={displayJob.status !== 'awaiting_approval' || !artifactContent}
+                                        onClick={() => exportToPDF(artifactContent || "", `job-${displayJob.job_id}-output.pdf`)}
+                                        className={cn(
+                                            "flex items-center gap-1.5 px-2 py-1 border scifi-clip transition-all text-[9px] uppercase font-black tracking-wider",
+                                            displayJob.status === 'awaiting_approval' && artifactContent
+                                                ? "text-cyan-500 border-cyan-500/50 hover:bg-cyan-500/10 cursor-target"
+                                                : "text-slate-500 border-white/10 opacity-50 cursor-not-allowed"
+                                        )}
+                                        title={displayJob.status === 'awaiting_approval' ? "Save as PDF" : "Available when awaiting approval"}
+                                    >
+                                        <Download className="w-3 h-3" />
+                                        Save PDF
+                                    </button>
+                                }
+                            >
                                 {artifactContent ? (
                                     <div className="bg-black/40 border border-white/5 p-4 scifi-clip">
                                         <MarkdownReport content={artifactContent} />
