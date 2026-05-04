@@ -254,19 +254,83 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
 
     const graderData = getGraderData();
 
+    const formatOutputToMarkdown = (raw: any): string => {
+        if (!raw) return "";
+        
+        // If it's already a string, try parsing it as JSON first
+        if (typeof raw === 'string') {
+            const trimmed = raw.trim();
+            if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+                try {
+                    const parsed = JSON.parse(raw);
+                    return formatOutputToMarkdown(parsed);
+                } catch {
+                    return raw;
+                }
+            }
+            return raw;
+        }
+
+        if (typeof raw !== 'object') return String(raw);
+
+        let md = "";
+        
+        // 1. Extract Summary if present
+        const summary = raw.deliverable_summary || raw.summary;
+        if (summary) {
+            md += `# Executive Summary\n\n${summary}\n\n`;
+        }
+
+        // 2. Handle the "sections" structure (direct or inside "content")
+        const sections = raw.sections || raw.content?.sections;
+        if (sections && Array.isArray(sections)) {
+            md += sections.map((s: any) => {
+                const title = s.title || s.header || "Section";
+                const body = s.body || s.content || s.text || "";
+                return `## ${title}\n\n${body}\n\n`;
+            }).join("\n");
+            return md;
+        }
+
+        // 3. Handle common report structure (title, findings, etc.)
+        if (raw.title || raw.findings) {
+            if (raw.title) md = `# ${raw.title}\n\n` + md;
+            if (raw.details) md += `${raw.details}\n\n`;
+            
+            const listItems = raw.findings || raw.steps || raw.items || raw.results;
+            if (Array.isArray(listItems)) {
+                if (raw.findings) md += `### Key Findings\n\n`;
+                md += listItems.map((item: any) => {
+                    if (typeof item === 'string') return `* ${item}`;
+                    if (typeof item === 'object') {
+                        const label = item.title || item.label || item.name;
+                        const val = item.body || item.content || item.value || item.description;
+                        if (label && val) return `* **${label}:** ${val}`;
+                        return `* ${JSON.stringify(item)}`;
+                    }
+                    return `* ${String(item)}`;
+                }).join("\n");
+            }
+            if (md) return md;
+        }
+
+        // 4. If it's just a "content" field that is a string, return it
+        if (typeof raw.content === 'string') return raw.content;
+
+        // Generic object fallback: Pretty JSON
+        return "```json\n" + JSON.stringify(raw, null, 2) + "\n```";
+    };
+
     const getArtifactContent = () => {
         // Priority for new runtime_context results
         if (displayJob.runtime_context?.final_result) {
-            const res = displayJob.runtime_context.final_result;
-            return typeof res === 'object' ? JSON.stringify(res, null, 2) : res;
+            return formatOutputToMarkdown(displayJob.runtime_context.final_result);
         }
         if (displayJob.runtime_context?.worker_result) {
-            const res = displayJob.runtime_context.worker_result;
-            return typeof res === 'object' ? JSON.stringify(res, null, 2) : res;
+            return formatOutputToMarkdown(displayJob.runtime_context.worker_result);
         }
         if (displayJob.artifact) {
-            const art = displayJob.artifact;
-            return typeof art === 'object' ? JSON.stringify(art, null, 2) : String(art);
+            return formatOutputToMarkdown(displayJob.artifact);
         }
 
         // if artifact is missing, look into output
@@ -274,8 +338,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
             const firstMsg = displayJob.output[0];
             if (firstMsg.content && firstMsg.content.length > 0) {
                 const textObj = firstMsg.content[0].text;
-                if (typeof textObj === 'string') return textObj;
-                if (typeof textObj === 'object') return JSON.stringify(textObj, null, 2);
+                return formatOutputToMarkdown(textObj);
             }
         }
         return null;

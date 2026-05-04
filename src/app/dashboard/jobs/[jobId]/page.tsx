@@ -112,6 +112,73 @@ const formatTime = (dateValue?: any) => {
     }).format(date) + "." + date.getMilliseconds().toString().padStart(3, '0');
 };
 
+const formatOutputToMarkdown = (raw: any): string => {
+    if (!raw) return "";
+    
+    // If it's already a string, try parsing it as JSON first
+    if (typeof raw === 'string') {
+        const trimmed = raw.trim();
+        if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+            try {
+                const parsed = JSON.parse(raw);
+                return formatOutputToMarkdown(parsed);
+            } catch {
+                return raw;
+            }
+        }
+        return raw;
+    }
+
+    if (typeof raw !== 'object') return String(raw);
+
+    let md = "";
+    
+    // 1. Extract Summary if present
+    const summary = raw.deliverable_summary || raw.summary;
+    if (summary) {
+        md += `# Executive Summary\n\n${summary}\n\n`;
+    }
+
+    // 2. Handle the "sections" structure (direct or inside "content")
+    const sections = raw.sections || raw.content?.sections;
+    if (sections && Array.isArray(sections)) {
+        md += sections.map((s: any) => {
+            const title = s.title || s.header || "Section";
+            const body = s.body || s.content || s.text || "";
+            return `## ${title}\n\n${body}\n\n`;
+        }).join("\n");
+        return md;
+    }
+
+    // 3. Handle common report structure (title, findings, etc.)
+    if (raw.title || raw.findings) {
+        if (raw.title) md = `# ${raw.title}\n\n` + md;
+        if (raw.details) md += `${raw.details}\n\n`;
+        
+        const listItems = raw.findings || raw.steps || raw.items || raw.results;
+        if (Array.isArray(listItems)) {
+            if (raw.findings) md += `### Key Findings\n\n`;
+            md += listItems.map((item: any) => {
+                if (typeof item === 'string') return `* ${item}`;
+                if (typeof item === 'object') {
+                    const label = item.title || item.label || item.name;
+                    const val = item.body || item.content || item.value || item.description;
+                    if (label && val) return `* **${label}:** ${val}`;
+                    return `* ${JSON.stringify(item)}`;
+                }
+                return `* ${String(item)}`;
+            }).join("\n");
+        }
+        if (md) return md;
+    }
+
+    // 4. If it's just a "content" field that is a string, return it
+    if (typeof raw.content === 'string') return raw.content;
+
+    // Generic object fallback: Pretty JSON
+    return "```json\n" + JSON.stringify(raw, null, 2) + "\n```";
+};
+
 export default function JobDetailsPage() {
     const params = useParams();
     const jobId = params.jobId as string;
@@ -555,16 +622,8 @@ export default function JobDetailsPage() {
                                 onClick={() => {
                                     const artifact = artifacts.find(a => ['artifact_produce', 'report', 'final', 'worker_result', 'worker', 'deliverable'].includes(a.artifact_type || ''));
                                     const result = job?.runtime_context?.worker_result || job?.runtime_context?.final_result || job?.artifact || extractOutputData(job);
-                                    let rawContent = artifact?.artifact_content || result;
-                                    let workerData: any = rawContent;
-                                    if (typeof rawContent === 'string') {
-                                        try {
-                                            let clean = (rawContent as string).replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/i, '').trim();
-                                            workerData = JSON.parse(clean);
-                                        } catch (e) { workerData = { content: rawContent }; }
-                                    }
-                                    const content = workerData?.content || workerData?.report || workerData?.text || rawContent || '';
-                                    const finalContent = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
+                                    const rawContent = artifact?.artifact_content || result;
+                                    const finalContent = formatOutputToMarkdown(rawContent);
                                     exportToPDF(finalContent, `job-${job?.job_id || jobId}-output.pdf`);
                                 }}
                                 disabled={actionLoading || !['grading', 'graded', 'awaiting_approval', 'approved', 'completed'].includes(derivedStatus)}
