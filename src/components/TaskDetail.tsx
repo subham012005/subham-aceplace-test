@@ -180,7 +180,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
 
             const pass_fail = rcGrader?.recommendation ?? rcGrader?.pass_fail ?? displayJob.grading_result?.pass_fail ?? displayJob.pass_fail;
             const isApprove = String(pass_fail).toLowerCase() === 'approve' || String(pass_fail).toLowerCase() === 'pass';
-            const isTrulyPass = isApprove && normalizedScore > 3;
+            const isTrulyPass = normalizedScore >= 7.5 || (isApprove && normalizedScore > 3);
             const finalPassFail = isTrulyPass ? "pass" : "fail";
 
             return {
@@ -194,7 +194,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
         if (displayJob.grader_params) {
             const score = Number(displayJob.grader_params.score) || 0;
             const pass_fail = String(displayJob.grader_params.pass_fail).toLowerCase() === "pass" ? "pass" : "fail";
-            const isTrulyPass = pass_fail === 'pass' && score > 3;
+            const isTrulyPass = score >= 7.5 || (pass_fail === 'pass' && score > 3);
 
             return {
                 score: score,
@@ -240,7 +240,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
             if (score > 10) score = score / 10;
 
             const pass_fail_raw = displayJob.pass_fail || displayJob.grading_result?.pass_fail;
-            const isTrulyPass = String(pass_fail_raw).toLowerCase() === 'pass' && score > 3;
+            const isTrulyPass = score >= 7.5 || (String(pass_fail_raw).toLowerCase() === 'pass' && score > 3);
 
             return {
                 score: score,

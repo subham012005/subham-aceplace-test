@@ -288,7 +288,7 @@ export default function JobDetailsPage() {
         graderRecommendationFromLog;
 
     const isActuallyPending = governanceScore === 0 && !passFailRaw;
-    const isActuallyPass = String(passFailRaw).toLowerCase() === 'pass';
+    const isActuallyPass = String(passFailRaw).toLowerCase() === 'pass' || (governanceScore >= 7.5 && governanceScore > 0);
     const isPass = isActuallyPass;
     const finalGovStatus = isActuallyPending ? 'PENDING' : (isActuallyPass ? 'PASS' : 'FAIL');
 
@@ -1827,11 +1827,11 @@ export default function JobDetailsPage() {
                                                                 {evaluationContent?.recommendation && (
                                                                     <div className={cn(
                                                                         "px-2 py-0.5 text-[8px] font-black uppercase tracking-widest scifi-clip-sm border",
-                                                                        String(evaluationContent.recommendation).toLowerCase() === 'approve'
+                                                                        isPass
                                                                             ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                                                                             : "bg-rose-500/10 text-rose-400 border-rose-500/20"
                                                                     )}>
-                                                                        ↳ {String(evaluationContent.recommendation)}
+                                                                        ↳ {isPass ? "APPROVE" : String(evaluationContent.recommendation)}
                                                                     </div>
                                                                 )}
                                                             </div>
