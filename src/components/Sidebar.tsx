@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import {
     LayoutDashboard,
     PlusSquare,
+    Database,
     X,
     Settings
 } from "lucide-react";
@@ -15,6 +16,7 @@ import { useSettings } from "@/context/SettingsContext";
 
 const menuItems = [
     { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
+    { icon: Database, label: "Knowledge Base", href: "/dashboard/knowledge" },
     { icon: PlusSquare, label: "Task Composer", href: "/dashboard/composer" },
 ];
 

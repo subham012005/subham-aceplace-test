@@ -58,7 +58,6 @@ const FILE_TYPES = [
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export function KnowledgeBasePanel({ onContextChange, className }: KnowledgeBasePanelProps) {
-  const [isExpanded, setIsExpanded] = useState(true);
 
   // KB state
   const [collections, setCollections] = useState<KBCollection[]>([]);
@@ -82,8 +81,8 @@ export function KnowledgeBasePanel({ onContextChange, className }: KnowledgeBase
 
   // Section visibility
   const [kbExpanded, setKbExpanded] = useState(true);
-  const [instrExpanded, setInstrExpanded] = useState(false);
-  const [directTextExpanded, setDirectTextExpanded] = useState(false);
+  const [instrExpanded, setInstrExpanded] = useState(true);
+  const [directTextExpanded, setDirectTextExpanded] = useState(true);
   const [directText, setDirectText] = useState("");
 
   // Web search — always enabled
@@ -381,56 +380,21 @@ export function KnowledgeBasePanel({ onContextChange, className }: KnowledgeBase
   const activeCount = selectedCollections.length + selectedProfiles.length + selectedSnippetIds.length + 1; // +1 for web search
 
   return (
-    <div className={cn("space-y-3", className)}>
-      {/* Header toggle */}
-      <button
-        type="button"
-        onClick={() => setIsExpanded(v => !v)}
-        className="w-full flex items-center justify-between px-4 py-3 bg-slate-900/80 border border-white/10 hover:border-cyan-500/30 transition-colors group"
-      >
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <Brain className="w-4 h-4 text-cyan-400" />
-            {activeCount > 1 && (
-              <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 rounded-full bg-cyan-500 text-[7px] font-black text-black flex items-center justify-center">
-                {activeCount}
-              </span>
-            )}
-          </div>
-          <span className="text-[10px] font-black text-white tracking-widest uppercase">
-            Phase 3 · Knowledge Base &amp; Instructions
-          </span>
-          {/* Always-on web search badge */}
-          <span className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500/15 border border-emerald-500/30 text-[8px] font-bold text-emerald-400 tracking-wider uppercase">
-            <Globe className="w-2.5 h-2.5" />
-            Web Search ON
-          </span>
-        </div>
-        {isExpanded ? <ChevronUp className="w-3.5 h-3.5 text-slate-500" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-500" />}
-      </button>
-
-      {/* Active grounding indicator - visible in header or just below when collapsed */}
-      {!isExpanded && (selectedCollections.length > 0 || selectedProfiles.length > 0 || selectedSnippetIds.length > 0 || directText.trim()) && (
-        <div className="mx-4 mb-2 flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-          {(directText.trim() || selectedSnippetIds.length > 0) && <span className="text-[6px] bg-purple-500/20 text-purple-400 px-1.5 py-0.5 font-bold border border-purple-500/20 uppercase">Direct Knowledge Active</span>}
-          {selectedCollections.length > 0 && <span className="text-[6px] bg-cyan-500/20 text-cyan-400 px-1.5 py-0.5 font-bold border border-cyan-500/20 uppercase">{selectedCollections.length} KB active</span>}
-          {selectedProfiles.length > 0 && <span className="text-[6px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 font-bold border border-amber-500/20 uppercase">{selectedProfiles.length} Profiles active</span>}
-        </div>
-      )}
-
-      {isExpanded && (
+    <div className={cn("space-y-4", className)}>
         <div className="space-y-3">
           {/* ── Direct Text Knowledge Section ──────────────── */}
-          <div className="bg-slate-900/60 border border-white/8 overflow-hidden transition-all">
+          <div className="bg-white/[0.02] border border-white/5 rounded-xl overflow-hidden transition-all hover:border-white/10">
             <button
               type="button"
               onClick={() => setDirectTextExpanded(!directTextExpanded)}
-              className="w-full flex items-center gap-2 p-3 hover:bg-white/5 transition-colors"
+              className="w-full flex items-center gap-4 p-4 hover:bg-white/[0.03] transition-colors"
             >
-              <Zap className="w-3.5 h-3.5 text-purple-400" />
+              <div className="p-2 bg-purple-500/10 rounded-lg border border-purple-500/20">
+                <Zap className="w-4 h-4 text-purple-400" />
+              </div>
               <div className="flex flex-col items-start">
-                <span className="text-[9px] font-black text-purple-400 tracking-widest uppercase">Direct Knowledge (Override)</span>
-                <span className="text-[7px] text-slate-500 uppercase">Paste text or select previous cards</span>
+                <span className="text-[10px] font-black text-purple-400 tracking-[0.2em] uppercase">Direct Knowledge Injector</span>
+                <span className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">Primary Command Override Matrix</span>
               </div>
               {(directText.trim() || selectedSnippetIds.length > 0) && (
                 <span className="ml-2 px-1.5 py-0.5 bg-purple-500/20 text-purple-400 text-[7px] font-bold rounded flex items-center gap-1">
@@ -451,7 +415,7 @@ export function KnowledgeBasePanel({ onContextChange, className }: KnowledgeBase
                     onChange={(e) => setDirectText(e.target.value)}
                     placeholder="Example: My exam is on 26 April. I must reach by 12:30 PM."
                     rows={6}
-                    className="w-full bg-slate-950/80 border border-white/10 p-3 text-[10px] text-white placeholder:text-slate-700 focus:outline-none focus:border-purple-500/40 font-mono resize-none"
+                    className="w-full bg-black/40 border border-white/10 p-4 text-xs text-white placeholder:text-slate-700 focus:outline-none focus:border-purple-500/40 font-mono resize-none rounded-lg transition-all"
                   />
                   {directText && (
                     <button 
@@ -504,7 +468,11 @@ export function KnowledgeBasePanel({ onContextChange, className }: KnowledgeBase
                        <Loader2 className="w-4 h-4 text-slate-600 animate-spin" />
                      </div>
                    ) : snippets.length === 0 ? (
-                     <p className="text-[8px] text-slate-700 italic">No saved cards yet. Type above and click "Save as Card".</p>
+                      <div className="py-6 flex flex-col items-center justify-center gap-2 text-[9px] text-slate-500 font-mono border border-dashed border-white/10 rounded-xl bg-white/[0.01]">
+                        <Zap className="w-5 h-5 text-purple-700 mb-1 opacity-50" />
+                        <span>No knowledge cards saved</span>
+                        <span className="text-[7px] text-slate-600">Type above and click "Save as Card"</span>
+                      </div>
                    ) : (
                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
                        {snippets.map(s => (
@@ -512,10 +480,10 @@ export function KnowledgeBasePanel({ onContextChange, className }: KnowledgeBase
                            key={s.snippet_id}
                            onClick={() => toggleSnippet(s.snippet_id)}
                            className={cn(
-                             "relative p-3 border cursor-pointer transition-all group/snip",
+                             "relative p-4 border rounded-xl cursor-pointer transition-all group/snip",
                              selectedSnippetIds.includes(s.snippet_id)
-                               ? "bg-purple-500/10 border-purple-500/40"
-                               : "bg-white/2 border-white/8 hover:border-white/20"
+                               ? "bg-purple-500/10 border-purple-500/40 shadow-[inset_0_0_15px_rgba(168,85,247,0.1)]"
+                               : "bg-white/[0.02] border-white/5 hover:border-white/20 hover:bg-white/[0.04]"
                            )}
                          >
                            <div className="flex items-start justify-between mb-1">
@@ -548,19 +516,21 @@ export function KnowledgeBasePanel({ onContextChange, className }: KnowledgeBase
             )}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <div className="flex flex-col gap-4">
             {/* ── Knowledge Base Section ───────────────────────── */}
-            <div className="bg-slate-900/60 border border-white/8 overflow-hidden flex flex-col">
+            <div className="bg-white/[0.02] border border-white/5 rounded-xl overflow-hidden flex flex-col hover:border-white/10 transition-all">
               <button
                 type="button"
                 onClick={() => setKbExpanded(!kbExpanded)}
-                className="w-full flex items-center gap-2 p-3 hover:bg-white/5 transition-colors border-b border-white/5"
+                className="w-full flex items-center gap-4 p-4 hover:bg-white/[0.03] transition-colors border-b border-white/5"
               >
-                <Database className="w-3.5 h-3.5 text-cyan-400" />
-                <span className="text-[9px] font-black text-cyan-400 tracking-widest uppercase">Knowledge Base</span>
-                <span className="ml-2 text-[8px] text-slate-500 font-mono">
-                  {selectedCollections.length}/{collections.length} selected
-                </span>
+                <div className="p-2 bg-cyan-500/10 rounded-lg border border-cyan-500/20">
+                    <Database className="w-4 h-4 text-cyan-400" />
+                </div>
+                <div className="flex flex-col items-start">
+                    <span className="text-[10px] font-black text-cyan-400 tracking-[0.2em] uppercase">Document Repository</span>
+                    <span className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">{selectedCollections.length}/{collections.length} Collections Active</span>
+                </div>
                 {kbExpanded ? <ChevronUp className="ml-auto w-3 h-3 text-slate-500" /> : <ChevronDown className="ml-auto w-3 h-3 text-slate-500" />}
               </button>
 
@@ -592,37 +562,49 @@ export function KnowledgeBasePanel({ onContextChange, className }: KnowledgeBase
                   {/* Upload */}
                   <div className="space-y-2">
                     <p className="text-[8px] text-slate-500 uppercase tracking-widest font-bold">2. Upload File</p>
-                    <input
-                      type="text"
-                      placeholder="Collection name (optional)"
-                      value={collectionName}
-                      onChange={e => setCollectionName(e.target.value)}
-                      className="w-full bg-slate-950/60 border border-white/10 px-3 py-2 text-[10px] text-cyan-400 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500/40 font-mono"
-                    />
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept={`.${selectedFileType}`}
-                      onChange={handleUpload}
-                      className="hidden"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={uploading}
-                      className={cn(
-                        "w-full py-2.5 flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-wider transition-all",
-                        uploading
-                          ? "bg-slate-800 text-slate-500 cursor-wait"
-                          : "bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20 hover:border-cyan-500/60"
-                      )}
-                    >
-                      {uploading ? (
-                        <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Indexing…</>
-                      ) : (
-                        <><Upload className="w-3.5 h-3.5" /> Upload .{selectedFileType}</>
-                      )}
-                    </button>
+                    <div className="space-y-3 bg-black/40 border border-white/5 p-4 rounded-xl">
+                      <input
+                        type="text"
+                        placeholder="Collection name (optional)..."
+                        value={collectionName}
+                        onChange={e => setCollectionName(e.target.value)}
+                        className="w-full bg-black/60 border border-white/10 px-4 py-3 text-xs text-cyan-400 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500/40 font-mono rounded-lg transition-all"
+                      />
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept={`.${selectedFileType}`}
+                        onChange={handleUpload}
+                        className="hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploading}
+                        className={cn(
+                          "w-full py-6 flex flex-col items-center justify-center gap-3 text-[10px] font-black uppercase tracking-widest transition-all rounded-lg border border-dashed",
+                          uploading
+                            ? "bg-slate-900 border-white/5 text-slate-500 cursor-wait"
+                            : "bg-cyan-500/5 border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 hover:border-cyan-500/60"
+                        )}
+                      >
+                        {uploading ? (
+                          <>
+                            <Loader2 className="w-6 h-6 animate-spin text-cyan-500 mb-1" />
+                            <span>Indexing Matrix...</span>
+                          </>
+                        ) : (
+                          <>
+                            <div className="p-3 bg-cyan-500/10 rounded-full">
+                                <Upload className="w-5 h-5 text-cyan-500" />
+                            </div>
+                            <div className="flex flex-col items-center gap-1">
+                                <span>Select or Drop .{selectedFileType} Document</span>
+                                <span className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">Max size 25MB · Text extraction automatic</span>
+                            </div>
+                          </>
+                        )}
+                      </button>
 
                     {uploadStatus && (
                       <div className={cn(
@@ -638,6 +620,7 @@ export function KnowledgeBasePanel({ onContextChange, className }: KnowledgeBase
                         {uploadStatus.msg}
                       </div>
                     )}
+                    </div>
                   </div>
 
                   {/* Collections list */}
@@ -648,19 +631,21 @@ export function KnowledgeBasePanel({ onContextChange, className }: KnowledgeBase
                     </div>
 
                     {collections.length === 0 ? (
-                      <div className="py-4 text-center text-[9px] text-slate-600 font-mono border border-white/5">
-                        No collections yet — upload a file above
+                      <div className="py-8 flex flex-col items-center justify-center gap-2 text-[9px] text-slate-500 font-mono border border-dashed border-white/10 rounded-xl bg-white/[0.01]">
+                        <FileText className="w-6 h-6 text-slate-700 mb-1 opacity-50" />
+                        <span>No collections active</span>
+                        <span className="text-[7px] text-slate-600">Upload a document above to begin indexing</span>
                       </div>
                     ) : (
-                      <div className="space-y-1 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+                      <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1 custom-scrollbar">
                         {collections.map((c, i) => (
                           <div
                             key={c.collection_id || i}
                             className={cn(
-                              "flex items-center gap-2 p-2 border cursor-pointer transition-all group/coll",
+                              "flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-all group/coll",
                               selectedCollections.includes(c.collection_id)
-                                ? "bg-cyan-500/10 border-cyan-500/40"
-                                : "bg-white/2 border-white/8 hover:border-white/20"
+                                ? "bg-cyan-500/10 border-cyan-500/40 shadow-[inset_0_0_15px_rgba(6,182,212,0.1)]"
+                                : "bg-white/[0.02] border-white/5 hover:border-white/20 hover:bg-white/[0.04]"
                             )}
                             onClick={() => toggleCollection(c.collection_id)}
                           >
@@ -706,17 +691,19 @@ export function KnowledgeBasePanel({ onContextChange, className }: KnowledgeBase
             </div>
 
             {/* ── Instructions + Web Search Section ────────────── */}
-            <div className="bg-slate-900/60 border border-white/8 overflow-hidden flex flex-col">
+            <div className="bg-white/[0.02] border border-white/5 rounded-xl overflow-hidden flex flex-col hover:border-white/10 transition-all">
               <button
                 type="button"
                 onClick={() => setInstrExpanded(!instrExpanded)}
-                className="w-full flex items-center gap-2 p-3 hover:bg-white/5 transition-colors border-b border-white/5"
+                className="w-full flex items-center gap-4 p-4 hover:bg-white/[0.03] transition-colors border-b border-white/5"
               >
-                <BookOpen className="w-3.5 h-3.5 text-amber-400" />
-                <span className="text-[9px] font-black text-amber-400 tracking-widest uppercase">Instruction Profiles</span>
-                <span className="ml-2 text-[8px] text-slate-500 font-mono">
-                  {selectedProfiles.length}/{profiles.length} active
-                </span>
+                <div className="p-2 bg-amber-500/10 rounded-lg border border-amber-500/20">
+                    <BookOpen className="w-4 h-4 text-amber-400" />
+                </div>
+                <div className="flex flex-col items-start">
+                    <span className="text-[10px] font-black text-amber-400 tracking-[0.2em] uppercase">Protocol Modules</span>
+                    <span className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">{selectedProfiles.length}/{profiles.length} Profiles Active</span>
+                </div>
                 {instrExpanded ? <ChevronUp className="ml-auto w-3 h-3 text-slate-500" /> : <ChevronDown className="ml-auto w-3 h-3 text-slate-500" />}
               </button>
 
@@ -742,18 +729,21 @@ export function KnowledgeBasePanel({ onContextChange, className }: KnowledgeBase
                       </div>
                     )}
                     {!loadingProfiles && profiles.length === 0 && (
-                      <div className="py-3 text-center text-[9px] text-slate-600 font-mono border border-white/5">
-                        No profiles yet
+                      <div className="py-8 flex flex-col items-center justify-center gap-2 text-[9px] text-slate-500 font-mono border border-dashed border-white/10 rounded-xl bg-white/[0.01]">
+                        <BookOpen className="w-6 h-6 text-slate-700 mb-1 opacity-50" />
+                        <span>No profiles configured</span>
+                        <span className="text-[7px] text-slate-600">Create a new behavior profile below</span>
                       </div>
                     )}
+                    <div className="space-y-1.5">
                     {profiles.map((p, i) => (
                       <div
                         key={p.profile_id || i}
                         className={cn(
-                          "flex items-start gap-2 p-2 border cursor-pointer transition-all group/prof",
+                          "flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-all group/prof",
                           selectedProfiles.includes(p.profile_id)
-                            ? "bg-amber-500/10 border-amber-500/40"
-                            : "bg-white/2 border-white/8 hover:border-white/20"
+                            ? "bg-amber-500/10 border-amber-500/40 shadow-[inset_0_0_15px_rgba(245,158,11,0.1)]"
+                            : "bg-white/[0.02] border-white/5 hover:border-white/20 hover:bg-white/[0.04]"
                         )}
                         onClick={() => toggleProfile(p.profile_id)}
                       >
@@ -778,40 +768,45 @@ export function KnowledgeBasePanel({ onContextChange, className }: KnowledgeBase
                         </button>
                       </div>
                     ))}
+                    </div>
                   </div>
 
                   {/* New profile form */}
                   {showNewProfile ? (
-                    <div className="space-y-2 border border-amber-500/20 p-3 bg-amber-500/5">
+                    <div className="space-y-3 border border-amber-500/20 p-4 bg-amber-500/5 rounded-xl">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Plus className="w-3 h-3 text-amber-500" />
+                        <span className="text-[9px] font-bold text-amber-500 uppercase tracking-widest">Create Profile</span>
+                      </div>
                       <input
                         type="text"
-                        placeholder="Profile name…"
+                        placeholder="Profile name (e.g., Code Reviewer)..."
                         value={newProfileName}
                         onChange={e => setNewProfileName(e.target.value)}
-                        className="w-full bg-slate-950/60 border border-white/10 px-3 py-2 text-[10px] text-amber-400 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/40 font-mono"
+                        className="w-full bg-black/40 border border-white/10 px-4 py-3 text-xs text-amber-400 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/40 font-mono rounded-lg transition-all"
                       />
                       <textarea
-                        placeholder="Instructions…"
+                        placeholder="Detailed system instructions..."
                         value={newProfileText}
                         onChange={e => setNewProfileText(e.target.value)}
-                        rows={3}
-                        className="w-full bg-slate-950/60 border border-white/10 px-3 py-2 text-[10px] text-amber-400 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/40 font-mono resize-none"
+                        rows={4}
+                        className="w-full bg-black/40 border border-white/10 px-4 py-3 text-xs text-amber-400 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/40 font-mono resize-none rounded-lg transition-all"
                       />
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 pt-2">
                         <button
                           type="button"
                           onClick={saveProfile}
                           disabled={savingProfile}
-                          className="flex-1 py-2 bg-amber-500 text-black text-[9px] font-black uppercase tracking-wider"
+                          className="flex-1 py-2.5 bg-amber-500 text-black text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-amber-400 transition-colors shadow-[0_0_15px_rgba(245,158,11,0.2)]"
                         >
-                          Save
+                          {savingProfile ? "Saving..." : "Save Profile"}
                         </button>
                         <button
                           type="button"
                           onClick={() => setShowNewProfile(false)}
-                          className="px-3 py-2 bg-white/5 border border-white/10 text-slate-400 text-[9px] font-bold"
+                          className="px-4 py-2.5 bg-white/[0.05] border border-white/10 text-slate-400 text-[10px] font-bold rounded-lg hover:bg-white/10 hover:text-white transition-colors"
                         >
-                          <X className="w-3 h-3" />
+                          <X className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
@@ -819,9 +814,9 @@ export function KnowledgeBasePanel({ onContextChange, className }: KnowledgeBase
                     <button
                       type="button"
                       onClick={() => setShowNewProfile(true)}
-                      className="w-full py-2 flex items-center justify-center gap-2 bg-white/3 border border-white/10 text-slate-400 hover:text-amber-400 text-[9px] font-bold uppercase tracking-wider transition-all"
+                      className="w-full py-3 flex items-center justify-center gap-2 bg-white/[0.02] border border-dashed border-white/10 text-slate-400 hover:text-amber-400 hover:border-amber-500/30 text-[10px] font-bold uppercase tracking-widest transition-all rounded-xl"
                     >
-                      <Plus className="w-3 h-3" /> New Profile
+                      <Plus className="w-4 h-4" /> New Instruction Profile
                     </button>
                   )}
                 </div>
@@ -851,7 +846,6 @@ export function KnowledgeBasePanel({ onContextChange, className }: KnowledgeBase
             </div>
           )}
         </div>
-      )}
     </div>
   );
 }

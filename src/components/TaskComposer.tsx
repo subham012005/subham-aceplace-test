@@ -27,6 +27,42 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
         web_search_enabled: true,
     });
 
+    // Sync knowledge from localStorage on mount
+    React.useEffect(() => {
+        try {
+            const STORAGE_KEYS = {
+                COLLECTIONS: "ace_kb_selected_collections",
+                PROFILES: "ace_kb_selected_profiles",
+                DIRECT_TEXT: "ace_kb_direct_text_draft",
+                SNIPPETS: "ace_kb_selected_snippets"
+            };
+
+            const savedColls = localStorage.getItem(STORAGE_KEYS.COLLECTIONS);
+            const savedProfs = localStorage.getItem(STORAGE_KEYS.PROFILES);
+            const savedDirect = localStorage.getItem(STORAGE_KEYS.DIRECT_TEXT);
+            const savedSnips = localStorage.getItem(STORAGE_KEYS.SNIPPETS);
+
+            const collections = savedColls ? JSON.parse(savedColls) : [];
+            const profiles = savedProfs ? JSON.parse(savedProfs) : [];
+            const directText = savedDirect || "";
+            const snippetIds = savedSnips ? JSON.parse(savedSnips) : [];
+
+            // We don't have the snippets content here easily without fetching, 
+            // but the dispatch logic handles the IDs/text we provide.
+            // Actually, the panel handles joining snippets into direct_text.
+            // For now, let's just ensure we have the IDs and basic text.
+            
+            setPhase3Ctx(prev => ({
+                ...prev,
+                knowledge_collections: Array.isArray(collections) ? collections : [],
+                instruction_profiles: Array.isArray(profiles) ? profiles : [],
+                direct_text: directText
+            }));
+        } catch (e) {
+            console.error("Failed to sync knowledge in composer", e);
+        }
+    }, []);
+
     const maxChars = 2000;
     const charPercentage = Math.min((task.length / maxChars) * 100, 100);
 
@@ -180,6 +216,13 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
                                     {phase3Ctx.knowledge_collections.length > 0 && ` · 📚 ${phase3Ctx.knowledge_collections.length} KB collection${phase3Ctx.knowledge_collections.length > 1 ? "s" : ""}`}
                                     {phase3Ctx.instruction_profiles.length > 0 && ` · 📋 ${phase3Ctx.instruction_profiles.length} instruction${phase3Ctx.instruction_profiles.length > 1 ? "s" : ""}`}
                                 </span>
+                                <button 
+                                    type="button"
+                                    onClick={() => router.push("/dashboard/knowledge")}
+                                    className="ml-auto text-[8px] font-black text-cyan-500 hover:text-cyan-400 uppercase tracking-widest border-b border-cyan-500/30 transition-colors"
+                                >
+                                    Manage
+                                </button>
                             </div>
                         )}
 
@@ -255,8 +298,24 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
                 </SciFiFrame>
             </form>
 
-            {/* Phase 3 Knowledge Base Panel — below composer */}
-            <KnowledgeBasePanel onContextChange={handlePhase3Change} />
+            {/* Knowledge Management Shortcut if none selected */}
+            {!(phase3Ctx.knowledge_collections.length > 0 || phase3Ctx.instruction_profiles.length > 0 || !!phase3Ctx.direct_text?.trim()) && (
+                <div 
+                    onClick={() => router.push("/dashboard/knowledge")}
+                    className="p-4 bg-slate-900/40 border border-white/5 hover:border-cyan-500/30 transition-all cursor-pointer group"
+                >
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-cyan-500/10 rounded group-hover:bg-cyan-500/20 transition-colors">
+                            <Zap className="w-4 h-4 text-cyan-500" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-white uppercase tracking-widest">Enhance Agent Precision</p>
+                            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-tighter">Click to attach knowledge collections or instruction profiles</p>
+                        </div>
+                        <Send className="ml-auto w-3 h-3 text-slate-700 group-hover:text-cyan-500 transition-all rotate-45" />
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
