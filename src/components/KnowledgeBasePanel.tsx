@@ -64,7 +64,8 @@ export function KnowledgeBasePanel({ onContextChange, className }: KnowledgeBase
   const [collections, setCollections] = useState<KBCollection[]>([]);
   const [selectedCollections, setSelectedCollections] = useState<string[]>([]);
   const [loadingCollections, setLoadingCollections] = useState(false);
-  const [selectedFileType, setSelectedFileType] = useState("txt");
+  const [selectedFileType, setSelectedFileType] = useState("pdf"); // Default to pdf as requested
+  const [hasLoadedPersisted, setHasLoadedPersisted] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<{ type: "success" | "error"; msg: string } | null>(null);
   const [collectionName, setCollectionName] = useState("");
@@ -96,6 +97,15 @@ export function KnowledgeBasePanel({ onContextChange, className }: KnowledgeBase
   const [selectedSnippetIds, setSelectedSnippetIds] = useState<string[]>([]);
   const [loadingSnippets, setLoadingSnippets] = useState(false);
   const [savingSnippet, setSavingSnippet] = useState(false);
+
+  // ── Persistence ─────────────────────────────────────────────────────────────
+
+  const STORAGE_KEYS = {
+    COLLECTIONS: "ace_kb_selected_collections",
+    PROFILES: "ace_kb_selected_profiles",
+    SNIPPETS: "ace_kb_selected_snippets",
+    FILE_TYPE: "ace_kb_selected_file_type",
+  };
 
   // ── Load data ────────────────────────────────────────────────────────────────
 
@@ -193,7 +203,47 @@ export function KnowledgeBasePanel({ onContextChange, className }: KnowledgeBase
     loadProfiles();
     loadDirectKnowledge();
     loadSnippets();
+
+    // Load persisted selections
+    try {
+      const savedColls = localStorage.getItem(STORAGE_KEYS.COLLECTIONS);
+      if (savedColls) setSelectedCollections(JSON.parse(savedColls));
+
+      const savedProfs = localStorage.getItem(STORAGE_KEYS.PROFILES);
+      if (savedProfs) setSelectedProfiles(JSON.parse(savedProfs));
+
+      const savedSnips = localStorage.getItem(STORAGE_KEYS.SNIPPETS);
+      if (savedSnips) setSelectedSnippetIds(JSON.parse(savedSnips));
+
+      const savedFileType = localStorage.getItem(STORAGE_KEYS.FILE_TYPE);
+      if (savedFileType) setSelectedFileType(savedFileType);
+    } catch (e) {
+      console.error("Failed to load KB selections from localStorage", e);
+    } finally {
+      setHasLoadedPersisted(true);
+    }
   }, [loadCollections, loadProfiles, loadDirectKnowledge, loadSnippets]);
+
+  // Save selections to localStorage
+  useEffect(() => {
+    if (!hasLoadedPersisted) return;
+    localStorage.setItem(STORAGE_KEYS.COLLECTIONS, JSON.stringify(selectedCollections));
+  }, [selectedCollections, hasLoadedPersisted]);
+
+  useEffect(() => {
+    if (!hasLoadedPersisted) return;
+    localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(selectedProfiles));
+  }, [selectedProfiles, hasLoadedPersisted]);
+
+  useEffect(() => {
+    if (!hasLoadedPersisted) return;
+    localStorage.setItem(STORAGE_KEYS.SNIPPETS, JSON.stringify(selectedSnippetIds));
+  }, [selectedSnippetIds, hasLoadedPersisted]);
+
+  useEffect(() => {
+    if (!hasLoadedPersisted) return;
+    localStorage.setItem(STORAGE_KEYS.FILE_TYPE, selectedFileType);
+  }, [selectedFileType, hasLoadedPersisted]);
 
   // Notify parent when selection changes
   useEffect(() => {
