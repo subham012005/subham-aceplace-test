@@ -1555,23 +1555,50 @@ export default function JobDetailsPage() {
                                                     content = (content as any).text || (content as any).body || (content as any).markdown || (content as any).content || (sections.length > 0 ? '' : JSON.stringify(content, null, 2));
                                                 }
 
-                                                const execSummary = workerData.executive_summary || workerData.deliverable_summary || (sections.length > 0 && String(sections[0].title).toLowerCase().includes('summary') ? sections[0].body : '') || '';
-                                                const title = workerData.title || workerData.deliverable_name || workerData.subject || 'Autonomous Worker Intelligence Report';
-                                                const type = workerData.deliverable_type || 'TECHNICAL SPECIFICATION';
+                                                // Robust Markdown Formatter for JSON structures
+                                                const formatToMarkdown = (raw: any): string => {
+                                                    if (!raw) return "";
+                                                    if (typeof raw === 'string') {
+                                                        const trimmed = raw.trim();
+                                                        if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+                                                            try { return formatToMarkdown(JSON.parse(raw)); } catch { return raw; }
+                                                        }
+                                                        return raw;
+                                                    }
+                                                    if (typeof raw !== 'object') return String(raw);
+
+                                                    let md = "";
+                                                    const summary = raw.deliverable_summary || raw.summary || raw.executive_summary;
+                                                    if (summary) md += `# Executive Summary\n\n${summary}\n\n`;
+
+                                                    const sectionsList = raw.sections || raw.content?.sections || (Array.isArray(raw.content) ? raw.content : null);
+                                                    if (sectionsList && Array.isArray(sectionsList)) {
+                                                        md += sectionsList.map((s: any, i: number) => {
+                                                            const title = s.title || s.header || s.name || `Section ${i + 1}`;
+                                                            const body = s.body || s.content || s.text || "";
+                                                            return `## ${title}\n\n${body}\n\n`;
+                                                        }).join("\n");
+                                                        return md;
+                                                    }
+
+                                                    if (raw.title || raw.findings || raw.content) {
+                                                        if (raw.title) md = `# ${raw.title}\n\n` + md;
+                                                        if (typeof raw.content === 'string') md += raw.content + "\n\n";
+                                                        const listItems = raw.findings || raw.steps || raw.items || raw.results;
+                                                        if (Array.isArray(listItems)) {
+                                                            md += listItems.map((item: any) => typeof item === 'object' ? `* **${item.title || item.label}:** ${item.body || item.content || JSON.stringify(item)}` : `* ${item}`).join("\n");
+                                                        }
+                                                        if (md) return md;
+                                                    }
+
+                                                    return "```json\n" + JSON.stringify(raw, null, 2) + "\n```";
+                                                };
+
+                                                const displayContent = formatToMarkdown(rawContent);
                                                 const conclusions: any[] = Array.isArray(workerData.key_conclusions) ? workerData.key_conclusions : [];
                                                 const synthesis = workerData.research_synthesis || '';
                                                 const limitations: any[] = Array.isArray(workerData.limitations) ? workerData.limitations : [];
-
-                                                // Combine title and sections into content for a single unified document flow
-                                                let displayContent = String(content);
-                                                if (title && !displayContent.includes(title)) {
-                                                    displayContent = `# ${title}\n\n${displayContent}`;
-                                                }
-                                                
-                                                if (sections.length > 0 && (!content || !displayContent.includes(sections[0].title))) {
-                                                    const sectionsMd = sections.map((s: any, i: number) => `## ${i + 1}. ${s.title || s.name}\n\n${s.body || s.content || s.text}`).join('\n\n');
-                                                    displayContent += (displayContent ? '\n\n' : '') + sectionsMd;
-                                                }
+                                                const execSummary = workerData.executive_summary || workerData.deliverable_summary || (sections.length > 0 && String(sections[0].title).toLowerCase().includes('summary') ? sections[0].body : '') || '';
 
                                                 return (
                                                     <div className="space-y-12">
@@ -1605,7 +1632,7 @@ export default function JobDetailsPage() {
                                                         <div className="space-y-6">
                                                             <div className="flex items-center gap-2 px-1 opacity-60">
                                                                 <BookOpen className="w-3 h-3 text-cyan-500" />
-                                                                <span className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-400">Master Deliverable</span>
+                                                                <span className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-400">Full Deliverable Content</span>
                                                             </div>
                                                             
                                                             <div className="p-10 bg-black border border-white/5 rounded-sm shadow-2xl relative overflow-hidden">
