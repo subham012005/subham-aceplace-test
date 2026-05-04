@@ -48,6 +48,8 @@ import {
     Check,
     RotateCw,
     AlertCircle,
+    BookOpen,
+    Info,
     Layers,
     ArrowRight,
     ChevronDown,
@@ -1472,45 +1474,118 @@ export default function JobDetailsPage() {
                                                     } catch (e) { workerData = { content: rawContent }; }
                                                 }
 
-                                                const execSummary = workerData.executive_summary || workerData.deliverable_summary || '';
-                                                const type = workerData.deliverable_type || '';
-                                                const sections: any[] = Array.isArray(workerData.sections) ? workerData.sections : [];
+                                                let sections: any[] = Array.isArray(workerData.sections) ? workerData.sections : [];
+                                                let content = workerData.content || workerData.report || workerData.text || workerData.deliverable || workerData.artifact || '';
+                                                
+                                                // Handle double-encoded JSON or JSON-in-string cases
+                                                if (typeof content === 'string' && content.trim().startsWith('{')) {
+                                                    try {
+                                                        const cleanContent = content.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/i, '').trim();
+                                                        const parsed = JSON.parse(cleanContent);
+                                                        if (parsed.sections && Array.isArray(parsed.sections) && sections.length === 0) {
+                                                            sections = parsed.sections;
+                                                        }
+                                                        content = parsed.content || parsed.report || parsed.text || parsed.body || parsed.markdown || (parsed.sections ? '' : content);
+                                                    } catch (e) { /* Not valid JSON, keep as string */ }
+                                                }
+
+                                                if (typeof content === 'object' && content !== null) {
+                                                    if ((content as any).sections && Array.isArray((content as any).sections) && sections.length === 0) {
+                                                        sections = (content as any).sections;
+                                                    }
+                                                    content = (content as any).text || (content as any).body || (content as any).markdown || (content as any).content || (sections.length > 0 ? '' : JSON.stringify(content, null, 2));
+                                                }
+
+                                                const execSummary = workerData.executive_summary || workerData.deliverable_summary || (sections.length > 0 && String(sections[0].title).toLowerCase().includes('summary') ? sections[0].body : '') || '';
+                                                const title = workerData.title || workerData.deliverable_name || workerData.subject || 'Autonomous Worker Intelligence Report';
+                                                const type = workerData.deliverable_type || 'TECHNICAL SPECIFICATION';
                                                 const conclusions: any[] = Array.isArray(workerData.key_conclusions) ? workerData.key_conclusions : [];
                                                 const synthesis = workerData.research_synthesis || '';
                                                 const limitations: any[] = Array.isArray(workerData.limitations) ? workerData.limitations : [];
-                                                const content = workerData.content || workerData.report || workerData.text || '';
+
+                                                // Combine title and sections into content for a single unified document flow
+                                                let displayContent = String(content);
+                                                if (title && !displayContent.includes(title)) {
+                                                    displayContent = `# ${title}\n\n${displayContent}`;
+                                                }
+                                                
+                                                if (sections.length > 0 && (!content || !displayContent.includes(sections[0].title))) {
+                                                    const sectionsMd = sections.map((s: any, i: number) => `## ${i + 1}. ${s.title || s.name}\n\n${s.body || s.content || s.text}`).join('\n\n');
+                                                    displayContent += (displayContent ? '\n\n' : '') + sectionsMd;
+                                                }
 
                                                 return (
-                                                    <div className="space-y-6">
-                                                        {/* Type + Summary header */}
-                                                        <div className="flex items-start gap-4 p-4 bg-purple-500/5 border border-purple-500/20 rounded-sm">
-                                                            <FileText className="w-5 h-5 text-purple-400 shrink-0 mt-0.5" />
-                                                            <div className="space-y-1 flex-1">
-                                                                {type && <span className="text-[8px] font-black uppercase tracking-widest text-purple-400 px-2 py-0.5 bg-purple-500/10 border border-purple-500/20">{type}</span>}
-                                                                <p className="text-sm text-slate-300 leading-relaxed pt-1">{String(execSummary)}</p>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Main content */}
-                                                        {content && (
-                                                            <div className="p-6 bg-black/40 border border-white/5 rounded-sm">
-                                                                <p className="text-[9px] uppercase font-black tracking-widest text-slate-500 mb-4">Full Deliverable Content</p>
-                                                                <MarkdownReport content={String(content)} className="text-sm" />
+                                                    <div className="space-y-12">
+                                                        {/* Grounding & Verification HUD */}
+                                                        {workerData.grounding_report && (
+                                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                                <div className="p-4 bg-cyan-500/5 border border-cyan-500/10 rounded-sm">
+                                                                    <div className="flex items-center justify-between mb-2">
+                                                                        <span className="text-[8px] font-black uppercase tracking-widest text-cyan-400">Grounding Status</span>
+                                                                        <ShieldCheck className={cn("w-3 h-3", workerData.grounding_report.fabrication_check === 'VERIFIED' ? "text-emerald-400" : "text-amber-400")} />
+                                                                    </div>
+                                                                    <div className="text-lg font-mono font-black text-white">{workerData.grounding_report.fabrication_check || 'UNKNOWN'}</div>
+                                                                </div>
+                                                                <div className="p-4 bg-blue-500/5 border border-blue-500/10 rounded-sm">
+                                                                    <span className="text-[8px] font-black uppercase tracking-widest text-blue-400 block mb-2">Knowledge Density</span>
+                                                                    <div className="flex items-baseline gap-2">
+                                                                        <span className="text-lg font-mono font-black text-white">{workerData.grounding_report.kb_chunks_cited || 0}</span>
+                                                                        <span className="text-[10px] text-slate-500 uppercase">KB Refs</span>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="p-4 bg-purple-500/5 border border-purple-500/10 rounded-sm">
+                                                                    <span className="text-[8px] font-black uppercase tracking-widest text-purple-400 block mb-2">Intelligence Source</span>
+                                                                    <div className="flex items-baseline gap-2">
+                                                                        <span className="text-lg font-mono font-black text-white">{workerData.grounding_report.web_sources_cited || 0}</span>
+                                                                        <span className="text-[10px] text-slate-500 uppercase">Web Data</span>
+                                                                    </div>
+                                                                </div>
                                                             </div>
                                                         )}
 
-                                                        {/* Sections */}
-                                                        {sections.length > 0 && (
-                                                            <div className="space-y-3">
-                                                                <p className="text-[9px] uppercase font-black tracking-widest text-slate-500 px-1">Report Sections</p>
-                                                                <div className="space-y-3">
-                                                                    {sections.map((s: any, i: number) => {
-                                                                        const sTitle = s.title || s.name || `Section ${i + 1}`;
-                                                                        const sBody = s.body || s.content || s.text || '';
+                                                        <div className="space-y-6">
+                                                            <div className="flex items-center gap-2 px-1 opacity-60">
+                                                                <BookOpen className="w-3 h-3 text-cyan-500" />
+                                                                <span className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-400">Master Deliverable</span>
+                                                            </div>
+                                                            
+                                                            <div className="p-10 bg-black border border-white/5 rounded-sm shadow-2xl relative overflow-hidden">
+                                                                <div className="relative z-10">
+                                                                    <MarkdownReport content={displayContent} className="text-sm" />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Strategic Findings */}
+                                                        {conclusions.length > 0 && (
+                                                            <div className="space-y-4 pt-4">
+                                                                <p className="text-[9px] uppercase font-black tracking-[0.2em] text-slate-500 px-1 text-center">Strategic Findings HUD</p>
+                                                                <div className="grid grid-cols-1 gap-3">
+                                                                    {conclusions.map((c: any, i: number) => {
+                                                                        const conclusion = c.conclusion || (typeof c === 'string' ? c : '');
+                                                                        const evidence = c.evidence || '';
+                                                                        const recommendation = c.recommendation || '';
                                                                         return (
-                                                                            <div key={i} className="p-4 bg-white/[0.03] border border-white/10 rounded-sm">
-                                                                                <p className="text-[10px] font-black text-purple-300 uppercase tracking-wider mb-3">§{i + 1} — {String(sTitle)}</p>
-                                                                                <MarkdownReport content={String(sBody)} className="text-xs" />
+                                                                            <div key={i} className="p-5 bg-cyan-500/[0.03] border border-cyan-500/10 rounded-sm relative group hover:bg-cyan-500/[0.05] transition-all">
+                                                                                <div className="absolute top-4 left-0 w-1 h-6 bg-cyan-500/40" />
+                                                                                <div className="flex items-start gap-4">
+                                                                                    <Zap className="w-4 h-4 text-cyan-400 mt-0.5 shrink-0" />
+                                                                                    <div className="space-y-3 flex-1">
+                                                                                        <p className="text-sm font-bold text-slate-200 leading-relaxed">{String(conclusion)}</p>
+                                                                                        {evidence && (
+                                                                                            <div className="p-3 bg-black/20 border border-white/5 rounded-sm">
+                                                                                                <p className="text-[8px] uppercase font-black tracking-widest text-blue-400/70 mb-1">Empirical Evidence</p>
+                                                                                                <p className="text-[11px] text-slate-400 leading-relaxed italic">{String(evidence)}</p>
+                                                                                            </div>
+                                                                                        )}
+                                                                                        {recommendation && (
+                                                                                            <div className="flex items-start gap-2 text-[11px] text-emerald-400/90 bg-emerald-500/5 p-2 rounded-sm border border-emerald-500/10">
+                                                                                                <Target className="w-3 h-3 mt-0.5" />
+                                                                                                <p>{String(recommendation)}</p>
+                                                                                            </div>
+                                                                                        )}
+                                                                                    </div>
+                                                                                </div>
                                                                             </div>
                                                                         );
                                                                     })}
@@ -1518,59 +1593,72 @@ export default function JobDetailsPage() {
                                                             </div>
                                                         )}
 
-                                                        {/* Key Conclusions */}
-                                                        {conclusions.length > 0 && (
-                                                            <div className="space-y-3">
-                                                                <p className="text-[9px] uppercase font-black tracking-widest text-slate-500 px-1">Key Conclusions</p>
-                                                                <div className="space-y-3">
-                                                                    {conclusions.map((c: any, i: number) => {
-                                                                        const conclusion = c.conclusion || (typeof c === 'string' ? c : '');
-                                                                        const evidence = c.evidence || '';
-                                                                        const recommendation = c.recommendation || '';
-                                                                        return (
-                                                                            <div key={i} className="p-4 bg-white/[0.03] border-l-2 border-l-cyan-500/40 border border-white/5 rounded-sm">
-                                                                                <p className="text-sm font-bold text-slate-200 leading-relaxed mb-3">↳ {String(conclusion)}</p>
-                                                                                {evidence && (
-                                                                                    <div className="mb-2">
-                                                                                        <p className="text-[8px] uppercase font-black tracking-widest text-blue-400/70 mb-1">Research Evidence</p>
-                                                                                        <p className="text-[11px] text-slate-400 leading-relaxed italic">{String(evidence)}</p>
-                                                                                    </div>
-                                                                                )}
-                                                                                {recommendation && (
-                                                                                    <div className="pt-2 border-t border-white/5">
-                                                                                        <p className="text-[8px] uppercase font-black tracking-widest text-emerald-400/70 mb-1">Recommendation</p>
-                                                                                        <p className="text-[11px] text-emerald-300/80 leading-relaxed">{String(recommendation)}</p>
-                                                                                    </div>
-                                                                                )}
+                                                        {/* Source References */}
+                                                        {workerData.source_references && workerData.source_references.length > 0 && (
+                                                            <div className="space-y-3 pt-6">
+                                                                <p className="text-[9px] uppercase font-black tracking-[0.2em] text-slate-500 px-1">Source Provenance</p>
+                                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                                    {workerData.source_references.map((ref: any, i: number) => (
+                                                                        <div key={i} className="p-3 bg-white/[0.02] border border-white/5 rounded-sm flex items-start gap-3">
+                                                                            <div className="px-1.5 py-0.5 bg-blue-500/10 border border-blue-500/20 text-[8px] font-mono font-bold text-blue-400 rounded-xs mt-0.5">{ref.ref_id}</div>
+                                                                            <div className="space-y-1">
+                                                                                <p className="text-[10px] font-bold text-slate-300">{ref.title}</p>
+                                                                                <p className="text-[9px] text-slate-500 leading-tight">{ref.usage}</p>
                                                                             </div>
-                                                                        );
-                                                                    })}
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Evidence Gaps */}
+                                                        {workerData.evidence_gaps && workerData.evidence_gaps.length > 0 && (
+                                                            <div className="space-y-3 pt-6">
+                                                                <p className="text-[9px] uppercase font-black tracking-[0.2em] text-amber-500/60 px-1">Identified Intelligence Gaps</p>
+                                                                <div className="space-y-2">
+                                                                    {workerData.evidence_gaps.map((gap: any, i: number) => (
+                                                                        <div key={i} className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-sm flex items-start gap-4">
+                                                                            <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                                                                            <div className="space-y-1 flex-1">
+                                                                                <p className="text-xs font-bold text-amber-200/90">{gap.gap}</p>
+                                                                                <p className="text-[10px] text-slate-400">{gap.impact}</p>
+                                                                                <div className="mt-2 text-[9px] text-amber-400/80 font-mono italic">Resolution: {gap.recommended_resolution}</div>
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
                                                                 </div>
                                                             </div>
                                                         )}
 
                                                         {/* Research Synthesis */}
                                                         {synthesis && (
-                                                            <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-sm">
-                                                                <p className="text-[9px] uppercase font-black tracking-widest text-emerald-400 mb-2">Research Synthesis</p>
-                                                                <p className="text-sm text-slate-400 leading-relaxed">{String(synthesis)}</p>
+                                                            <div className="p-6 bg-gradient-to-r from-emerald-500/10 to-transparent border border-emerald-500/20 rounded-sm mt-8">
+                                                                <div className="flex items-center gap-3 mb-3">
+                                                                    <Cpu className="w-4 h-4 text-emerald-400" />
+                                                                    <p className="text-[10px] uppercase font-black tracking-widest text-emerald-400">Synthesis Engine Output</p>
+                                                                </div>
+                                                                <p className="text-sm text-slate-300 leading-relaxed font-medium">{String(synthesis)}</p>
                                                             </div>
                                                         )}
 
                                                         {/* Limitations */}
                                                         {limitations.length > 0 && (
-                                                            <div className="p-3 bg-amber-500/5 border border-amber-500/10 rounded-sm">
-                                                                <p className="text-[9px] uppercase font-black tracking-widest text-amber-400/70 mb-2">Limitations</p>
+                                                            <div className="p-4 bg-white/[0.02] border border-white/5 rounded-sm mt-4">
+                                                                <div className="flex items-center gap-3 mb-3">
+                                                                    <Info className="w-4 h-4 text-slate-500" />
+                                                                    <p className="text-[9px] uppercase font-black tracking-widest text-slate-500">Scoped Constraints</p>
+                                                                </div>
                                                                 <div className="flex flex-wrap gap-2">
-                                                                    {limitations.map((l: any, i: number) => <span key={i} className="px-2 py-1 bg-amber-500/5 border border-amber-500/20 text-[10px] text-slate-400">{String(l)}</span>)}
+                                                                    {limitations.map((l: any, i: number) => <span key={i} className="px-2.5 py-1 bg-black/40 border border-white/10 text-[10px] font-mono text-slate-400 rounded-sm">{String(l)}</span>)}
                                                                 </div>
                                                             </div>
                                                         )}
 
                                                         {/* Fallback: no structured data */}
                                                         {!execSummary && !content && sections.length === 0 && (
-                                                            <div className="p-6 bg-purple-500/5 border border-purple-500/15 rounded-sm">
-                                                                <MarkdownReport content={typeof rawContent === 'string' ? rawContent : JSON.stringify(rawContent, null, 2)} className="text-sm" />
+                                                            <div className="p-12 bg-purple-500/5 border border-purple-500/20 border-dashed rounded-sm text-center">
+                                                                <p className="text-[10px] uppercase font-black tracking-widest text-purple-400/60 mb-4">Raw Artifact Stream</p>
+                                                                <MarkdownReport content={typeof rawContent === 'string' ? rawContent : JSON.stringify(rawContent, null, 2)} className="text-sm opacity-80" />
                                                             </div>
                                                         )}
                                                     </div>
