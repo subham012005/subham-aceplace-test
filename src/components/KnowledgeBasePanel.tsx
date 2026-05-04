@@ -198,52 +198,65 @@ export function KnowledgeBasePanel({ onContextChange, className }: KnowledgeBase
     );
   };
 
-  useEffect(() => {
-    loadCollections();
-    loadProfiles();
-    loadDirectKnowledge();
-    loadSnippets();
+  // ── Load & Save ─────────────────────────────────────────────────────────────
 
-    // Load persisted selections
+  // Load effect - runs once on mount
+  useEffect(() => {
+    const initPersistence = async () => {
+      // 1. Load data from APIs
+      await Promise.allSettled([
+        loadCollections(),
+        loadProfiles(),
+        loadDirectKnowledge(),
+        loadSnippets()
+      ]);
+
+      // 2. Load persisted selections from localStorage
+      try {
+        const savedColls = localStorage.getItem(STORAGE_KEYS.COLLECTIONS);
+        if (savedColls) {
+          const parsed = JSON.parse(savedColls);
+          if (Array.isArray(parsed)) setSelectedCollections(parsed);
+        }
+
+        const savedProfs = localStorage.getItem(STORAGE_KEYS.PROFILES);
+        if (savedProfs) {
+          const parsed = JSON.parse(savedProfs);
+          if (Array.isArray(parsed)) setSelectedProfiles(parsed);
+        }
+
+        const savedSnips = localStorage.getItem(STORAGE_KEYS.SNIPPETS);
+        if (savedSnips) {
+          const parsed = JSON.parse(savedSnips);
+          if (Array.isArray(parsed)) setSelectedSnippetIds(parsed);
+        }
+
+        const savedFileType = localStorage.getItem(STORAGE_KEYS.FILE_TYPE);
+        if (savedFileType) setSelectedFileType(savedFileType);
+      } catch (e) {
+        console.error("Failed to load KB selections from localStorage", e);
+      } finally {
+        setHasLoadedPersisted(true);
+      }
+    };
+
+    initPersistence();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
+
+  // Save effect - runs whenever selections change, but ONLY after load is complete
+  useEffect(() => {
+    if (!hasLoadedPersisted) return;
+
     try {
-      const savedColls = localStorage.getItem(STORAGE_KEYS.COLLECTIONS);
-      if (savedColls) setSelectedCollections(JSON.parse(savedColls));
-
-      const savedProfs = localStorage.getItem(STORAGE_KEYS.PROFILES);
-      if (savedProfs) setSelectedProfiles(JSON.parse(savedProfs));
-
-      const savedSnips = localStorage.getItem(STORAGE_KEYS.SNIPPETS);
-      if (savedSnips) setSelectedSnippetIds(JSON.parse(savedSnips));
-
-      const savedFileType = localStorage.getItem(STORAGE_KEYS.FILE_TYPE);
-      if (savedFileType) setSelectedFileType(savedFileType);
+      localStorage.setItem(STORAGE_KEYS.COLLECTIONS, JSON.stringify(selectedCollections));
+      localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(selectedProfiles));
+      localStorage.setItem(STORAGE_KEYS.SNIPPETS, JSON.stringify(selectedSnippetIds));
+      localStorage.setItem(STORAGE_KEYS.FILE_TYPE, selectedFileType);
     } catch (e) {
-      console.error("Failed to load KB selections from localStorage", e);
-    } finally {
-      setHasLoadedPersisted(true);
+      console.error("Failed to save KB selections to localStorage", e);
     }
-  }, [loadCollections, loadProfiles, loadDirectKnowledge, loadSnippets]);
-
-  // Save selections to localStorage
-  useEffect(() => {
-    if (!hasLoadedPersisted) return;
-    localStorage.setItem(STORAGE_KEYS.COLLECTIONS, JSON.stringify(selectedCollections));
-  }, [selectedCollections, hasLoadedPersisted]);
-
-  useEffect(() => {
-    if (!hasLoadedPersisted) return;
-    localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(selectedProfiles));
-  }, [selectedProfiles, hasLoadedPersisted]);
-
-  useEffect(() => {
-    if (!hasLoadedPersisted) return;
-    localStorage.setItem(STORAGE_KEYS.SNIPPETS, JSON.stringify(selectedSnippetIds));
-  }, [selectedSnippetIds, hasLoadedPersisted]);
-
-  useEffect(() => {
-    if (!hasLoadedPersisted) return;
-    localStorage.setItem(STORAGE_KEYS.FILE_TYPE, selectedFileType);
-  }, [selectedFileType, hasLoadedPersisted]);
+  }, [selectedCollections, selectedProfiles, selectedSnippetIds, selectedFileType, hasLoadedPersisted]);
 
   // Notify parent when selection changes
   useEffect(() => {
