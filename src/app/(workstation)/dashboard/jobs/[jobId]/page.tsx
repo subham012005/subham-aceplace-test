@@ -663,27 +663,27 @@ export default function JobDetailsPage() {
                     const isModelSwitch = meta?.suggested_action === 'model_switch';
                     
                     return (
-                        <div className="relative overflow-hidden border border-orange-500/60 bg-orange-500/10 shadow-[0_0_40px_rgba(249,115,22,0.1)] scifi-clip p-6 sm:p-8 animate-pulse-slow">
-                            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-orange-400 to-transparent" />
-                            <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-orange-500/30 to-transparent" />
+                        <div className="relative overflow-hidden border border-rose-500/60 bg-rose-500/10 shadow-[0_0_40px_rgba(244,63,94,0.1)] scifi-clip p-6 sm:p-8 animate-pulse-slow">
+                            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-rose-400 to-transparent" />
+                            <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-rose-500/30 to-transparent" />
                             
                             <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
                                 <div className="flex items-start gap-6 flex-1">
                                     <div className="relative shrink-0">
-                                        <div className="w-14 h-14 bg-orange-500/20 border border-orange-500/40 scifi-clip flex items-center justify-center">
-                                            <RotateCw className="w-7 h-7 text-orange-400 animate-spin-slow" />
+                                        <div className="w-14 h-14 bg-rose-500/20 border border-rose-500/40 scifi-clip flex items-center justify-center">
+                                            <RotateCw className="w-7 h-7 text-rose-400 animate-spin-slow" />
                                         </div>
-                                        <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-orange-500 rounded-none flex items-center justify-center border border-black">
+                                        <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-rose-500 rounded-none flex items-center justify-center border border-black">
                                             <AlertTriangle className="w-3 h-3 text-black" />
                                         </div>
                                     </div>
                                     
                                     <div className="space-y-3">
                                         <div className="flex flex-wrap items-center gap-3">
-                                            <span className="px-2 py-0.5 bg-orange-500 text-black font-black text-[9px] uppercase tracking-widest scifi-clip-sm">
+                                            <span className="px-2 py-0.5 bg-rose-500 text-black font-black text-[9px] uppercase tracking-widest scifi-clip-sm">
                                                 Intervention Required
                                             </span>
-                                            <span className="text-[10px] font-black text-orange-400 uppercase tracking-[0.2em] italic">
+                                            <span className="text-[10px] font-black text-rose-400 uppercase tracking-[0.2em] italic">
                                                 Fallback Pending Approval
                                             </span>
                                         </div>
@@ -693,7 +693,7 @@ export default function JobDetailsPage() {
                                                 {isModelSwitch ? 'Intelligence Provider Failure' : 'Runtime Connection Failure'}
                                             </h2>
                                             <p className="text-slate-300 text-sm leading-relaxed max-w-2xl">
-                                                BYO-LLM configuration missing for organization: The provider <span className="text-orange-300 font-bold">'anthropic'</span> is not enabled for your environment.
+                                                BYO-LLM configuration missing for organization: The provider <span className="text-rose-300 font-bold">&apos;{meta?.failed_provider || &apos;anthropic&apos;}&apos;</span> is not enabled for your environment.
                                             </p>
                                         </div>
 
