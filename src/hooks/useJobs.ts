@@ -6,7 +6,8 @@ import {
     where,
     orderBy,
     onSnapshot,
-    doc
+    doc,
+    deleteDoc
 } from "firebase/firestore";
 import { aceApi } from "@/lib/api-client";
 
@@ -92,11 +93,13 @@ export interface Job {
     resurrection_reason?: string;
     resurrected_by?: string;
     resurrected_at?: string;
-    // Agent pipeline fields
     grade_score?: number;
     grade_label?: string;
     grade_recommendation?: string;
     pass_fail?: string;
+    envelope_id?: string;
+    execution_id?: string;
+    identity_fingerprint?: string;
     output?: any[];
     // Fork Protection
     identity_id?: string;
@@ -106,7 +109,6 @@ export interface Job {
     // Agent Identity & Governance
     agent_id?: string;
     requested_agent_id?: string;
-    identity_fingerprint?: string;
     acelogic_id?: string;
     jurisdiction?: string;
     mission?: string;
@@ -133,8 +135,6 @@ export interface Job {
     last_safe_step?: string;
     resume_allowed?: boolean;
     grade_status?: string;
-    execution_id?: string;
-    envelope_id?: string;
 }
 
 export interface ForkEvent {
@@ -292,7 +292,24 @@ export function useJobs(userId: string | undefined) {
         };
     }, [userId]);
 
-    return { jobs, loading, refreshing, refresh, updateJobInList };
+    const deleteJob = useCallback(async (job: Job) => {
+        try {
+            const jobId = job.job_id || job.id;
+            if (!userId) throw new Error("User ID required for deletion");
+
+            console.log(`[PURGE] Initiating full deep-clean for job: ${jobId}`);
+
+            // Call the secure backend purge endpoint
+            await aceApi.purgeJob(jobId, userId);
+
+            return { success: true };
+        } catch (error) {
+            console.error("Failed to execute deep-clean purge:", error);
+            throw error;
+        }
+    }, [userId]);
+
+    return { jobs, loading, refreshing, refresh, updateJobInList, deleteJob };
 }
 
 export function useJob(jobId: string | null, userId: string | undefined, onUpdate?: (j: Job) => void) {

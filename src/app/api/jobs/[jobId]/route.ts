@@ -59,3 +59,29 @@ export async function GET(
         return NextResponse.json({ error: error.message || "Failed to fetch job record" }, { status: 500 });
     }
 }
+
+/**
+ * Purge Job Record and associated execution state
+ * DELETE /api/jobs/[jobId]
+ */
+export async function DELETE(
+    req: Request,
+    { params }: { params: Promise<{ jobId: string }> }
+) {
+    try {
+        const { jobId } = await params;
+        const { searchParams } = new URL(req.url);
+        const userId = searchParams.get("user_id");
+
+        const { workflowEngine } = await import("@/lib/workflow-engine");
+        const result = await workflowEngine.purgeJob(jobId, userId || undefined);
+
+        return NextResponse.json(result);
+    } catch (error: any) {
+        console.error("Purge job admin error:", error);
+        const status = error.message === "UNAUTHORIZED" ? 403 : 500;
+        return NextResponse.json({ 
+            error: error.message || "Failed to purge job record" 
+        }, { status });
+    }
+}

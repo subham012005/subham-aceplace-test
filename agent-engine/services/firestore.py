@@ -399,7 +399,13 @@ def sync_job_with_envelope(
 
         # Sync steps from envelope directly to jobs
         envelope = get_envelope(envelope_id)
-        if envelope and "steps" in envelope:
+        if not envelope:
+            # If the envelope is gone, it means the job was purged from the UI.
+            # Abort sync to prevent re-creating the 'jobs' pointer.
+            print(f"[FIRESTORE] Sync aborted for {job_id}: Envelope {envelope_id} deleted.")
+            return
+
+        if "steps" in envelope:
             payload["steps"] = envelope["steps"]
             if "execution_context" in envelope:
                 payload["execution_context"] = envelope["execution_context"]

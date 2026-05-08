@@ -986,5 +986,72 @@ export const workflowEngine = {
         });
 
         return { success: true };
+    },
+
+    // ─── Purge Job ────────────────────────────
+    /**
+     * Deep-clean removal of a job and ALL its associated execution state.
+     * Deletes: job, envelope, queue, metrics, traces, artifacts, logs, messages.
+     */
+    async purgeJob(jobId: string, userId?: string) {
+        const db = ensureDb();
+        
+        // 1. Find the job and its envelope
+        const jobRef = db.collection("jobs").doc(jobId);
+        let jobDoc = await jobRef.get();
+        let targetRef = jobRef;
+        let jobData = jobDoc.exists ? jobDoc.data() : null;
+        
+        if (!jobDoc.exists) {
+            // Fallback: search by job_id field
+            const snapshot = await db.collection("jobs").where("job_id", "==", jobId).limit(1).get();
+            if (snapshot.empty) throw new Error("JOB_NOT_FOUND");
+            targetRef = snapshot.docs[0].ref;
+            jobData = snapshot.docs[0].data();
+        }
+
+        if (userId && jobData?.user_id !== userId) {
+            throw new Error("UNAUTHORIZED");
+        }
+        
+        const envelopeId = jobData?.execution_id || jobData?.envelope_id;
+        
+        // 2. Perform the cascading delete
+        const batch = db.batch();
+        
+        // Delete job record
+        batch.delete(targetRef);
+        
+        if (envelopeId) {
+            // Delete envelope
+            batch.delete(db.collection("execution_envelopes").doc(envelopeId));
+            // Delete queue entry
+            batch.delete(db.collection("execution_queue").doc(envelopeId));
+            // Delete metrics
+            batch.delete(db.collection("envelope_metrics").doc(envelopeId));
+            
+            // Delete traces (multiple)
+            const tracesSnap = await db.collection("execution_traces").where("envelope_id", "==", envelopeId).get();
+            tracesSnap.docs.forEach(d => batch.delete(d.ref));
+            
+            // Delete artifacts (multiple)
+            const artifactsSnap = await db.collection("artifacts").where("execution_id", "==", envelopeId).get();
+            artifactsSnap.docs.forEach(d => batch.delete(d.ref));
+
+            // Delete agent logs (multiple)
+            const logsSnap = await db.collection("agent_logs").where("envelope_id", "==", envelopeId).get();
+            logsSnap.docs.forEach(d => batch.delete(d.ref));
+
+            // Delete messages (multiple)
+            const messagesSnap = await db.collection("execution_messages").where("execution.envelope_id", "==", envelopeId).get();
+            messagesSnap.docs.forEach(d => batch.delete(d.ref));
+
+            // Delete legacy job traces if any
+            const jobTracesSnap = await db.collection("job_traces").where("job_id", "==", jobId).get();
+            jobTracesSnap.docs.forEach(d => batch.delete(d.ref));
+        }
+
+        await batch.commit();
+        return { success: true };
     }
 };

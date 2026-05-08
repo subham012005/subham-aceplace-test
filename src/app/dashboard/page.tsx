@@ -20,6 +20,7 @@ import {
     Check,
     Hash,
     DollarSign,
+    Trash2,
     Settings as SettingsIcon
 } from "lucide-react";
 import { subscribeToUserStats } from "@/lib/user-stats";
@@ -44,6 +45,7 @@ import { AgentIdentityMini } from "@/components/AgentIdentityMini";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useEnvelopes } from "@/hooks/useEnvelopes";
 import { TraceStreamPanel } from "@/components/TraceStreamPanel";
+import { PurgeConfirmationModal } from "@/components/PurgeConfirmationModal";
 import type { ExecutionEnvelope } from "@aceplace/runtime-core/shared";
 
 interface ActivityLog {
@@ -145,7 +147,8 @@ export default function DashboardPage() {
         loading: jobsLoading,
         refreshing: jobsRefreshing,
         refresh: refreshJobs,
-        updateJobInList
+        updateJobInList,
+        deleteJob
     } = useJobs(userUid);
 
     // Envelope data — canonical source of truth for execution status
@@ -176,6 +179,8 @@ export default function DashboardPage() {
     const [lastSyncFailed, setLastSyncFailed] = React.useState(false);
     const [hoveredAgent, setHoveredAgent] = React.useState<string | null>(null);
     const [errorStatus, setErrorStatus] = React.useState<number | null>(null);
+    const [jobToPurge, setJobToPurge] = React.useState<Job | null>(null);
+    const [isPurgeModalOpen, setIsPurgeModalOpen] = React.useState(false);
     const maxRetries = 10;
     const initialFetchRef = React.useRef(false);
     const fetchingJobIdsRef = React.useRef<Set<string>>(new Set());
@@ -184,6 +189,28 @@ export default function DashboardPage() {
         const timestamp = new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
         setLogs(prev => [`[${timestamp}] ${message}`, ...prev].slice(0, 50));
     }, []);
+
+    const handleJobDeletion = (e: React.MouseEvent, job: Job) => {
+        e.stopPropagation();
+        setJobToPurge(job);
+        setIsPurgeModalOpen(true);
+    };
+
+    const confirmPurge = async () => {
+        if (!jobToPurge) return;
+
+        const jobId = jobToPurge.job_id || jobToPurge.id;
+        try {
+            addLog(`[SYSTEM] Initiating deletion of job ${jobId.slice(-6)}...`);
+            await deleteJob(jobToPurge);
+            addLog(`[SUCCESS] Job ${jobId.slice(-6)} and associated envelopes purged.`);
+            setIsPurgeModalOpen(false);
+            setJobToPurge(null);
+        } catch (err) {
+            addLog(`[ERROR] Failed to delete job ${jobId.slice(-6)}: ${err}`);
+            setIsPurgeModalOpen(false);
+        }
+    };
 
     const deriveHomeStatus = React.useCallback((job: Job): string => {
         // ── 0. Manual governance states are absolute ─────────────────
@@ -691,7 +718,7 @@ export default function DashboardPage() {
                                     <div className="w-4 h-4 border border-emerald-500/50 flex items-center justify-center shrink-0">
                                         <CheckCircle2 className="w-3 h-3 text-emerald-500 opacity-80" />
                                     </div>
-                                    <div className="flex flex-col min-w-0">
+                                    <div className="flex flex-col min-w-0 flex-1">
                                         <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-emerald-400 truncate">{job.prompt}</span>
                                         <div className="flex items-center justify-between gap-2">
                                             <span className="text-[7px] uppercase font-bold text-slate-600 tracking-tighter italic shrink-0">Status: {formatStatus(deriveHomeStatus(job))}</span>
@@ -699,6 +726,13 @@ export default function DashboardPage() {
                                             <span className="text-[6px] font-mono text-slate-700 tracking-tighter shrink-0">ID: {(job.job_id || job.id || "").slice(-6)}</span>
                                         </div>
                                     </div>
+                                    <button
+                                        onClick={(e) => handleJobDeletion(e, job)}
+                                        className="opacity-0 group-hover:opacity-100 p-1.5 border border-rose-500/20 hover:border-rose-500/50 hover:bg-rose-500/10 transition-all scifi-clip-sm bg-rose-500/5 cursor-target shrink-0"
+                                        title="Purge Record"
+                                    >
+                                        <Trash2 className="w-3 h-3 text-rose-500/50 group-hover:text-rose-500 transition-colors" />
+                                    </button>
                                 </div>
                             )) : (
                                 <div className="p-4 text-center border border-dashed border-white/5 text-[9px] uppercase font-black tracking-widest text-slate-600 italic">No completed tasks</div>
@@ -779,6 +813,13 @@ export default function DashboardPage() {
                                             <span className="text-[6px] font-mono text-slate-700 tracking-tighter shrink-0">ID: {(job.job_id || job.id || "").slice(-6)}</span>
                                         </div>
                                     </div>
+                                    <button
+                                        onClick={(e) => handleJobDeletion(e, job)}
+                                        className="opacity-0 group-hover:opacity-100 p-1.5 border border-rose-500/20 hover:border-rose-500/50 hover:bg-rose-500/10 transition-all scifi-clip-sm bg-rose-500/5 cursor-target shrink-0"
+                                        title="Purge Record"
+                                    >
+                                        <Trash2 className="w-3 h-3 text-rose-500/50 hover:text-rose-500 transition-colors" />
+                                    </button>
                                 </div>
                             )) : (
                                 <div className="p-4 text-center border border-dashed border-white/5 text-[9px] uppercase font-black tracking-widest text-slate-600 italic">No active missions sync'd</div>
@@ -964,6 +1005,7 @@ export default function DashboardPage() {
                                         <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500 text-cyan-500/80">Grader Score</th>
                                         <th className="py-2 text-[9px] uppercase font-black tracking-widest text-purple-500/80">Agent Fingerprint</th>
                                         <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500">Timestamp</th>
+                                        <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500 text-right pr-4">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-white/5">
@@ -1072,6 +1114,15 @@ export default function DashboardPage() {
                                                     return date ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Recently";
                                                 })()}
                                             </td>
+                                            <td className="py-3 text-right pr-4">
+                                                <button
+                                                    onClick={(e) => handleJobDeletion(e, job)}
+                                                    className="p-1.5 border border-rose-500/20 hover:border-rose-500/50 hover:bg-rose-500/10 transition-all group scifi-clip-sm bg-rose-500/5 cursor-target"
+                                                    title="Purge Record"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5 text-rose-500/50 group-hover:text-rose-500 transition-colors" />
+                                                </button>
+                                            </td>
                                         </tr>
                                     )) : (
                                         <tr key="empty-logs">
@@ -1134,7 +1185,7 @@ export default function DashboardPage() {
                             <div className="mt-auto flex flex-col items-center w-full">
                                 <div className="text-center transition-all duration-500 group-hover:drop-shadow-[0_0_10px_rgba(34,211,238,0.5)]">
                                     <h4 className="text-xl md:text-2xl font-black text-white tracking-[0.25em] flex items-baseline justify-center gap-1">
-                                        VOICE COMMAND<span className="text-[10px] align-top font-bold text-cyan-500/80">™</span>
+                                        VOICE COMMAND
                                     </h4>
                                 </div>
 
@@ -1342,6 +1393,15 @@ export default function DashboardPage() {
                     onUpdate={updateJobInList}
                 />
             )}
+
+            {/* Purge Confirmation Modal */}
+            <PurgeConfirmationModal
+                isOpen={isPurgeModalOpen}
+                onClose={() => setIsPurgeModalOpen(false)}
+                onConfirm={confirmPurge}
+                title={`Purge Job ${jobToPurge?.job_id?.slice(-6) || jobToPurge?.id?.slice(-6) || ""}`}
+                description={`You are about to initiate a level-5 data purge. This will remove all traces of the mission "${jobToPurge?.prompt}" from the workstation and runtime engine.`}
+            />
         </div>
     );
 }

@@ -116,6 +116,13 @@ class AceApiClient {
         return this.handleResponse(response);
     }
 
+    async purgeJob(jobId: string, userId: string) {
+        const response = await this.secureFetch(`/api/jobs/${jobId}?user_id=${userId}`, {
+            method: "DELETE"
+        });
+        return this.handleResponse(response);
+    }
+
     async simulateFork(data: ForkSimulateData) {
         const response = await this.secureFetch(`/api/jobs/${data.job_id}/fork-simulate`, {
             method: "POST",
