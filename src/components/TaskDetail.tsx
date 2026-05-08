@@ -14,8 +14,12 @@ import {
     Layers,
     Fingerprint as FingerprintIcon,
     ShieldCheck as ShieldCheckIcon,
-    Download
+    Download,
+    Settings as SettingsIcon,
+    Zap,
+    AlertTriangle
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { HUDFrame } from "./HUDFrame";
 import { MarkdownReport } from "./MarkdownReport";
 import { KernelStatusBadge } from "./KernelStatusBadge";
@@ -40,6 +44,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
     const { job, refreshing, refresh, isStalled } = useJob(initialJob.job_id, userId, onUpdate);
     const { envelope, steps } = useEnvelope(job?.execution_id || job?.envelope_id || null);
     const displayJob = job || initialJob;
+    const router = useRouter();
     const [activeTab, setActiveTab] = useState<"execution" | "grading" | "governance" | "resurrection" | "nexus">("execution");
     const { approveJob, rejectJob, resurrectJob, simulateFork, isProcessing, error, clearError } = useJobActions();
     const [rejectReason, setRejectReason] = useState("");
@@ -141,6 +146,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
         in_progress: "text-yellow-400 border-yellow-400/30 bg-yellow-400/5",
         completed: "text-purple-400 border-purple-400/30 bg-purple-400/5",
         graded: "text-orange-400 border-orange-400/30 bg-orange-400/5",
+        fallback_pending: "text-rose-500 border-rose-500/30 bg-rose-500/5",
         approved: "text-emerald-400 border-emerald-400/30 bg-emerald-400/5",
         rejected: "text-rose-400 border-rose-400/30 bg-rose-400/5",
         failed: "text-rose-400 border-rose-400/30 bg-rose-400/5",
@@ -372,12 +378,12 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                 </button>
                             </div>
                             <div className="flex items-center gap-3 mt-1">
-                                <span className={cn("text-[8px] font-black uppercase tracking-[0.2em] border px-2 py-0.5", statusColors[displayJob.status] || "text-slate-400")}>
-                                    {displayJob.status === "quarantined" ? (
+                                <span className={cn("text-[8px] font-black uppercase tracking-[0.2em] border px-2 py-0.5", statusColors[envelope?.fallback_suggested ? 'fallback_pending' : displayJob.status] || "text-slate-400")}>
+                                    {envelope?.fallback_suggested ? "FALLBACK PENDING" : (displayJob.status === "quarantined" ? (
                                         displayJob.reason?.toLowerCase().includes("lease") || displayJob.reason?.toLowerCase().includes("fork") || displayJob.block_reason?.toLowerCase().includes("fork")
                                             ? "BLOCKED (LEASE CONFLICT)"
                                             : "QUARANTINED (IDENTITY FAILURE)"
-                                    ) : displayJob.status}
+                                    ) : displayJob.status)}
                                 </span>
                                 <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest flex items-center gap-1">
                                     <Clock className="w-3 h-3" />
@@ -444,6 +450,43 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                     "{displayJob.prompt}"
                                 </p>
                             </HUDFrame>
+
+                            {/* Fallback Intervention Banner */}
+                            {envelope?.fallback_suggested && (
+                                <div className="p-4 bg-rose-500/10 border border-rose-500/30 scifi-clip flex flex-col gap-3 animate-in slide-in-from-top-4 duration-500 relative overflow-hidden group">
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/5 rotate-45 translate-x-16 -translate-y-16" />
+                                    <div className="flex items-start gap-4">
+                                        <div className="w-10 h-10 border border-rose-500/30 flex items-center justify-center scifi-clip bg-rose-500/5 shrink-0">
+                                            <AlertTriangle className="w-6 h-6 text-rose-500 animate-pulse" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h3 className="text-sm font-black text-white uppercase italic tracking-tighter">Intervention Required</h3>
+                                            <p className="text-[10px] text-rose-400 font-black uppercase tracking-[0.2em] mt-0.5">Agent Engine Fallback Protocol Triggered</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-black/40 border border-rose-500/20 p-3 scifi-clip-sm">
+                                        <p className="text-[10px] text-rose-200/90 leading-relaxed font-mono">
+                                            <span className="text-rose-500 font-black mr-2">CAUSE:</span>
+                                            BYO-LLM configuration missing for organization: The provider &apos;{envelope?.fallback_metadata?.failed_provider || &apos;anthropic&apos;}&apos; is not enabled for your environment.
+                                        </p>
+                                    </div>
+
+                                    <div className="flex flex-col sm:flex-row items-center gap-3 mt-1">
+                                        <button
+                                            onClick={() => router.push('/system-config')}
+                                            className="w-full sm:w-auto px-4 py-2 bg-rose-500/20 border border-rose-500/40 hover:bg-rose-500/30 transition-all text-rose-500 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 cursor-target"
+                                        >
+                                            <SettingsIcon className="w-3.5 h-3.5" />
+                                            Configure API Keys
+                                        </button>
+                                        <div className="flex-1 flex items-center gap-2 px-2">
+                                            <div className="w-1.5 h-1.5 bg-rose-500 animate-ping rounded-full" />
+                                            <span className="text-[8px] text-rose-400/60 uppercase font-black tracking-widest">Awaiting Manual Configuration</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Phase 2 Envelope Inspector */}
                             {(displayJob.execution_id || displayJob.envelope_id) && (
