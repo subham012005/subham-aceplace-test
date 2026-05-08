@@ -25,6 +25,7 @@ import { StepGraph } from "./StepGraph";
 import { cn } from "@/lib/utils";
 import { ENVELOPE_STATUS_DISPLAY } from "@aceplace/runtime-core/shared";
 import { useEnvelope } from "@/hooks/useEnvelope";
+import { useRouter } from "next/navigation";
 import { useSettings } from "@/context/SettingsContext";
 
 interface EnvelopeInspectorProps {
@@ -66,7 +67,7 @@ function CopyableId({ value }: { value: string }) {
 
 export function EnvelopeInspector({ executionId, hideFailureBanner = false }: EnvelopeInspectorProps) {
   const { envelope, steps, loading, error } = useEnvelope(executionId);
-  const { setIsSettingsOpen } = useSettings();
+  const router = useRouter();
 
   if (loading) {
     return (
@@ -120,7 +121,7 @@ export function EnvelopeInspector({ executionId, hideFailureBanner = false }: En
           
           {isMissingConfig && (
             <button 
-              onClick={() => setIsSettingsOpen(true)}
+              onClick={() => router.push('/system-config')}
               className="w-full py-2 border border-rose-500/30 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all group"
             >
               Configure Intelligence Providers

@@ -2,6 +2,7 @@
 
 import React, { use, useState, useRef, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import {
     useJob,
     useJobTraces,
@@ -53,7 +54,8 @@ import {
     Layers,
     ArrowRight,
     ChevronDown,
-    Download
+    Download,
+    Settings as SettingsIcon
 } from "lucide-react";
 import { useSettings } from "@/context/SettingsContext";
 import { cn } from "@/lib/utils";
@@ -226,7 +228,6 @@ export default function JobDetailsPage() {
     const envelopeId = (job as any)?.envelope_id || job?.execution_id || null;
     const { envelope, steps, loading: envelopeLoading } = useEnvelope(envelopeId);
     const { logs: agentLogs, loading: agentLogsLoading } = useAgentLogs(envelopeId);
-    const { setIsSettingsOpen } = useSettings();
 
     // Unified Governance Logic — also check agent logs as fallback
     const graderLogSummary = agentLogs.find(l => l.agent_role === 'grader' && l.event === 'COMPLETE')?.output_summary || "";
@@ -388,6 +389,7 @@ export default function JobDetailsPage() {
 
         // ── 1. Envelope-based logic ──────────────────────────────────
         if (envelope) {
+            if (envelope.fallback_suggested) return 'fallback_pending';
             const envStatus = envelope.status;
             if (envStatus === 'approved') return 'approved';
             if (envStatus === 'rejected') {
@@ -555,6 +557,7 @@ export default function JobDetailsPage() {
         worker_execution: "text-purple-400 border-purple-400/50 bg-purple-400/10",
         grading: "text-pink-400 border-pink-400/50 bg-pink-400/10",
         graded: "text-orange-400 border-orange-400/50 bg-orange-400/10",
+        fallback_pending: "text-rose-500 border-rose-500/50 bg-rose-500/10",
         awaiting_approval: "text-orange-400 border-orange-400/50 bg-orange-400/10",
         completed: "text-emerald-400 border-emerald-400/50 bg-emerald-400/10",
         approved: "text-emerald-500 border-emerald-500/50 bg-emerald-500/10",
@@ -653,6 +656,87 @@ export default function JobDetailsPage() {
                         </div>
                     </div>
                 </div>
+
+                {/* ── FALLBACK / INTERVENTION ALERT ─────────────────────────── */}
+                {envelope?.fallback_suggested && (() => {
+                    const meta = envelope.fallback_metadata;
+                    const isModelSwitch = meta?.suggested_action === 'model_switch';
+                    
+                    return (
+                        <div className="relative overflow-hidden border border-orange-500/60 bg-orange-500/10 shadow-[0_0_40px_rgba(249,115,22,0.1)] scifi-clip p-6 sm:p-8 animate-pulse-slow">
+                            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-orange-400 to-transparent" />
+                            <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-orange-500/30 to-transparent" />
+                            
+                            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
+                                <div className="flex items-start gap-6 flex-1">
+                                    <div className="relative shrink-0">
+                                        <div className="w-14 h-14 bg-orange-500/20 border border-orange-500/40 scifi-clip flex items-center justify-center">
+                                            <RotateCw className="w-7 h-7 text-orange-400 animate-spin-slow" />
+                                        </div>
+                                        <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-orange-500 rounded-none flex items-center justify-center border border-black">
+                                            <AlertTriangle className="w-3 h-3 text-black" />
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="space-y-3">
+                                        <div className="flex flex-wrap items-center gap-3">
+                                            <span className="px-2 py-0.5 bg-orange-500 text-black font-black text-[9px] uppercase tracking-widest scifi-clip-sm">
+                                                Intervention Required
+                                            </span>
+                                            <span className="text-[10px] font-black text-orange-400 uppercase tracking-[0.2em] italic">
+                                                Fallback Pending Approval
+                                            </span>
+                                        </div>
+                                        
+                                        <div className="space-y-1">
+                                            <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase leading-tight">
+                                                {isModelSwitch ? 'Intelligence Provider Failure' : 'Runtime Connection Failure'}
+                                            </h2>
+                                            <p className="text-slate-300 text-sm leading-relaxed max-w-2xl">
+                                                BYO-LLM configuration missing for organization: The provider <span className="text-orange-300 font-bold">'anthropic'</span> is not enabled for your environment.
+                                            </p>
+                                        </div>
+
+                                        <div className="flex flex-wrap items-center gap-6 pt-1">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-1 h-1 rounded-full bg-orange-500" />
+                                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                                    Action: Automatic switch to {meta?.target_model || 'GPT-4o'}
+                                                </span>
+                                            </div>
+                                            <Link 
+                                                href="/system-config" 
+                                                className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-cyan-400 hover:text-cyan-300 transition-all border-b border-cyan-400/30 pb-0.5 group"
+                                            >
+                                                <SettingsIcon className="w-3 h-3 group-hover:rotate-90 transition-transform" />
+                                                Correct System Configuration
+                                            </Link>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex flex-col gap-3 w-full lg:w-auto shrink-0">
+                                    <button
+                                        onClick={handleApproveFallback}
+                                        disabled={actionLoading}
+                                        className="lg:px-10 py-5 bg-orange-500 text-black font-black uppercase tracking-[0.2em] hover:bg-orange-400 transition-all scifi-clip flex items-center justify-center gap-3 shadow-[0_0_40px_rgba(249,115,22,0.3)] disabled:opacity-50"
+                                    >
+                                        <Zap className={cn("w-5 h-5", actionLoading && "animate-pulse")} />
+                                        {actionLoading ? "Switching Provider..." : "Approve & Resume"}
+                                    </button>
+                                    <button
+                                        onClick={handleRejectFallback}
+                                        disabled={actionLoading}
+                                        className="lg:px-8 py-4 bg-black/40 border border-orange-500/30 text-orange-400/70 font-black uppercase tracking-[0.2em] hover:bg-white/5 hover:text-orange-400 transition-all scifi-clip flex items-center justify-center gap-3 disabled:opacity-50"
+                                    >
+                                        <XCircle className="w-5 h-5" />
+                                        Abort Mission
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })()}
 
                 {/* ── CRASH / STALL ALERT BANNER ─────────────────────────── */}
                 {isStalled && !['graded', 'awaiting_approval', 'approved', 'completed'].includes(derivedStatus) && (() => {
@@ -846,7 +930,7 @@ export default function JobDetailsPage() {
                             
                             {isMissingConfig && (
                                 <button 
-                                    onClick={() => setIsSettingsOpen(true)}
+                                    onClick={() => router.push('/system-config')}
                                     className="w-full py-2 border border-rose-500/30 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all group"
                                 >
                                     Configure Intelligence Providers
@@ -994,73 +1078,9 @@ export default function JobDetailsPage() {
 
                     if (!isLateStage && !isDecided) return null;
 
-                    // Show the bar
-                    if (envelope?.fallback_suggested) {
-                        // ── CASE A.1: Fallback Approval Required (HIGHEST PRIORITY) ───────────
-                        const meta = envelope.fallback_metadata;
-                        const isModelSwitch = meta?.suggested_action === 'model_switch';
-                        
-                        return (
-                            <div className="relative overflow-hidden border border-orange-500 bg-orange-500/10 shadow-[0_0_50px_rgba(249,115,22,0.15)] mb-8 scifi-clip p-6 sm:p-8">
-                                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-orange-400 to-transparent animate-shimmer-fast" />
-                                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
-                                    <div className="flex items-start gap-5 flex-1">
-                                        <div className="w-14 h-14 bg-orange-500/20 border border-orange-500/40 scifi-clip flex items-center justify-center shrink-0">
-                                            <RotateCw className="w-7 h-7 text-orange-400 animate-spin-slow" />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <div className="flex items-center gap-3">
-                                                <span className="px-2 py-0.5 bg-orange-500 text-black font-black text-[9px] uppercase tracking-widest scifi-clip-sm">
-                                                    Intervention Required
-                                                </span>
-                                                <span className="text-[10px] font-black text-orange-400/60 uppercase tracking-widest italic">
-                                                    {isModelSwitch ? 'Intelligence Provider Failure' : 'Runtime Connection Failure'}
-                                                </span>
-                                            </div>
-                                            <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase leading-tight">
-                                                {isModelSwitch ? 'AI Model Fallback Protocol' : 'Agent Engine Fallback Protocol'}
-                                            </h2>
-                                            
-                                            <div className="space-y-3 mt-4">
-                                                <div className="bg-black/20 p-4 border border-white/5 space-y-2">
-                                                    <p className="text-[10px] font-black uppercase tracking-widest text-orange-500/70">Why this occurred:</p>
-                                                    <p className="text-slate-300 text-sm leading-relaxed">
-                                                        The primary model (Claude 3.5 Sonnet) encountered an API error: 
-                                                        <span className="text-orange-300 italic block mt-1 font-mono text-xs">"{meta?.original_error || meta?.reason || 'Unknown API failure'}"</span>
-                                                    </p>
-                                                </div>
+                    // Case A.1 (Fallback) has been moved to the top of the page for maximum visibility.
 
-                                                <div className="bg-cyan-500/5 p-4 border border-cyan-500/20 space-y-2">
-                                                    <p className="text-[10px] font-black uppercase tracking-widest text-cyan-400">What happens if you approve:</p>
-                                                    <p className="text-slate-300 text-sm leading-relaxed">
-                                                        The system will **automatically switch the agent's brain** to <span className="text-white font-bold">{meta?.target_model || 'GPT-4o'}</span> and resume the mission exactly where it left off. No progress will be lost.
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="flex flex-col gap-3 w-full lg:w-auto shrink-0">
-                                        <button
-                                            onClick={handleApproveFallback}
-                                            disabled={actionLoading}
-                                            className="lg:px-10 py-5 bg-orange-500 text-black font-black uppercase tracking-[0.2em] hover:bg-orange-400 transition-all scifi-clip flex items-center justify-center gap-3 shadow-[0_0_40px_rgba(249,115,22,0.3)] disabled:opacity-50"
-                                        >
-                                            <Zap className={cn("w-5 h-5", actionLoading && "animate-pulse")} />
-                                            {actionLoading ? "Switching Intelligence..." : "Approve & Resume"}
-                                        </button>
-                                        <button
-                                            onClick={handleRejectFallback}
-                                            disabled={actionLoading}
-                                            className="lg:px-8 py-4 bg-black/40 border border-orange-500/30 text-orange-400/70 font-black uppercase tracking-[0.2em] hover:bg-white/5 hover:text-orange-400 transition-all scifi-clip flex items-center justify-center gap-3 disabled:opacity-50"
-                                        >
-                                            <XCircle className="w-5 h-5" />
-                                            Abort Mission
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    } else if (isDecided || (status === 'completed' && !needsDecision)) {
+                    if (isDecided || (status === 'completed' && !needsDecision)) {
                         // ── CASE A: Decision already made (Terminal) ──────────────
                         const approved = status === 'approved' || (status === 'completed' && isPass);
                         return (

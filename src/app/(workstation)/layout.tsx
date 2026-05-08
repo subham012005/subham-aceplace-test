@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import { Menu, Zap } from "lucide-react";
 
-export default function DashboardLayout({
+export default function WorkstationLayout({
     children,
 }: {
     children: React.ReactNode;
@@ -16,8 +16,6 @@ export default function DashboardLayout({
         setMounted(true);
     }, []);
 
-    // Use an early return for the loading state to ensure the server and client 
-    // initial renders match perfectly, preventing hydration mismatches.
     if (!mounted) {
         return (
             <div className="h-[100dvh] stardust-bg flex items-center justify-center w-full">

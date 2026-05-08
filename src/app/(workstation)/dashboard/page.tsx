@@ -27,7 +27,6 @@ import { subscribeToUserStats } from "@/lib/user-stats";
 import { HUDFrame } from "@/components/HUDFrame";
 import { TaskComposer } from "@/components/TaskComposer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import SettingsModal from "@/components/SettingsModal";
 import { cn } from "@/lib/utils";
 import { db, auth } from "@/lib/firebase";
 import { collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
@@ -167,7 +166,7 @@ export default function DashboardPage() {
 
     const [selectedJob, setSelectedJob] = React.useState<Job | null>(null);
     const [isComposerOpen, setIsComposerOpen] = React.useState(false);
-    const { settings, isSettingsOpen, setIsSettingsOpen } = useSettings();
+    const { settings } = useSettings();
     const [isSpeaking, setIsSpeaking] = React.useState(false);
     const [data, setData] = React.useState<DashboardData | null>(null);
     const [statsLoading, setStatsLoading] = React.useState(false);
@@ -232,6 +231,7 @@ export default function DashboardPage() {
             (job.envelope_id ? jobEnvelopeMap.get(job.envelope_id) : undefined);
 
         if (envelope) {
+            if (envelope.fallback_suggested) return 'fallback_pending';
             const envStatus = envelope.status;
 
             // ── 1a. Envelope terminal / governance states ─────────────────
@@ -546,6 +546,7 @@ export default function DashboardPage() {
         approved: "text-emerald-500 border-emerald-500/30 bg-emerald-500/5",
         standby: "text-amber-500 border-amber-500/30 bg-amber-500/5",
         graded: "text-orange-500 border-orange-500/30 bg-orange-500/5",
+        fallback_pending: "text-rose-500 border-rose-500/30 bg-rose-500/5",
         rejected: "text-rose-500 border-rose-500/30 bg-rose-500/5",
         failed: "text-rose-500 border-rose-500/30 bg-rose-500/5",
         resurrected: "text-cyan-500 border-cyan-500/30 bg-cyan-500/5",
@@ -593,7 +594,6 @@ export default function DashboardPage() {
                     <span className="hidden lg:block text-[10px] text-cyan-500/50 font-black tracking-[0.3em] uppercase border-l border-white/10 pl-6 border-cyan-500/20 whitespace-nowrap">AgentSpace Control Panel</span>
                 </div>
                 <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto">
-                    <SettingsModal isOpen={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
 
                     <button
                         onClick={handleGlobalRefresh}
@@ -728,10 +728,10 @@ export default function DashboardPage() {
                                     </div>
                                     <button
                                         onClick={(e) => handleJobDeletion(e, job)}
-                                        className="opacity-0 group-hover:opacity-100 p-1.5 border border-rose-500/20 hover:border-rose-500/50 hover:bg-rose-500/10 transition-all scifi-clip-sm bg-rose-500/5 cursor-target shrink-0"
+                                        className="p-1.5 border border-rose-500/20 hover:border-rose-500/50 hover:bg-rose-500/10 transition-all scifi-clip-sm bg-rose-500/5 cursor-target shrink-0"
                                         title="Purge Record"
                                     >
-                                        <Trash2 className="w-3 h-3 text-rose-500/50 group-hover:text-rose-500 transition-colors" />
+                                        <Trash2 className="w-3 h-3 text-rose-500/50 hover:text-rose-500 transition-colors" />
                                     </button>
                                 </div>
                             )) : (
