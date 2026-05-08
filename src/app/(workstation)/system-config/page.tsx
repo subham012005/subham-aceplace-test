@@ -6,11 +6,10 @@ import { Switch } from "@/components/ui/switch";
 import { Shield, Copy, Check, Cpu, Globe, Settings as SettingsIcon } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import { cn } from "@/lib/utils";
-import ApiIntegration from "@/components/ApiIntegration";
 import { IntelligenceProviders } from "@/components/IntelligenceProviders";
 
 export default function SystemConfigPage() {
-    const [activeTab, setActiveTab] = React.useState<"ui" | "api" | "providers">("ui");
+    const [activeTab, setActiveTab] = React.useState<"ui" | "providers">("ui");
     const [copied, setCopied] = React.useState(false);
     const userId = auth.currentUser?.uid || "Not Authenticated";
 
@@ -77,16 +76,6 @@ export default function SystemConfigPage() {
                                         {activeTab === "ui" && <div className="absolute bottom-[-17px] left-0 w-full h-[2px] bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.8)]" />}
                                     </button>
                                     <button
-                                        onClick={() => setActiveTab("api")}
-                                        className={cn(
-                                            "pb-2 text-[10px] font-black uppercase tracking-widest transition-all relative",
-                                            activeTab === "api" ? "text-cyan-400" : "text-slate-500 hover:text-slate-300"
-                                        )}
-                                    >
-                                        API Integration
-                                        {activeTab === "api" && <div className="absolute bottom-[-17px] left-0 w-full h-[2px] bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.8)]" />}
-                                    </button>
-                                    <button
                                         onClick={() => setActiveTab("providers")}
                                         className={cn(
                                             "pb-2 text-[10px] font-black uppercase tracking-widest transition-all relative whitespace-nowrap",
@@ -138,10 +127,6 @@ export default function SystemConfigPage() {
                                                     <Switch checked={false} disabled className="cursor-not-allowed" />
                                                 </div>
                                             </div>
-                                        </div>
-                                    ) : activeTab === "api" ? (
-                                        <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-                                            <ApiIntegration />
                                         </div>
                                     ) : (
                                         <div className="animate-in fade-in slide-in-from-right-4 duration-500">
