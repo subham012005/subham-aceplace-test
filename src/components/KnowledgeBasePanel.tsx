@@ -407,13 +407,17 @@ export function KnowledgeBasePanel({ onContextChange, className }: KnowledgeBase
             {directTextExpanded && (
               <div className="p-4 pt-0 space-y-3">
                 <p className="text-[8px] text-slate-500 leading-relaxed">
-                  The information pasted here will be prioritized by the agent. Use this for specific exam dates, instructions, or meeting notes.
+                  The information pasted here is treated as high-priority context and will directly influence task execution. Use this to define objectives, constraints, requirements, or any critical domain knowledge.
                 </p>
                 <div className="relative">
                   <textarea
                     value={directText}
                     onChange={(e) => setDirectText(e.target.value)}
-                    placeholder="Example: My exam is on 26 April. I must reach by 12:30 PM."
+                    placeholder={`Example:
+Objective: [What needs to be done]
+Context: [Relevant background or company info]
+Constraints: [Requirements, limitations, or rules]
+Output: [What the final deliverable should look like]`}
                     rows={6}
                     className="w-full bg-black/40 border border-white/10 p-4 text-xs text-white placeholder:text-slate-700 focus:outline-none focus:border-purple-500/40 font-mono resize-none rounded-lg transition-all"
                   />
