@@ -693,7 +693,7 @@ export default function JobDetailsPage() {
                                                 {isModelSwitch ? 'Intelligence Provider Failure' : 'Runtime Connection Failure'}
                                             </h2>
                                             <p className="text-slate-300 text-sm leading-relaxed max-w-2xl">
-                                                BYO-LLM configuration missing for organization: The provider <span className="text-rose-300 font-bold">&apos;{meta?.failed_provider || &apos;anthropic&apos;}&apos;</span> is not enabled for your environment.
+                                                BYO-LLM configuration missing for organization: The provider <span className="text-rose-300 font-bold">&apos;{(meta as any)?.failed_provider || &apos;anthropic&apos;}&apos;</span> is not enabled for your environment.
                                             </p>
                                         </div>
 
