@@ -468,7 +468,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                     <div className="bg-black/40 border border-rose-500/20 p-3 scifi-clip-sm">
                                         <p className="text-[10px] text-rose-200/90 leading-relaxed font-mono">
                                             <span className="text-rose-500 font-black mr-2">CAUSE:</span>
-                                            BYO-LLM configuration missing for organization: The provider &apos;{(envelope?.fallback_metadata as any)?.failed_provider || &apos;anthropic&apos;}&apos; is not enabled for your environment.
+                                            BYO-LLM configuration missing for organization: The provider &apos;{(envelope?.fallback_metadata as any)?.failed_provider || 'anthropic'}&apos; is not enabled for your environment.
                                         </p>
                                     </div>
 
