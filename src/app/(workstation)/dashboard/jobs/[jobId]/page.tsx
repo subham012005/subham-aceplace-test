@@ -912,7 +912,7 @@ export default function JobDetailsPage() {
                 {(() => {
                     const failureReason = String(job?.failure_reason || envelope?.failure_reason || "");
                     const isFailed = String(job?.status || "").toLowerCase() === "failed" || envelope?.status === "failed";
-                    const isMissingConfig = failureReason.includes("MISSING_INTELLIGENCE_CONFIG");
+                    const isMissingConfig = failureReason.includes("MISSING_INTELLIGENCE_CONFIG") || failureReason.includes("MISSING_API_KEY") || failureReason.includes("API key");
                     
                     if (!isFailed || !failureReason || isAgentEngineFailure) return null;
 
