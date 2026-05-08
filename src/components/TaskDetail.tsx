@@ -17,7 +17,8 @@ import {
     Download,
     Settings as SettingsIcon,
     Zap,
-    AlertTriangle
+    AlertTriangle,
+    ChevronRight
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { HUDFrame } from "./HUDFrame";
