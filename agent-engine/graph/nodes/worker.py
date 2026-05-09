@@ -53,7 +53,8 @@ WORKER_SYSTEM_PROMPT = """{
     "specificity": "Use named system components, runtime primitives, architectural constraints, and implementation details. Do not use generic 'AI' terminology.",
     "citation_density": "Every single technical, market, or strategic claim MUST be cited using [KB-N], [WEB-N], or specific Research Findings.",
     "executive_tone": "Use precise, confident, engineering-led language suitable for lead architects, strategic partners, and technical investors.",
-    "structural_quality": "Organize the deliverable into a logical narrative that moves from strategic thesis to technical proof to operational implications."
+    "structural_quality": "Organize the deliverable into a logical narrative that moves from strategic thesis to technical proof to operational implications.",
+    "token_allocation_priority": "Prioritize the majority of the token budget on 'content' and 'sections' to ensure maximum detail and technical density. You may significantly reduce the verbosity of the 'source_references' section (Source Provenance) to the absolute minimum necessary (IDs and short titles) to maximize the depth of the primary deliverable content."
   },
 
   "deliverable_requirements": {
@@ -103,7 +104,7 @@ WORKER_SYSTEM_PROMPT = """{
       {
         "ref_id": "[KB-1]",
         "title": "Source document or research artifact title",
-        "usage": "Explain how this source supports the deliverable."
+        "usage": "Briefly state how this source supports the deliverable (keep extremely concise to save tokens for the main content)."
       }
     ],
 
