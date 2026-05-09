@@ -26,7 +26,7 @@ import { MarkdownReport } from "./MarkdownReport";
 import { KernelStatusBadge } from "./KernelStatusBadge";
 import { StepGraph } from "./StepGraph";
 import { EnvelopeInspector } from "./EnvelopeInspector";
-import { Job, useJob, useForkProtection } from "@/hooks/useJobs";
+import { Job, useJob, useForkProtection, useJobArtifacts } from "@/hooks/useJobs";
 import { useEnvelope } from "@/hooks/useEnvelope";
 import { useJobActions } from "@/hooks/useJobActions";
 import { db, auth } from "@/lib/firebase";
@@ -48,6 +48,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
     const router = useRouter();
     const [activeTab, setActiveTab] = useState<"execution" | "grading" | "governance" | "resurrection" | "nexus">("execution");
     const { approveJob, rejectJob, resurrectJob, simulateFork, isProcessing, error, clearError } = useJobActions();
+    const { artifacts } = useJobArtifacts(displayJob.job_id);
     const [rejectReason, setRejectReason] = useState("");
     const [showRejectInput, setShowRejectInput] = useState(false);
     const [resurrectReason, setResurrectReason] = useState("");
@@ -194,7 +195,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                 score: normalizedScore,
                 pass_fail: finalPassFail as "pass" | "fail",
                 risk_flags: flags,
-                reasoning_summary: rcGrader?.feedback || rcGrader?.summary || rcGrader?.grading_summary || displayJob.grading_summary || displayJob.grading_result?.grading_summary || "No summary available."
+                reasoning_summary: rcGrader?.reason || rcGrader?.reasoning || rcGrader?.feedback || rcGrader?.summary || rcGrader?.grading_summary || displayJob.grading_summary || displayJob.grading_result?.grading_summary || "No summary available."
             };
         }
 
@@ -227,7 +228,8 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                 if (firstMsg.content && firstMsg.content.length > 0) {
                     const textObj = firstMsg.content[0].text;
                     if (typeof textObj === 'object') {
-                        reasoning = typeof textObj.reasoning_summary === 'object' ? JSON.stringify(textObj.reasoning_summary) : String(textObj.reasoning_summary || reasoning);
+                        reasoning = textObj.reason || textObj.reasoning || textObj.reasoning_summary || textObj.feedback || textObj.summary || reasoning;
+                        if (typeof reasoning === 'object') reasoning = JSON.stringify(reasoning);
                         if (textObj.risk_flags) {
                             const rawFlags = Array.isArray(textObj.risk_flags) ? textObj.risk_flags : String(textObj.risk_flags).split(",");
                             flags = rawFlags.map((f: unknown) => String(f).trim()).filter((f: string) => f !== "" && f.toLowerCase() !== "none");
@@ -253,7 +255,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                 score: score,
                 pass_fail: (isTrulyPass ? "pass" : "fail") as "pass" | "fail",
                 risk_flags: flags,
-                reasoning_summary: reasoning
+                reasoning_summary: reasoning || "No evaluation reason provided."
             };
         }
         return null;
@@ -263,33 +265,28 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
 
     const formatOutputToMarkdown = (raw: any): string => {
         if (!raw) return "";
-        
-        // If it's already a string, try parsing it as JSON first
         if (typeof raw === 'string') {
             const trimmed = raw.trim();
-            if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
-                try {
-                    const parsed = JSON.parse(raw);
-                    return formatOutputToMarkdown(parsed);
-                } catch {
-                    return raw;
-                }
+            // Strip markdown code fences wrapping JSON
+            const stripped = trimmed.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/i, '').trim();
+            if ((stripped.startsWith('{') && stripped.endsWith('}')) || (stripped.startsWith('[') && stripped.endsWith(']'))) {
+                try { return formatOutputToMarkdown(JSON.parse(stripped)); } catch { /* fall through */ }
             }
             return raw;
         }
-
         if (typeof raw !== 'object') return String(raw);
 
         let md = "";
-        
-        // 1. Extract Summary if present
         const summary = raw.deliverable_summary || raw.summary;
-        if (summary) {
-            md += `# Executive Summary\n\n${summary}\n\n`;
+        if (summary) md += `# Executive Summary\n\n${summary}\n\n`;
+
+        // executive_summary field (richer narrative)
+        if (raw.executive_summary && raw.executive_summary !== summary) {
+            md += `${raw.executive_summary}\n\n`;
         }
 
-        // 2. Handle the "sections" structure (direct or inside "content")
-        const sections = raw.sections || raw.content?.sections;
+        // sections array
+        const sections = raw.sections || (Array.isArray(raw.content) ? raw.content : raw.content?.sections);
         if (sections && Array.isArray(sections)) {
             md += sections.map((s: any) => {
                 const title = s.title || s.header || "Section";
@@ -299,11 +296,10 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
             return md;
         }
 
-        // 3. Handle common report structure (title, findings, etc.)
+        // report-style structure
         if (raw.title || raw.findings) {
             if (raw.title) md = `# ${raw.title}\n\n` + md;
             if (raw.details) md += `${raw.details}\n\n`;
-            
             const listItems = raw.findings || raw.steps || raw.items || raw.results;
             if (Array.isArray(listItems)) {
                 if (raw.findings) md += `### Key Findings\n\n`;
@@ -321,12 +317,12 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
             if (md) return md;
         }
 
-        // 4. If it's just a "content" field that is a string, return it
         if (typeof raw.content === 'string') return raw.content;
-
-        // Generic object fallback: Pretty JSON
+        // Final fallback: pretty JSON inside code fence
         return "```json\n" + JSON.stringify(raw, null, 2) + "\n```";
     };
+
+
 
     const getArtifactContent = () => {
         // Priority for new runtime_context results
@@ -338,6 +334,14 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
         }
         if (displayJob.artifact) {
             return formatOutputToMarkdown(displayJob.artifact);
+        }
+
+        // check artifacts array for 'deliverable' or 'worker_result'
+        if (artifacts && artifacts.length > 0) {
+            const deliverable = artifacts.find(a => ['deliverable', 'artifact_produce', 'produce_artifact', 'report', 'final', 'worker_result', 'worker'].includes(a.artifact_type || ''));
+            if (deliverable?.artifact_content) {
+                return formatOutputToMarkdown(deliverable.artifact_content);
+            }
         }
 
         // if artifact is missing, look into output
@@ -352,6 +356,19 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
     };
 
     const artifactContent = getArtifactContent();
+
+    const getValidValue = (...values: any[]) => {
+        for (const v of values) {
+            if (v && typeof v === 'string' && v.toUpperCase() !== 'N/A' && v.toLowerCase() !== 'unknown') {
+                return v;
+            }
+        }
+        return null;
+    };
+
+    const resolvedProvider = getValidValue(displayJob.model_provider, displayJob.provider, (envelope as any)?.provider, (envelope as any)?.model_provider) || "Standby";
+    const resolvedModel = getValidValue(displayJob.model_used, (displayJob as any).model, (envelope as any)?.model, (envelope as any)?.model_used) || "Pending...";
+
 
     return (
         <div className="fixed inset-0 z-[120] flex items-center justify-end">
@@ -444,7 +461,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                     const failureReason = String(displayJob?.failure_reason || envelope?.failure_reason || "");
                     const isFailed = String(displayJob?.status || "").toLowerCase() === "failed" || envelope?.status === "failed";
                     const isMissingConfig = failureReason.includes("MISSING_INTELLIGENCE_CONFIG") || failureReason.includes("MISSING_API_KEY") || failureReason.includes("API key");
-                    
+
                     if (!isFailed || !failureReason) return null;
 
                     return (
@@ -458,9 +475,9 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                     </p>
                                 </div>
                             </div>
-                            
+
                             {isMissingConfig && (
-                                <button 
+                                <button
                                     onClick={() => router.push('/system-config')}
                                     className="w-full py-2 border border-rose-500/30 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all group cursor-target"
                                 >
@@ -582,11 +599,11 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                     </div>
                                     <div className="space-y-1">
                                         <p className="text-[8px] uppercase font-black tracking-widest text-slate-500">Neural Provider</p>
-                                        <p className="text-xs font-bold text-cyan-500 uppercase">{String(displayJob.model_provider || "Standby")}</p>
+                                        <p className="text-xs font-bold text-cyan-500 uppercase">{String(resolvedProvider)}</p>
                                     </div>
                                     <div className="space-y-1">
                                         <p className="text-[8px] uppercase font-black tracking-widest text-slate-500">Compute Model</p>
-                                        <p className="text-xs font-mono text-slate-400 truncate">{String(displayJob.model_used || "N/A")}</p>
+                                        <p className="text-xs font-mono text-slate-400 truncate">{String(resolvedModel)}</p>
                                     </div>
                                     <div className="space-y-1">
                                         <p className="text-[8px] uppercase font-black tracking-widest text-slate-500">Compute Cost</p>
@@ -681,17 +698,103 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                 </div>
                             </HUDFrame>
 
-                            <HUDFrame 
-                                title="Artifact Output" 
-                                variant="glass" 
+                            <HUDFrame
+                                title="Artifact Output"
+                                variant="glass"
                                 isProcessing={displayJob.status === 'in_progress'}
                                 headerAction={
                                     <button
-                                        disabled={displayJob.status !== 'awaiting_approval' || !artifactContent}
-                                        onClick={() => exportToPDF(artifactContent || "", `job-${displayJob.job_id}-output.pdf`)}
+                                        disabled={
+                                            isProcessing ||
+                                            !artifactContent ||
+                                            artifactContent.length < 50 ||
+                                            ['grading', 'awaiting_approval', 'approved', 'completed', 'graded'].indexOf(displayJob.status) === -1
+                                        }
+                                        onClick={() => {
+                                            let md = `# Intelligence Report: ${displayJob.job_id}\n\n`;
+                                            md += `## Audit Metadata\n\n`;
+                                            md += `* **Job ID:** ${displayJob.job_id}\n`;
+                                            md += `* **Envelope ID:** ${envelope?.envelope_id || displayJob.envelope_id || displayJob.execution_id || 'N/A'}\n`;
+                                            md += `* **Status:** ${displayJob.status?.toUpperCase() || 'UNKNOWN'}\n`;
+                                            md += `* **Neural Provider:** ${resolvedProvider.toUpperCase()}\n`;
+                                            md += `* **Compute Model:** ${resolvedModel}\n`;
+                                            md += `* **Compute Cost:** $${Number((typeof displayJob.token_usage === 'object' ? displayJob.token_usage?.cost : null) ?? displayJob.cost ?? 0).toFixed(6)}\n`;
+                                            md += `* **Token Usage:** ${Number(typeof displayJob.token_usage === 'object' ? displayJob.token_usage?.total_tokens ?? 0 : displayJob.token_usage ?? 0).toLocaleString()}\n`;
+                                            md += `* **Generated At:** ${new Date().toLocaleString()}\n\n`;
+
+                                            if (displayJob.prompt) {
+                                                md += `## Strategic Intent\n\n`;
+                                                md += `> ${displayJob.prompt}\n\n`;
+                                            }
+
+                                            if (displayJob.runtime_context?.plan) {
+                                                md += `## Strategic Plan\n\n`;
+                                                md += `${typeof displayJob.runtime_context.plan === 'string' ? displayJob.runtime_context.plan : JSON.stringify(displayJob.runtime_context.plan, null, 2)}\n\n`;
+                                            }
+
+                                            if (graderData) {
+                                                md += `## Governance Grading\n\n`;
+                                                md += `* **Score**: ${graderData.score.toFixed(1)}/10\n`;
+                                                md += `* **Verdict**: ${graderData.pass_fail?.toUpperCase() || 'N/A'}\n`;
+                                                const evaluationArtifact = artifacts.find(a => ['evaluation', 'grading', 'evaluate'].includes(a.artifact_type || ''));
+                                                const evaluationContent: any = (() => {
+                                                    const raw = evaluationArtifact?.artifact_content;
+                                                    if (!raw) return null;
+                                                    if (typeof raw === 'object') return raw;
+                                                    try { return JSON.parse(raw as string); } catch { return null; }
+                                                })();
+                                                const graderObj = evaluationContent || displayJob?.runtime_context?.grading_result || displayJob?.grading_result || displayJob?.grader_params || displayJob;
+                                                const rationale = graderObj?.reason || graderObj?.reasoning || graderObj?.reasoning_summary || graderObj?.summary || graderObj?.grading_summary || graderObj?.feedback || "*No reasoning provided.*";
+                                                if (rationale) md += `* **Evaluation Reason:** ${typeof rationale === 'object' ? JSON.stringify(rationale) : rationale}\n`;
+                                                if (graderData.risk_flags && Array.isArray(graderData.risk_flags) && graderData.risk_flags.length > 0) {
+                                                    md += `* **Risk Flags:** ${graderData.risk_flags.join(', ')}\n`;
+                                                }
+                                                md += `\n`;
+                                            }
+
+                                            let workerData: any = displayJob.runtime_context?.final_result || displayJob.runtime_context?.worker_result || displayJob.artifact;
+                                            if (typeof workerData === 'string' && workerData.trim().startsWith('{')) {
+                                                try { workerData = JSON.parse(workerData.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/i, '').trim()); } catch (e) { }
+                                            }
+
+                                            if (workerData?.grounding_report) {
+                                                const gr = workerData.grounding_report;
+                                                md += `## Grounding & Verification\n\n`;
+                                                md += `* **Fabrication Check**: ${gr.fabrication_check && gr.fabrication_check !== 'UNKNOWN' ? gr.fabrication_check : ((gr.kb_chunks_cited > 0 || workerData._grounding_meta?.kb_chunks_used > 0) ? 'VERIFIED' : 'UNKNOWN')}\n`;
+                                                md += `* **Knowledge Density**: ${gr.kb_chunks_cited || workerData._grounding_meta?.kb_chunks_used || 0} Knowledge References\n`;
+                                                md += `* **Web Intelligence**: ${workerData._grounding_meta?.web_results_used || gr.web_sources_cited || 0} Web Sources\n\n`;
+                                            }
+
+                                            md += `## Final Deliverable Content\n\n`;
+                                            const pdfRawContent = displayJob.runtime_context?.final_result || displayJob.runtime_context?.worker_result || displayJob.artifact;
+                                            const pdfFormatted = pdfRawContent ? formatOutputToMarkdown(pdfRawContent) : (artifactContent || '');
+                                            md += pdfFormatted || "*No deliverable content was generated for this job.*";
+                                            md += `\n\n`;
+
+                                            if (workerData?.key_conclusions && Array.isArray(workerData.key_conclusions) && workerData.key_conclusions.length > 0) {
+                                                md += `## Strategic Findings\n\n`;
+                                                workerData.key_conclusions.forEach((c: any, i: number) => {
+                                                    const conclusion = c.conclusion || (typeof c === 'string' ? c : '');
+                                                    md += `### Finding ${i + 1}: ${conclusion}\n\n`;
+                                                    if (c.evidence) md += `* **Evidence:** ${c.evidence}\n`;
+                                                    if (c.recommendation) md += `* **Recommendation:** ${c.recommendation}\n`;
+                                                    md += `\n`;
+                                                });
+                                            }
+
+                                            if (workerData?.source_references && Array.isArray(workerData.source_references) && workerData.source_references.length > 0) {
+                                                md += `## Source Provenance\n\n`;
+                                                workerData.source_references.forEach((ref: any) => {
+                                                    md += `* **[${ref.ref_id}] ${ref.title}** - ${ref.usage}\n`;
+                                                });
+                                                md += `\n`;
+                                            }
+
+                                            exportToPDF(md, `job-${displayJob.job_id}-full-report.pdf`);
+                                        }}
                                         className={cn(
                                             "flex items-center gap-1.5 px-2 py-1 border scifi-clip transition-all text-[9px] uppercase font-black tracking-wider",
-                                            displayJob.status === 'awaiting_approval' && artifactContent
+                                            ['awaiting_approval', 'graded', 'approved', 'completed'].includes(displayJob.status) && artifactContent
                                                 ? "text-cyan-500 border-cyan-500/50 hover:bg-cyan-500/10 cursor-target"
                                                 : "text-slate-500 border-white/10 opacity-50 cursor-not-allowed"
                                         )}
@@ -724,16 +827,16 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                         kernel="identity"
                                         status={
                                             Object.values((envelope as any)?.identity_contexts || {}).every((ctx: any) => ctx.verified)
-                                            ? "verified"
-                                            : "active"
+                                                ? "verified"
+                                                : "active"
                                         }
                                     />
                                     <KernelStatusBadge
                                         kernel="authority"
                                         status={
                                             Object.values((envelope as any)?.authority_leases || {}).some((l: any) => l.status === "active")
-                                            ? "granted"
-                                            : "idle"
+                                                ? "granted"
+                                                : "idle"
                                         }
                                     />
                                     <KernelStatusBadge
@@ -796,7 +899,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                                     <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Collections</span>
                                                     <span className="text-[9px] text-white font-mono">{envelope.knowledge_context.collections?.length || 0} Targeted</span>
                                                 </div>
-                                                
+
                                                 {/* Progressive Status for each collection */}
                                                 <div className="space-y-3">
                                                     {envelope.knowledge_context.collections?.map((cid: string) => {
@@ -804,23 +907,23 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                                         const isReady = status?.status === "ready";
                                                         const isIndexing = status?.status === "indexing";
                                                         const progress = status?.progress || 0;
-                                                        
+
                                                         return (
                                                             <div key={cid} className="space-y-1.5">
                                                                 <div className="flex items-center justify-between gap-2">
                                                                     <span className="text-[8px] font-mono text-slate-500 truncate max-w-[150px]">{status?.name || cid}</span>
                                                                     <span className={cn(
                                                                         "text-[7px] font-black uppercase tracking-tighter px-1 border",
-                                                                        isReady ? "text-emerald-500 border-emerald-500/20 bg-emerald-500/5" : 
-                                                                        isIndexing ? "text-cyan-500 border-cyan-500/20 bg-cyan-500/5 animate-pulse" : 
-                                                                        "text-slate-500 border-white/5"
+                                                                        isReady ? "text-emerald-500 border-emerald-500/20 bg-emerald-500/5" :
+                                                                            isIndexing ? "text-cyan-500 border-cyan-500/20 bg-cyan-500/5 animate-pulse" :
+                                                                                "text-slate-500 border-white/5"
                                                                     )}>
                                                                         {status?.status || "PENDING"}
                                                                     </span>
                                                                 </div>
                                                                 {!isReady && (
                                                                     <div className="h-1 w-full bg-white/5 border border-white/5 rounded-full overflow-hidden">
-                                                                        <div 
+                                                                        <div
                                                                             className={cn(
                                                                                 "h-full transition-all duration-500 ease-out shadow-[0_0_8px_currentColor]",
                                                                                 isIndexing ? "bg-cyan-500 text-cyan-500" : "bg-slate-700 text-slate-700"
@@ -983,7 +1086,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                             </div>
                                         </HUDFrame>
 
-                                        <HUDFrame title="Analytical Rationale (System Logs)">
+                                        <HUDFrame title="Evaluation Reason (Grader Logic)">
                                             <div className="space-y-4">
                                                 <div className="bg-black/30 border border-white/5 p-5 text-sm text-slate-300 leading-relaxed font-medium tech-dots relative">
                                                     <div className="absolute top-2 right-2 flex gap-1">
@@ -996,7 +1099,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                                     </p>
                                                 </div>
                                                 <div className="space-y-2">
-                                                    <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest block">Grading Summary</label>
+                                                    <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest block">Operational Result Summary</label>
                                                     <div className={cn(
                                                         "text-xs leading-relaxed p-4 bg-black/40 border rounded-sm",
                                                         graderData.pass_fail === 'pass' ? "text-emerald-400/90 border-emerald-500/20" : "text-red-400/90 border-red-500/20"

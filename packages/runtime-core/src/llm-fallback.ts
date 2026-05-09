@@ -16,10 +16,10 @@ import { getDb } from "./db";
 import { COLLECTIONS } from "./constants";
 
 const DEFAULT_AGENT_MODELS = {
-  coo:        { provider: "anthropic" as const, model: "claude-sonnet-4-6",   temperature: 0.2, maxTokens: 4096 },
-  researcher: { provider: "anthropic" as const, model: "claude-sonnet-4-6",   temperature: 0.3, maxTokens: 8192 },
-  worker:     { provider: "openai"    as const, model: "gpt-4o-mini",              temperature: 0.4, maxTokens: 8192 },
-  grader:     { provider: "anthropic" as const, model: "claude-haiku-4-5",    temperature: 0.1, maxTokens: 4096 },
+  coo: { provider: "anthropic" as const, model: "claude-sonnet-4-6", temperature: 0.2, maxTokens: 4096 },
+  researcher: { provider: "anthropic" as const, model: "claude-sonnet-4-6", temperature: 0.3, maxTokens: 8192 },
+  worker: { provider: "openai" as const, model: "gpt-4o-mini", temperature: 0.4, maxTokens: 8192 },
+  grader: { provider: "anthropic" as const, model: "claude-haiku-4-5", temperature: 0.1, maxTokens: 4096 },
 } as const;
 
 interface ResolvedConfig {
@@ -33,7 +33,7 @@ interface ResolvedConfig {
 // Fallback OpenAI model to use when the primary Anthropic model is unavailable
 const ANTHROPIC_TO_OPENAI_FALLBACK: Record<string, string> = {
   "claude-sonnet-4-6": "gpt-4o-mini",
-  "claude-haiku-4-5":  "gpt-4o-mini",
+  "claude-haiku-4-5": "gpt-4o-mini",
 };
 
 // ── System Prompts (byte-identical to Python agent-engine) ───────────────────
@@ -187,78 +187,78 @@ function getOpenAI(apiKey?: string): OpenAI {
 
 /** Resolves organization-specific LLM config from Firestore */
 async function resolveOrgLLMConfig(orgId: string, role: string): Promise<ResolvedConfig> {
-    const db = getDb();
-    
-    console.log(`[LLM-FALLBACK] Resolving config for orgId: "${orgId}", role: "${role}"`);
+  const db = getDb();
 
-    // Hard block on 'default' orgId to prevent leakage from legacy/global docs
-    if (!orgId || orgId === "default") {
-        console.error(`[LLM-FALLBACK] Blocking attempt to use "${orgId}" orgId. Identity propagation may be missing.`);
-        throw new Error(`MISSING_INTELLIGENCE_CONFIG: No specific organization configuration found (orgId: "${orgId}"). Please go to Settings > Intelligence Providers.`);
-    }
-    
-    // Try canonical collection first (matches newer API storage)
-    let doc = await db.collection("org_intelligence_providers").doc(orgId).get();
-    
-    if (!doc.exists) {
-        // Fallback: Check legacy 'jobs' collection for older config storage
-        console.log(`[LLM-FALLBACK] No config in canonical collection for ${orgId}, checking legacy store...`);
-        doc = await db.collection(COLLECTIONS.JOBS).doc(`provider_config_${orgId}`).get();
-    }
-    
-    if (!doc.exists) {
-        console.error(`[LLM-FALLBACK] No config document found in Firestore for orgId: ${orgId}`);
-        throw new Error(`MISSING_INTELLIGENCE_CONFIG: No intelligence provider configuration found for organization ${orgId}. Please go to Settings > Intelligence Providers and configure your API keys.`);
-    }
+  console.log(`[LLM-FALLBACK] Resolving config for orgId: "${orgId}", role: "${role}"`);
 
-    const data = doc.data() as any;
-    console.log(`[LLM-FALLBACK] Resolved config for orgId: ${orgId} (from ${doc.ref.parent.id})`);
-    
-    const providerKey = data.agent_models?.[role] || (DEFAULT_AGENT_MODELS as any)[role].provider;
-    if (!providerKey) {
-        throw new Error(`MISSING_AGENT_MAPPING: No provider assigned to the '${role}' agent role. Please check your settings in Intelligence Providers.`);
-    }
+  // Hard block on 'default' orgId to prevent leakage from legacy/global docs
+  if (!orgId || orgId === "default") {
+    console.error(`[LLM-FALLBACK] Blocking attempt to use "${orgId}" orgId. Identity propagation may be missing.`);
+    throw new Error(`MISSING_INTELLIGENCE_CONFIG: No specific organization configuration found (orgId: "${orgId}"). Please go to Settings > Intelligence Providers.`);
+  }
 
-    const providerConfig = data.providers?.[providerKey] || {};
-    const apiKey = providerConfig.api_key;
+  // Try canonical collection first (matches newer API storage)
+  let doc = await db.collection("org_intelligence_providers").doc(orgId).get();
 
-    if (apiKey) {
-        const redacted = apiKey.length > 8 ? `${apiKey.slice(0, 4)}...${apiKey.slice(-4)}` : "****";
-        console.log(`[LLM-FALLBACK] Using API key from Firestore for ${providerKey}: ${redacted}`);
-    } else {
-        console.warn(`[LLM-FALLBACK] No API key found in Firestore config for ${providerKey}`);
-        throw new Error(`MISSING_API_KEY: The API key for '${providerKey}' (assigned to ${role}) is missing. Please provide it in Settings > Intelligence Providers.`);
-    }
-    
-    // Model mapping — ordered newest-first so newer API accounts always get a valid model.
-    // If the user has saved a preferred model in their provider config, that takes priority.
-    const MODEL_MAP: Record<string, Record<string, string>> = {
-        openai:    { coo: "gpt-4o-mini", researcher: "gpt-4o-mini", worker: "gpt-4o-mini", grader: "gpt-4o-mini" },
-        anthropic: { 
-          coo:        "claude-sonnet-4-6", 
-          researcher: "claude-sonnet-4-6", 
-          worker:     "claude-sonnet-4-6", 
-          grader:     "claude-haiku-4-5-20251001" 
-        },
-        gemini:    { coo: "gemini-1.5-pro", researcher: "gemini-1.5-pro", worker: "gemini-1.5-flash", grader: "gemini-1.5-flash" },
-    };
+  if (!doc.exists) {
+    // Fallback: Check legacy 'jobs' collection for older config storage
+    console.log(`[LLM-FALLBACK] No config in canonical collection for ${orgId}, checking legacy store...`);
+    doc = await db.collection(COLLECTIONS.JOBS).doc(`provider_config_${orgId}`).get();
+  }
 
-    // Prefer the model explicitly saved by the user in their provider settings.
-    // Falls back to the role-specific default in MODEL_MAP.
-    const savedModel = providerConfig?.model as string | undefined;
-    let model = (savedModel && savedModel.trim()) ? savedModel.trim() : (MODEL_MAP[providerKey]?.[role] || "unknown");
-    if (model === "gpt-4o") {
-        model = "gpt-4o-mini"; // Force downgrade to bypass strict TPM limits for now
-    }
-    const def = (DEFAULT_AGENT_MODELS as any)[role];
+  if (!doc.exists) {
+    console.error(`[LLM-FALLBACK] No config document found in Firestore for orgId: ${orgId}`);
+    throw new Error(`MISSING_INTELLIGENCE_CONFIG: No intelligence provider configuration found for organization ${orgId}. Please go to Settings > Intelligence Providers and configure your API keys.`);
+  }
 
-    return {
-        provider: providerKey === "openai" ? "openai" : "anthropic",
-        apiKey: apiKey,
-        model: model,
-        temperature: def.temperature,
-        maxTokens: providerConfig?.max_tokens || def.maxTokens
-    };
+  const data = doc.data() as any;
+  console.log(`[LLM-FALLBACK] Resolved config for orgId: ${orgId} (from ${doc.ref.parent.id})`);
+
+  const providerKey = data.agent_models?.[role] || (DEFAULT_AGENT_MODELS as any)[role].provider;
+  if (!providerKey) {
+    throw new Error(`MISSING_AGENT_MAPPING: No provider assigned to the '${role}' agent role. Please check your settings in Intelligence Providers.`);
+  }
+
+  const providerConfig = data.providers?.[providerKey] || {};
+  const apiKey = providerConfig.api_key;
+
+  if (apiKey) {
+    const redacted = apiKey.length > 8 ? `${apiKey.slice(0, 4)}...${apiKey.slice(-4)}` : "****";
+    console.log(`[LLM-FALLBACK] Using API key from Firestore for ${providerKey}: ${redacted}`);
+  } else {
+    console.warn(`[LLM-FALLBACK] No API key found in Firestore config for ${providerKey}`);
+    throw new Error(`MISSING_API_KEY: The API key for '${providerKey}' (assigned to ${role}) is missing. Please provide it in Settings > Intelligence Providers.`);
+  }
+
+  // Model mapping — ordered newest-first so newer API accounts always get a valid model.
+  // If the user has saved a preferred model in their provider config, that takes priority.
+  const MODEL_MAP: Record<string, Record<string, string>> = {
+    openai: { coo: "gpt-4o-mini", researcher: "gpt-4o-mini", worker: "gpt-4o-mini", grader: "gpt-4o-mini" },
+    anthropic: {
+      coo: "claude-sonnet-4-6",
+      researcher: "claude-sonnet-4-6",
+      worker: "claude-sonnet-4-6",
+      grader: "claude-haiku-4-5-20251001"
+    },
+    gemini: { coo: "gemini-1.5-pro", researcher: "gemini-1.5-pro", worker: "gemini-1.5-flash", grader: "gemini-1.5-flash" },
+  };
+
+  // Prefer the model explicitly saved by the user in their provider settings.
+  // Falls back to the role-specific default in MODEL_MAP.
+  const savedModel = providerConfig?.model as string | undefined;
+  let model = (savedModel && savedModel.trim()) ? savedModel.trim() : (MODEL_MAP[providerKey]?.[role] || "unknown");
+  if (model === "gpt-4o") {
+    model = "gpt-4o-mini"; // Force downgrade to bypass strict TPM limits for now
+  }
+  const def = (DEFAULT_AGENT_MODELS as any)[role];
+
+  return {
+    provider: providerKey === "openai" ? "openai" : "anthropic",
+    apiKey: apiKey,
+    model: model,
+    temperature: def.temperature,
+    maxTokens: providerConfig?.max_tokens || def.maxTokens
+  };
 }
 
 /**
@@ -267,15 +267,15 @@ async function resolveOrgLLMConfig(orgId: string, role: string): Promise<Resolve
  * Returns undefined (never throws) so callers can decide gracefully.
  */
 async function resolveOrgFallbackOpenAIKey(orgId: string): Promise<string | undefined> {
-    try {
-        const db = getDb();
-        const doc = await db.collection("org_intelligence_providers").doc(orgId).get();
-        if (!doc.exists) return undefined;
-        const key = (doc.data() as any)?.providers?.openai?.api_key;
-        return key || undefined;
-    } catch {
-        return undefined;
-    }
+  try {
+    const db = getDb();
+    const doc = await db.collection("org_intelligence_providers").doc(orgId).get();
+    if (!doc.exists) return undefined;
+    const key = (doc.data() as any)?.providers?.openai?.api_key;
+    return key || undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 // ── Usage Tracking ───────────────────────────────────────────────────────────
@@ -291,10 +291,10 @@ export interface LLMUsage {
 
 // Per-million-token pricing (input / output)
 const PRICING: Record<string, { input: number; output: number }> = {
-  "claude-sonnet-4-6":       { input: 3.0,  output: 15.0 },
-  "claude-haiku-4-5":        { input: 0.8,  output: 4.0  },
-  "gpt-4o":                  { input: 2.5,  output: 10.0 },
-  "gpt-4o-mini":             { input: 0.15, output: 0.60 },
+  "claude-sonnet-4-6": { input: 3.0, output: 15.0 },
+  "claude-haiku-4-5": { input: 0.8, output: 4.0 },
+  "gpt-4o": { input: 2.5, output: 10.0 },
+  "gpt-4o-mini": { input: 0.15, output: 0.60 },
 };
 
 function calculateCost(model: string, inputTokens: number, outputTokens: number): number {
@@ -419,7 +419,7 @@ async function callWithAnthropicFallback(params: {
     return await callAnthropic(params);
   } catch (primaryErr) {
     const primaryMsg = (primaryErr as Error).message;
-    
+
     // 1. Try internal Anthropic retry (Haiku) if it's a 404
     if (primaryMsg.includes("not_found_error") || primaryMsg.includes("404") || primaryMsg.includes("model_not_found")) {
       if (params.model !== "claude-3-5-haiku-latest") {
@@ -446,7 +446,7 @@ async function callWithAnthropicFallback(params: {
     }
 
     if (!effectiveFallbackKey) {
-        throw new Error(`[${params.agentLabel}] Anthropic failed: ${primaryMsg}. No OpenAI fallback key available.`);
+      throw new Error(`[${params.agentLabel}] Anthropic failed: ${primaryMsg}. No OpenAI fallback key available.`);
     }
 
     console.warn(`[FALLBACK:${params.agentLabel}] Using approved OpenAI fallback (${fallbackModel})`);
@@ -508,40 +508,40 @@ async function loadArtifactContent(artifactId: string): Promise<string> {
 async function executeCOO(prompt: string, envelopeId: string, agentId: string, fingerprint: string, orgId?: string, fallbackApproved?: boolean): Promise<{ artifactId: string; usage: LLMUsage }> {
   let cfg: ResolvedConfig;
   if (orgId) {
-      cfg = await resolveOrgLLMConfig(orgId, "coo");
+    cfg = await resolveOrgLLMConfig(orgId, "coo");
   } else {
-      const def = DEFAULT_AGENT_MODELS.coo;
-      cfg = { ...def, apiKey: process.env.ANTHROPIC_API_KEY || "" };
+    const def = DEFAULT_AGENT_MODELS.coo;
+    cfg = { ...def, apiKey: process.env.ANTHROPIC_API_KEY || "" };
   }
 
   console.log(`[FALLBACK:COO] Calling ${cfg.model} via ${cfg.provider} for envelope ${envelopeId}`);
 
   let callResult: LLMCallResult;
   if (cfg.provider === "openai") {
-      callResult = await callOpenAI({
-          model: cfg.model,
-          systemPrompt: COO_SYSTEM_PROMPT,
-          userMessage: `User task:\n\n${prompt}\n\nCreate the execution plan.`,
-          temperature: cfg.temperature,
-          maxTokens: cfg.maxTokens,
-          apiKey: cfg.apiKey
-      });
+    callResult = await callOpenAI({
+      model: cfg.model,
+      systemPrompt: COO_SYSTEM_PROMPT,
+      userMessage: `User task:\n\n${prompt}\n\nCreate the execution plan.`,
+      temperature: cfg.temperature,
+      maxTokens: cfg.maxTokens,
+      apiKey: cfg.apiKey
+    });
   } else {
-      // Resolve org's OpenAI key as fallback (user may have both Claude + OpenAI configured)
-      const cooFallbackKey = orgId ? await resolveOrgFallbackOpenAIKey(orgId) : process.env.OPENAI_API_KEY;
-      callResult = await callWithAnthropicFallback({
-          model: cfg.model,
-          systemPrompt: COO_SYSTEM_PROMPT,
-          userMessage: `User task:\n\n${prompt}\n\nCreate the execution plan.`,
-          temperature: cfg.temperature,
-          maxTokens: cfg.maxTokens,
-          agentLabel: "COO",
-          apiKey: cfg.apiKey,
-          fallbackApiKey: cooFallbackKey,
-          envelopeId,
-          agentId,
-          fallbackApproved
-      });
+    // Resolve org's OpenAI key as fallback (user may have both Claude + OpenAI configured)
+    const cooFallbackKey = orgId ? await resolveOrgFallbackOpenAIKey(orgId) : process.env.OPENAI_API_KEY;
+    callResult = await callWithAnthropicFallback({
+      model: cfg.model,
+      systemPrompt: COO_SYSTEM_PROMPT,
+      userMessage: `User task:\n\n${prompt}\n\nCreate the execution plan.`,
+      temperature: cfg.temperature,
+      maxTokens: cfg.maxTokens,
+      agentLabel: "COO",
+      apiKey: cfg.apiKey,
+      fallbackApiKey: cooFallbackKey,
+      envelopeId,
+      agentId,
+      fallbackApproved
+    });
   }
 
   const result = safeParseJSON(callResult.text);
@@ -560,12 +560,12 @@ async function executeResearcher(
 ): Promise<{ artifactId: string; usage: LLMUsage }> {
   let cfg: ResolvedConfig;
   if (orgId) {
-      cfg = await resolveOrgLLMConfig(orgId, "researcher");
+    cfg = await resolveOrgLLMConfig(orgId, "researcher");
   } else {
-      const def = DEFAULT_AGENT_MODELS.researcher;
-      cfg = { ...def, apiKey: process.env.ANTHROPIC_API_KEY || "" };
+    const def = DEFAULT_AGENT_MODELS.researcher;
+    cfg = { ...def, apiKey: process.env.ANTHROPIC_API_KEY || "" };
   }
-  
+
   console.log(`[FALLBACK:Researcher] Calling ${cfg.model} via ${cfg.provider} for envelope ${envelopeId}`);
 
   let planContext = "";
@@ -579,28 +579,28 @@ async function executeResearcher(
 
   if (cfg.provider === "openai") {
     callResult = await callOpenAI({
-        model: cfg.model,
-        systemPrompt: RESEARCHER_SYSTEM_PROMPT,
-        userMessage,
-        temperature: cfg.temperature,
-        maxTokens: cfg.maxTokens,
-        apiKey: cfg.apiKey
+      model: cfg.model,
+      systemPrompt: RESEARCHER_SYSTEM_PROMPT,
+      userMessage,
+      temperature: cfg.temperature,
+      maxTokens: cfg.maxTokens,
+      apiKey: cfg.apiKey
     });
   } else {
     // Resolve org's OpenAI key as fallback
     const researcherFallbackKey = orgId ? await resolveOrgFallbackOpenAIKey(orgId) : process.env.OPENAI_API_KEY;
     callResult = await callWithAnthropicFallback({
-        model: cfg.model,
-        systemPrompt: RESEARCHER_SYSTEM_PROMPT,
-        userMessage,
-        temperature: cfg.temperature,
-        maxTokens: cfg.maxTokens,
-        agentLabel: "Researcher",
-        apiKey: cfg.apiKey,
-        fallbackApiKey: researcherFallbackKey,
-        envelopeId,
-        agentId,
-        fallbackApproved
+      model: cfg.model,
+      systemPrompt: RESEARCHER_SYSTEM_PROMPT,
+      userMessage,
+      temperature: cfg.temperature,
+      maxTokens: cfg.maxTokens,
+      agentLabel: "Researcher",
+      apiKey: cfg.apiKey,
+      fallbackApiKey: researcherFallbackKey,
+      envelopeId,
+      agentId,
+      fallbackApproved
     });
   }
 
@@ -620,10 +620,10 @@ async function executeWorker(
 ): Promise<{ artifactId: string; usage: LLMUsage }> {
   let cfg: ResolvedConfig;
   if (orgId) {
-      cfg = await resolveOrgLLMConfig(orgId, "worker");
+    cfg = await resolveOrgLLMConfig(orgId, "worker");
   } else {
-      const def = DEFAULT_AGENT_MODELS.worker;
-      cfg = { ...def, apiKey: process.env.OPENAI_API_KEY || "" };
+    const def = DEFAULT_AGENT_MODELS.worker;
+    cfg = { ...def, apiKey: process.env.OPENAI_API_KEY || "" };
   }
 
   console.log(`[FALLBACK:Worker] Calling ${cfg.model} via ${cfg.provider} for envelope ${envelopeId}`);
@@ -647,46 +647,46 @@ async function executeWorker(
       apiKey: cfg.apiKey
     });
   } else {
-      if (!fallbackApproved && cfg.provider === "anthropic") {
-          // If we are about to call Anthropic and it fails, callWithAnthropicFallback would normally 
-          // handle it, but executeWorker has its own internal catch block for some reason.
-          // Let's unify it or at least respect the flag.
-      }
-      try {
-        callResult = await callAnthropic({
-          model: cfg.model,
-          systemPrompt: WORKER_SYSTEM_PROMPT,
-          userMessage,
-          temperature: cfg.temperature,
-          maxTokens: cfg.maxTokens,
-          apiKey: cfg.apiKey
-        });
-      } catch (err) {
-        const workerFallbackMsg = `[FALLBACK:Worker] Anthropic failed, trying OpenAI fallback: ${(err as Error).message}`;
-        console.warn(workerFallbackMsg);
-        
-        await logFallbackTrace({
-          envelopeId,
-          agentId,
-          agentLabel: "Worker",
-          message: workerFallbackMsg,
-          metadata: { error: (err as Error).message }
-        });
+    if (!fallbackApproved && cfg.provider === "anthropic") {
+      // If we are about to call Anthropic and it fails, callWithAnthropicFallback would normally 
+      // handle it, but executeWorker has its own internal catch block for some reason.
+      // Let's unify it or at least respect the flag.
+    }
+    try {
+      callResult = await callAnthropic({
+        model: cfg.model,
+        systemPrompt: WORKER_SYSTEM_PROMPT,
+        userMessage,
+        temperature: cfg.temperature,
+        maxTokens: cfg.maxTokens,
+        apiKey: cfg.apiKey
+      });
+    } catch (err) {
+      const workerFallbackMsg = `[FALLBACK:Worker] Anthropic failed, trying OpenAI fallback: ${(err as Error).message}`;
+      console.warn(workerFallbackMsg);
 
-        if (!fallbackApproved) {
-            throw new Error(`LLM_FALLBACK_REQUIRED:model_switch:gpt-4o-mini:${(err as Error).message}`);
-        }
+      await logFallbackTrace({
+        envelopeId,
+        agentId,
+        agentLabel: "Worker",
+        message: workerFallbackMsg,
+        metadata: { error: (err as Error).message }
+      });
 
-        const workerFallbackKey = orgId ? await resolveOrgFallbackOpenAIKey(orgId) : process.env.OPENAI_API_KEY;
-        callResult = await callOpenAI({
-          model: "gpt-4o-mini",
-          systemPrompt: WORKER_SYSTEM_PROMPT,
-          userMessage,
-          temperature: cfg.temperature,
-          maxTokens: cfg.maxTokens,
-          apiKey: workerFallbackKey
-        });
+      if (!fallbackApproved) {
+        throw new Error(`LLM_FALLBACK_REQUIRED:model_switch:gpt-4o-mini:${(err as Error).message}`);
       }
+
+      const workerFallbackKey = orgId ? await resolveOrgFallbackOpenAIKey(orgId) : process.env.OPENAI_API_KEY;
+      callResult = await callOpenAI({
+        model: "gpt-4o-mini",
+        systemPrompt: WORKER_SYSTEM_PROMPT,
+        userMessage,
+        temperature: cfg.temperature,
+        maxTokens: cfg.maxTokens,
+        apiKey: workerFallbackKey
+      });
+    }
   }
 
   const result = safeParseJSON(callResult.text);
@@ -705,10 +705,10 @@ async function executeGrader(
 ): Promise<{ artifactId: string; usage: LLMUsage }> {
   let cfg: ResolvedConfig;
   if (orgId) {
-      cfg = await resolveOrgLLMConfig(orgId, "grader");
+    cfg = await resolveOrgLLMConfig(orgId, "grader");
   } else {
-      const def = DEFAULT_AGENT_MODELS.grader;
-      cfg = { ...def, apiKey: process.env.ANTHROPIC_API_KEY || "" };
+    const def = DEFAULT_AGENT_MODELS.grader;
+    cfg = { ...def, apiKey: process.env.ANTHROPIC_API_KEY || "" };
   }
 
   console.log(`[FALLBACK:Grader] Calling ${cfg.model} via ${cfg.provider} for envelope ${envelopeId}`);
@@ -724,28 +724,28 @@ async function executeGrader(
 
   if (cfg.provider === "openai") {
     callResult = await callOpenAI({
-        model: cfg.model,
-        systemPrompt: GRADER_SYSTEM_PROMPT,
-        userMessage,
-        temperature: cfg.temperature,
-        maxTokens: cfg.maxTokens,
-        apiKey: cfg.apiKey
+      model: cfg.model,
+      systemPrompt: GRADER_SYSTEM_PROMPT,
+      userMessage,
+      temperature: cfg.temperature,
+      maxTokens: cfg.maxTokens,
+      apiKey: cfg.apiKey
     });
   } else {
     // Resolve org's OpenAI key as fallback
     const graderFallbackKey = orgId ? await resolveOrgFallbackOpenAIKey(orgId) : process.env.OPENAI_API_KEY;
     callResult = await callWithAnthropicFallback({
-        model: cfg.model,
-        systemPrompt: GRADER_SYSTEM_PROMPT,
-        userMessage,
-        temperature: cfg.temperature,
-        maxTokens: cfg.maxTokens,
-        agentLabel: "Grader",
-        apiKey: cfg.apiKey,
-        fallbackApiKey: graderFallbackKey,
-        envelopeId,
-        agentId,
-        fallbackApproved
+      model: cfg.model,
+      systemPrompt: GRADER_SYSTEM_PROMPT,
+      userMessage,
+      temperature: cfg.temperature,
+      maxTokens: cfg.maxTokens,
+      agentLabel: "Grader",
+      apiKey: cfg.apiKey,
+      fallbackApiKey: graderFallbackKey,
+      envelopeId,
+      agentId,
+      fallbackApproved
     });
   }
 
@@ -815,6 +815,8 @@ export async function executeFallbackStep(params: {
           cost: prevCost + result.usage.cost,
         },
         cost: prevCost + result.usage.cost,
+        model_used: result.usage.model,
+        neural_provider: result.usage.provider,
         updated_at: new Date().toISOString(),
       }, { merge: true });
     }

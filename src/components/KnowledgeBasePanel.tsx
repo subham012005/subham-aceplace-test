@@ -839,7 +839,7 @@ Output: [What the final deliverable should look like]`}
                 </div>
                 <div className="flex gap-2">
                   {(directText.trim() || selectedSnippetIds.length > 0) && <span className="text-[7px] bg-purple-500/20 text-purple-400 px-1.5 py-0.5 font-bold border border-purple-500/20">DIRECT KNOWLEDGE ARMED</span>}
-                  {selectedCollections.length > 0 && <span className="text-[7px] bg-cyan-500/20 text-cyan-400 px-1.5 py-0.5 font-bold border border-cyan-500/20">{selectedCollections.length} COLLECTIONS</span>}
+                  {selectedCollections.length > 0 && <span className="text-[7px] bg-cyan-500/20 text-cyan-400 px-1.5 py-0.5 font-bold border border-cyan-500/20">{selectedCollections.length} KNOWLEDGE BASES</span>}
                   {selectedProfiles.length > 0 && <span className="text-[7px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 font-bold border border-amber-500/20">{selectedProfiles.length} PROFILES</span>}
                 </div>
               </div>
