@@ -23,23 +23,20 @@ from services.firestore import get_db, append_trace
 
 def web_search(query: str, max_results: int = 8) -> list[dict]:
     """
-    Perform a free DuckDuckGo web search.
+    Perform a free DuckDuckGo web search using the 'ddgs' package (v9+).
+    NOTE: duckduckgo_search was renamed to ddgs — use 'pip install ddgs'.
     Returns a list of { title, url, snippet } dicts.
     Falls back to empty list on any error — never blocks execution.
     """
-    import warnings
-    # Suppress the package rename warning from duckduckgo_search
-    warnings.filterwarnings("ignore", category=RuntimeWarning, module="duckduckgo_search")
-    
     try:
-        from duckduckgo_search import DDGS
+        from ddgs import DDGS
         results = []
         with DDGS() as ddgs:
-            # text() is the standard method for text search
             search_results = ddgs.text(query, max_results=max_results)
             if not search_results:
+                print(f"[WEB SEARCH] No results returned for query: '{query[:80]}'")
                 return []
-            
+
             for r in search_results:
                 results.append({
                     "title": r.get("title", ""),
@@ -49,9 +46,13 @@ def web_search(query: str, max_results: int = 8) -> list[dict]:
                     "query": query,
                     "fetched_at": datetime.now(timezone.utc).isoformat(),
                 })
+        print(f"[WEB SEARCH] [OK] {len(results)} results for: '{query[:80]}'")
         return results
+    except ImportError:
+        print("[WEB SEARCH] [ERR] 'ddgs' package not found. Run: pip install ddgs")
+        return []
     except Exception as e:
-        # Silent fail to prevent blocking the agent loop
+        print(f"[WEB SEARCH] [ERR] Search failed for '{query[:80]}': {type(e).__name__}: {e}")
         return []
 
 
@@ -306,24 +307,42 @@ def extract_phase3_context(envelope: dict, prompt: str) -> dict:
     # Check if web results are already cached in envelope (from a previous agent step)
     cached_web = envelope.get("_cached_web_results")
     if cached_web and len(cached_web) > 0:
-        print(f"[PHASE3] Using {len(cached_web)} cached web results from envelope")
+        print(f"[PHASE3] [CACHE-HIT] Using {len(cached_web)} cached web results from envelope")
         web_results = cached_web
     else:
-        # First agent to run — perform fresh web search
-        print(f"[PHASE3] Running web search for deep research (first agent)")
-        # Use only the first 200 chars of prompt for search to avoid complex query noise
-        web_results = web_search(prompt[:200], max_results=10)
-        print(f"[PHASE3] Web search returned {len(web_results)} results")
+        # First agent to run -- perform fresh web search with multiple targeted queries
+        # Build a focused search query from the prompt
+        search_query = prompt[:150].strip()
+        # Strip common boilerplate that hurts search quality
+        for prefix in ["please ", "can you ", "i want ", "create ", "build ", "make "]:
+            if search_query.lower().startswith(prefix):
+                search_query = search_query[len(prefix):]
+                break
+
+        print(f"[PHASE3] [SEARCH] Running web search: '{search_query[:80]}'")
+        web_results = web_search(search_query, max_results=10)
+
+        # If first query returns nothing, try a broader fallback query
+        if not web_results and len(prompt) > 20:
+            fallback_query = " ".join(prompt.split()[:8])  # First 8 words
+            print(f"[PHASE3] [RETRY] Fallback query: '{fallback_query}'")
+            web_results = web_search(fallback_query, max_results=10)
+
+        print(f"[PHASE3] Web search total: {len(web_results)} results")
 
         # Cache web results into envelope for subsequent agents
-        if web_results and envelope_id:
+        if envelope_id:
             try:
                 db = get_db()
+                # Always cache (even empty) to prevent redundant searches by later agents
                 db.collection("execution_envelopes").document(envelope_id).update({
                     "_cached_web_results": web_results,
+                    "_web_search_ran": True,
+                    "_web_search_count": len(web_results),
                 })
+                print(f"[PHASE3] [CACHE] Cached {len(web_results)} web results to envelope")
             except Exception as e:
-                print(f"[PHASE3] Failed to cache web results: {e}")
+                print(f"[PHASE3] [WARN] Failed to cache web results: {e}")
 
     # Retrieve instruction profiles
     if instr_enabled and profile_ids and user_id:

@@ -209,11 +209,16 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
                         {(phase3Ctx.knowledge_collections.length > 0 || phase3Ctx.instruction_profiles.length > 0 || !!phase3Ctx.direct_text?.trim()) && (
                             <div className="flex items-center gap-3 px-3 py-2 bg-cyan-500/5 border border-cyan-500/20 text-[9px]">
                                 <Zap className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                                <span className="text-cyan-400 font-bold">Grounding active:</span>
+                                <span className="text-cyan-400 font-bold flex items-center gap-2">
+                                    Grounding active
+                                    <span className="px-1.5 py-0.5 bg-cyan-500/20 rounded text-[7px] text-cyan-400 border border-cyan-500/30 font-black">
+                                        {phase3Ctx.knowledge_collections.length} DOCS SELECTED
+                                    </span>
+                                </span>
                                 <span className="text-slate-400 font-mono">
                                     🌐 Web Search
                                     {phase3Ctx.direct_text?.trim() && ` · ⚡ Direct Knowledge`}
-                                    {phase3Ctx.knowledge_collections.length > 0 && ` · 📚 ${phase3Ctx.knowledge_collections.length} KB collection${phase3Ctx.knowledge_collections.length > 1 ? "s" : ""}`}
+                                    {phase3Ctx.knowledge_collections.length > 0 && ` · 📚 ${phase3Ctx.knowledge_collections.length} Document${phase3Ctx.knowledge_collections.length > 1 ? "s" : ""}`}
                                     {phase3Ctx.instruction_profiles.length > 0 && ` · 📋 ${phase3Ctx.instruction_profiles.length} instruction${phase3Ctx.instruction_profiles.length > 1 ? "s" : ""}`}
                                 </span>
                                 <button 

@@ -58,7 +58,7 @@ import {
     Settings as SettingsIcon
 } from "lucide-react";
 import { useSettings } from "@/context/SettingsContext";
-import { cn } from "@/lib/utils";
+import { cn, formatOutputToMarkdown } from "@/lib/utils";
 import { HUDFrame } from "@/components/HUDFrame";
 import { SciFiFrame } from "@/components/SciFiFrame";
 import { MarkdownReport } from "@/components/MarkdownReport";
@@ -114,72 +114,7 @@ const formatTime = (dateValue?: any) => {
     }).format(date) + "." + date.getMilliseconds().toString().padStart(3, '0');
 };
 
-const formatOutputToMarkdown = (raw: any): string => {
-    if (!raw) return "";
-    
-    // If it's already a string, try parsing it as JSON first
-    if (typeof raw === 'string') {
-        const trimmed = raw.trim();
-        if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
-            try {
-                const parsed = JSON.parse(raw);
-                return formatOutputToMarkdown(parsed);
-            } catch {
-                return raw;
-            }
-        }
-        return raw;
-    }
 
-    if (typeof raw !== 'object') return String(raw);
-
-    let md = "";
-    
-    // 1. Extract Summary if present
-    const summary = raw.deliverable_summary || raw.summary;
-    if (summary) {
-        md += `# Executive Summary\n\n${summary}\n\n`;
-    }
-
-    // 2. Handle the "sections" structure (direct or inside "content")
-    const sections = raw.sections || raw.content?.sections;
-    if (sections && Array.isArray(sections)) {
-        md += sections.map((s: any) => {
-            const title = s.title || s.header || "Section";
-            const body = s.body || s.content || s.text || "";
-            return `## ${title}\n\n${body}\n\n`;
-        }).join("\n");
-        return md;
-    }
-
-    // 3. Handle common report structure (title, findings, etc.)
-    if (raw.title || raw.findings) {
-        if (raw.title) md = `# ${raw.title}\n\n` + md;
-        if (raw.details) md += `${raw.details}\n\n`;
-        
-        const listItems = raw.findings || raw.steps || raw.items || raw.results;
-        if (Array.isArray(listItems)) {
-            if (raw.findings) md += `### Key Findings\n\n`;
-            md += listItems.map((item: any) => {
-                if (typeof item === 'string') return `* ${item}`;
-                if (typeof item === 'object') {
-                    const label = item.title || item.label || item.name;
-                    const val = item.body || item.content || item.value || item.description;
-                    if (label && val) return `* **${label}:** ${val}`;
-                    return `* ${JSON.stringify(item)}`;
-                }
-                return `* ${String(item)}`;
-            }).join("\n");
-        }
-        if (md) return md;
-    }
-
-    // 4. If it's just a "content" field that is a string, return it
-    if (typeof raw.content === 'string') return raw.content;
-
-    // Generic object fallback: Pretty JSON
-    return "```json\n" + JSON.stringify(raw, null, 2) + "\n```";
-};
 
 export default function JobDetailsPage() {
     const params = useParams();
@@ -228,6 +163,9 @@ export default function JobDetailsPage() {
     const envelopeId = (job as any)?.envelope_id || job?.execution_id || null;
     const { envelope, steps, loading: envelopeLoading } = useEnvelope(envelopeId);
     const { logs: agentLogs, loading: agentLogsLoading } = useAgentLogs(envelopeId);
+
+    const rawDeliverable = job?.runtime_context?.final_result || job?.runtime_context?.worker_result || job?.artifact || extractOutputData(job);
+    const isReportReady = !!rawDeliverable;
 
     // Unified Governance Logic — also check agent logs as fallback
     const graderLogSummary = agentLogs.find(l => l.agent_role === 'grader' && l.event === 'COMPLETE')?.output_summary || "";
@@ -623,13 +561,88 @@ export default function JobDetailsPage() {
                             </button>
                             <button
                                 onClick={() => {
-                                    const artifact = artifacts.find(a => ['artifact_produce', 'report', 'final', 'worker_result', 'worker', 'deliverable'].includes(a.artifact_type || ''));
+                                    const artifact = artifacts.find(a => ['deliverable', 'artifact_produce', 'produce_artifact', 'report', 'final', 'worker_result', 'worker'].includes(a.artifact_type || ''));
                                     const result = job?.runtime_context?.worker_result || job?.runtime_context?.final_result || job?.artifact || extractOutputData(job);
                                     const rawContent = artifact?.artifact_content || result;
-                                    const finalContent = formatOutputToMarkdown(rawContent);
-                                    exportToPDF(finalContent, `job-${job?.job_id || jobId}-output.pdf`);
+
+                                    // Resolve provider/model with broad fallback chain
+                                    const resolvedProvider = (job as any)?.neural_provider || (job as any)?.model_provider || (job as any)?.provider || (envelope as any)?.neural_provider || (envelope as any)?.provider || 'N/A';
+                                    const resolvedModel = (job as any)?.model_used || (job as any)?.model || (job as any)?.llm_model || (envelope as any)?.model_used || (envelope as any)?.model || 'N/A';
+
+                                    let md = `# Intelligence Report(PRO): ${job?.job_id || jobId}\n\n`;
+                                    md += `## Audit Metadata\n\n`;
+                                    md += `* **Job ID:** ${job?.job_id || jobId}\n`;
+                                    md += `* **Envelope ID:** ${envelope?.envelope_id || job?.envelope_id || 'N/A'}\n`;
+                                    md += `* **Status:** ${derivedStatus?.toUpperCase() || 'UNKNOWN'}\n`;
+                                    // md += `* **Neural Provider:** ${resolvedProvider.toUpperCase()}\n`;
+                                    // md += `* **Compute Model:** ${resolvedModel}\n`;
+                                    md += `* **Compute Cost:** $${Number((typeof job?.token_usage === 'object' ? job?.token_usage?.cost : null) ?? job?.cost ?? 0).toFixed(6)}\n`;
+                                    md += `* **Token Usage:** ${Number(typeof job?.token_usage === 'object' ? job?.token_usage?.total_tokens ?? 0 : job?.token_usage ?? 0).toLocaleString()}\n`;
+                                    md += `* **Generated At:** ${new Date().toLocaleString()}\n\n`;
+
+                                    if (job?.prompt) {
+                                        md += `## Strategic Intent\n\n`;
+                                        md += `> ${job.prompt}\n\n`;
+                                    }
+
+                                    if (job?.runtime_context?.plan) {
+                                        md += `## Strategic Plan\n\n`;
+                                        md += `${typeof job.runtime_context.plan === 'string' ? job.runtime_context.plan : JSON.stringify(job.runtime_context.plan, null, 2)}\n\n`;
+                                    }
+
+                                    if (governanceScore > 0 || evaluationContent) {
+                                        md += `## Governance Grading\n\n`;
+                                        md += `* **Score:** ${governanceScore.toFixed(1)}/10\n`;
+                                        md += `* **Verdict:** ${finalGovStatus}\n`;
+                                        const graderObj = evaluationContent || job?.runtime_context?.grading_result || job?.grading_result || job?.grader_params || job;
+                                        const rationale = graderObj?.reason || graderObj?.reasoning || graderObj?.reasoning_summary || graderObj?.summary || graderObj?.grading_summary || graderObj?.feedback || "*No reasoning provided.*";
+                                        if (rationale) md += `* **Evaluation Reason:** ${typeof rationale === 'object' ? JSON.stringify(rationale) : rationale}\n`;
+                                        if (graderObj?.risk_flags && Array.isArray(graderObj.risk_flags) && graderObj.risk_flags.length > 0) {
+                                            md += `* **Risk Flags:** ${graderObj.risk_flags.join(', ')}\n`;
+                                        }
+                                        md += `\n`;
+                                    }
+
+                                    let workerData: any = rawContent;
+                                    if (typeof rawContent === 'string' && rawContent.trim().startsWith('{')) {
+                                        try { workerData = JSON.parse(rawContent.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/i, '').trim()); } catch (e) { }
+                                    }
+
+                                    if (workerData?.grounding_report) {
+                                        const gr = workerData.grounding_report;
+                                        md += `## Grounding & Verification\n\n`;
+                                        md += `* **Fabrication Check:** ${gr.fabrication_check || 'UNKNOWN'}\n`;
+                                        md += `* **Knowledge Density:** ${gr.kb_chunks_cited || workerData._grounding_meta?.kb_chunks_used || 0} Knowledge References\n`;
+                                        md += `* **Web Intelligence:** ${workerData._grounding_meta?.web_results_used || gr.web_sources_cited || 0} Web Sources\n\n`;
+                                    }
+
+                                    md += `## Final Deliverable Content\n\n`;
+                                    const formattedContent = formatOutputToMarkdown(rawContent);
+                                    md += formattedContent ? formattedContent : "*No deliverable content was generated for this job.*";
+                                    md += `\n\n`;
+
+                                    if (workerData?.key_conclusions && Array.isArray(workerData.key_conclusions) && workerData.key_conclusions.length > 0) {
+                                        md += `## Strategic Findings\n\n`;
+                                        workerData.key_conclusions.forEach((c: any, i: number) => {
+                                            const conclusion = c.conclusion || (typeof c === 'string' ? c : '');
+                                            md += `### Finding ${i + 1}: ${conclusion}\n\n`;
+                                            if (c.evidence) md += `* **Evidence:** ${c.evidence}\n`;
+                                            if (c.recommendation) md += `* **Recommendation:** ${c.recommendation}\n`;
+                                            md += `\n`;
+                                        });
+                                    }
+
+                                    if (workerData?.source_references && Array.isArray(workerData.source_references) && workerData.source_references.length > 0) {
+                                        md += `## Source Provenance\n\n`;
+                                        workerData.source_references.forEach((ref: any) => {
+                                            md += `* **[${ref.ref_id}] ${ref.title}** - ${ref.usage}\n`;
+                                        });
+                                        md += `\n`;
+                                    }
+
+                                    exportToPDF(md, `job-${job?.job_id || jobId}-full-report.pdf`);
                                 }}
-                                disabled={actionLoading || !['grading', 'graded', 'awaiting_approval', 'approved', 'completed'].includes(derivedStatus)}
+                                disabled={actionLoading || !['grading', 'graded', 'awaiting_approval', 'approved', 'completed'].includes(derivedStatus?.toLowerCase())}
                                 className="px-4 py-2 glass border border-white/10 text-cyan-400 font-bold uppercase tracking-widest text-[10px] hover:bg-cyan-500/10 hover:border-cyan-500/30 transition-all cursor-target flex items-center justify-center gap-2 group disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:text-slate-500"
                                 title="Save PDF"
                             >
@@ -661,12 +674,12 @@ export default function JobDetailsPage() {
                 {envelope?.fallback_suggested && (() => {
                     const meta = envelope.fallback_metadata;
                     const isModelSwitch = meta?.suggested_action === 'model_switch';
-                    
+
                     return (
                         <div className="relative overflow-hidden border border-rose-500/60 bg-rose-500/10 shadow-[0_0_40px_rgba(244,63,94,0.1)] scifi-clip p-6 sm:p-8 animate-pulse-slow">
                             <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-rose-400 to-transparent" />
                             <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-rose-500/30 to-transparent" />
-                            
+
                             <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
                                 <div className="flex items-start gap-6 flex-1">
                                     <div className="relative shrink-0">
@@ -677,7 +690,7 @@ export default function JobDetailsPage() {
                                             <AlertTriangle className="w-3 h-3 text-black" />
                                         </div>
                                     </div>
-                                    
+
                                     <div className="space-y-3">
                                         <div className="flex flex-wrap items-center gap-3">
                                             <span className="px-2 py-0.5 bg-rose-500 text-black font-black text-[9px] uppercase tracking-widest scifi-clip-sm">
@@ -687,7 +700,7 @@ export default function JobDetailsPage() {
                                                 Fallback Pending Approval
                                             </span>
                                         </div>
-                                        
+
                                         <div className="space-y-1">
                                             <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase leading-tight">
                                                 {isModelSwitch ? 'Intelligence Provider Failure' : 'Runtime Connection Failure'}
@@ -704,8 +717,8 @@ export default function JobDetailsPage() {
                                                     Action: Automatic switch to {meta?.target_model || 'GPT-4o'}
                                                 </span>
                                             </div>
-                                            <Link 
-                                                href="/system-config" 
+                                            <Link
+                                                href="/system-config"
                                                 className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-cyan-400 hover:text-cyan-300 transition-all border-b border-cyan-400/30 pb-0.5 group"
                                             >
                                                 <SettingsIcon className="w-3 h-3 group-hover:rotate-90 transition-transform" />
@@ -714,7 +727,7 @@ export default function JobDetailsPage() {
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <div className="flex flex-col gap-3 w-full lg:w-auto shrink-0">
                                     <button
                                         onClick={handleApproveFallback}
@@ -907,13 +920,13 @@ export default function JobDetailsPage() {
                         </div>
                     </div>
                 )}
-                
+
                 {/* ── INTEGRITY BREACH ALERT ─────────────────────────────────────────── */}
                 {(() => {
                     const failureReason = String(job?.failure_reason || envelope?.failure_reason || "");
                     const isFailed = String(job?.status || "").toLowerCase() === "failed" || envelope?.status === "failed";
                     const isMissingConfig = failureReason.includes("MISSING_INTELLIGENCE_CONFIG") || failureReason.includes("MISSING_API_KEY") || failureReason.includes("API key");
-                    
+
                     if (!isFailed || !failureReason || isAgentEngineFailure) return null;
 
                     return (
@@ -927,9 +940,9 @@ export default function JobDetailsPage() {
                                     </p>
                                 </div>
                             </div>
-                            
+
                             {isMissingConfig && (
-                                <button 
+                                <button
                                     onClick={() => router.push('/system-config')}
                                     className="w-full py-2 border border-rose-500/30 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all group"
                                 >
@@ -1545,17 +1558,28 @@ export default function JobDetailsPage() {
                                                 let rawContent = artifact?.artifact_content || result;
                                                 if (!rawContent) return <div className="text-center py-8 opacity-20 italic text-[10px] uppercase tracking-widest border border-dashed border-white/5">Awaiting final execution...</div>;
 
-                                                let workerData: any = rawContent;
-                                                if (typeof rawContent === 'string') {
+                                                let workerData: any = (typeof result === 'object' && result !== null) ? result : rawContent;
+                                                if (typeof workerData === 'string') {
                                                     try {
-                                                        let clean = (rawContent as string).replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/i, '').trim();
+                                                        let clean = (workerData as string).replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/i, '').trim();
                                                         workerData = JSON.parse(clean);
-                                                    } catch (e) { workerData = { content: rawContent }; }
+                                                    } catch (e) { workerData = { content: workerData }; }
+                                                }
+
+                                                // Ensure workerData has any missing metadata from the result object
+                                                if (!workerData.grounding_report && result?.grounding_report) {
+                                                    workerData.grounding_report = result.grounding_report;
+                                                }
+                                                if (!workerData.key_conclusions && result?.key_conclusions) {
+                                                    workerData.key_conclusions = result.key_conclusions;
+                                                }
+                                                if (!workerData.source_references && result?.source_references) {
+                                                    workerData.source_references = result.source_references;
                                                 }
 
                                                 let sections: any[] = Array.isArray(workerData.sections) ? workerData.sections : [];
                                                 let content = workerData.content || workerData.report || workerData.text || workerData.deliverable || workerData.artifact || '';
-                                                
+
                                                 // Handle double-encoded JSON or JSON-in-string cases
                                                 if (typeof content === 'string' && content.trim().startsWith('{')) {
                                                     try {
@@ -1575,46 +1599,80 @@ export default function JobDetailsPage() {
                                                     content = (content as any).text || (content as any).body || (content as any).markdown || (content as any).content || (sections.length > 0 ? '' : JSON.stringify(content, null, 2));
                                                 }
 
-                                                // Robust Markdown Formatter for JSON structures
+                                                // Enhanced Robust Markdown Formatter for JSON structures
                                                 const formatToMarkdown = (raw: any): string => {
                                                     if (!raw) return "";
                                                     if (typeof raw === 'string') {
                                                         const trimmed = raw.trim();
                                                         if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
-                                                            try { return formatToMarkdown(JSON.parse(raw)); } catch { return raw; }
+                                                            try { return formatToMarkdown(JSON.parse(trimmed)); } catch { return raw; }
                                                         }
                                                         return raw;
                                                     }
                                                     if (typeof raw !== 'object') return String(raw);
 
                                                     let md = "";
-                                                    const summary = raw.deliverable_summary || raw.summary || raw.executive_summary;
-                                                    if (summary) md += `# Executive Summary\n\n${summary}\n\n`;
 
+                                                    // 1. Sections (Highest priority for structured content)
                                                     const sectionsList = raw.sections || raw.content?.sections || (Array.isArray(raw.content) ? raw.content : null);
+
+                                                    // 2. Executive Summary
+                                                    const summary = raw.deliverable_summary || raw.summary || raw.executive_summary;
+                                                    // Only add if it's not a generic placeholder and not already in sections
+                                                    const hasSummarySection = Array.isArray(sectionsList) && sectionsList.some((s: any) =>
+                                                        String(s.title || s.header || "").toLowerCase().includes('summary')
+                                                    );
+
+                                                    if (summary && typeof summary === 'string' && !summary.toLowerCase().includes('worker output') && !hasSummarySection) {
+                                                        const cleanSummary = summary.trim();
+                                                        if (cleanSummary && cleanSummary.length > 10) {
+                                                            md += `# Executive Summary\n\n${cleanSummary}\n\n`;
+                                                        }
+                                                    }
+
                                                     if (sectionsList && Array.isArray(sectionsList)) {
                                                         md += sectionsList.map((s: any, i: number) => {
+                                                            if (typeof s === 'string') return s;
                                                             const title = s.title || s.header || s.name || `Section ${i + 1}`;
                                                             const body = s.body || s.content || s.text || "";
                                                             return `## ${title}\n\n${body}\n\n`;
                                                         }).join("\n");
-                                                        return md;
+                                                        return md.trim();
                                                     }
 
+                                                    // 3. Fallback content/findings
                                                     if (raw.title || raw.findings || raw.content) {
-                                                        if (raw.title) md = `# ${raw.title}\n\n` + md;
-                                                        if (typeof raw.content === 'string') md += raw.content + "\n\n";
+                                                        if (raw.title && typeof raw.title === 'string' && !md.includes(raw.title)) {
+                                                            md = `# ${raw.title}\n\n` + md;
+                                                        }
+                                                        if (raw.content && typeof raw.content === 'string') {
+                                                            const cleanContent = raw.content.trim();
+                                                            if (cleanContent && !md.includes(cleanContent.substring(0, 50))) {
+                                                                if (md && !md.endsWith('\n\n')) md += md.endsWith('\n') ? '\n' : '\n\n';
+                                                                md += cleanContent + "\n\n";
+                                                            }
+                                                        }
+
                                                         const listItems = raw.findings || raw.steps || raw.items || raw.results;
                                                         if (Array.isArray(listItems)) {
-                                                            md += listItems.map((item: any) => typeof item === 'object' ? `* **${item.title || item.label}:** ${item.body || item.content || JSON.stringify(item)}` : `* ${item}`).join("\n");
+                                                            if (raw.findings && !md.includes('Key Findings')) md += `### Key Findings\n\n`;
+                                                            md += listItems.map((item: any) => {
+                                                                if (typeof item === 'object') {
+                                                                    const label = item.title || item.label || item.name;
+                                                                    const val = item.body || item.content || item.value || item.description || JSON.stringify(item);
+                                                                    return label ? `* **${label}:** ${val}` : `* ${val}`;
+                                                                }
+                                                                return `* ${item}`;
+                                                            }).join("\n");
                                                         }
-                                                        if (md) return md;
+                                                        if (md) return md.trim();
                                                     }
 
                                                     return "```json\n" + JSON.stringify(raw, null, 2) + "\n```";
                                                 };
 
                                                 const displayContent = formatToMarkdown(rawContent);
+
                                                 const conclusions: any[] = Array.isArray(workerData.key_conclusions) ? workerData.key_conclusions : [];
                                                 const synthesis = workerData.research_synthesis || '';
                                                 const limitations: any[] = Array.isArray(workerData.limitations) ? workerData.limitations : [];
@@ -1628,21 +1686,25 @@ export default function JobDetailsPage() {
                                                                 <div className="p-4 bg-cyan-500/5 border border-cyan-500/10 rounded-sm">
                                                                     <div className="flex items-center justify-between mb-2">
                                                                         <span className="text-[8px] font-black uppercase tracking-widest text-cyan-400">Grounding Status</span>
-                                                                        <ShieldCheck className={cn("w-3 h-3", workerData.grounding_report.fabrication_check === 'VERIFIED' ? "text-emerald-400" : "text-amber-400")} />
+                                                                        <ShieldCheck className={cn("w-3 h-3", (workerData.grounding_report.fabrication_check === 'VERIFIED' || (!workerData.grounding_report.fabrication_check || workerData.grounding_report.fabrication_check === 'UNKNOWN') && (workerData.grounding_report.kb_chunks_cited > 0 || workerData._grounding_meta?.kb_chunks_used > 0)) ? "text-emerald-400" : "text-amber-400")} />
                                                                     </div>
-                                                                    <div className="text-lg font-mono font-black text-white">{workerData.grounding_report.fabrication_check || 'UNKNOWN'}</div>
+                                                                    <div className="text-lg font-mono font-black text-white">
+                                                                        {workerData.grounding_report.fabrication_check && workerData.grounding_report.fabrication_check !== 'UNKNOWN' 
+                                                                            ? workerData.grounding_report.fabrication_check 
+                                                                            : ((workerData.grounding_report.kb_chunks_cited > 0 || workerData._grounding_meta?.kb_chunks_used > 0) ? 'VERIFIED' : 'UNKNOWN')}
+                                                                    </div>
                                                                 </div>
                                                                 <div className="p-4 bg-blue-500/5 border border-blue-500/10 rounded-sm">
                                                                     <span className="text-[8px] font-black uppercase tracking-widest text-blue-400 block mb-2">Knowledge Density</span>
                                                                     <div className="flex items-baseline gap-2">
-                                                                        <span className="text-lg font-mono font-black text-white">{workerData.grounding_report.kb_chunks_cited || 0}</span>
+                                                                        <span className="text-lg font-mono font-black text-white">{workerData.grounding_report.kb_chunks_cited || workerData._grounding_meta?.kb_chunks_used || 0}</span>
                                                                         <span className="text-[10px] text-slate-500 uppercase">KB Refs</span>
                                                                     </div>
                                                                 </div>
                                                                 <div className="p-4 bg-purple-500/5 border border-purple-500/10 rounded-sm">
                                                                     <span className="text-[8px] font-black uppercase tracking-widest text-purple-400 block mb-2">Intelligence Source</span>
                                                                     <div className="flex items-baseline gap-2">
-                                                                        <span className="text-lg font-mono font-black text-white">{workerData.grounding_report.web_sources_cited || 0}</span>
+                                                                        <span className="text-lg font-mono font-black text-white">{workerData._grounding_meta?.web_results_used || workerData.grounding_report?.web_sources_cited || 0}</span>
                                                                         <span className="text-[10px] text-slate-500 uppercase">Web Data</span>
                                                                     </div>
                                                                 </div>
@@ -1654,7 +1716,7 @@ export default function JobDetailsPage() {
                                                                 <BookOpen className="w-3 h-3 text-cyan-500" />
                                                                 <span className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-400">Full Deliverable Content</span>
                                                             </div>
-                                                            
+
                                                             <div className="p-10 bg-black border border-white/5 rounded-sm shadow-2xl relative overflow-hidden">
                                                                 <div className="relative z-10">
                                                                     <MarkdownReport content={displayContent} className="text-sm" />

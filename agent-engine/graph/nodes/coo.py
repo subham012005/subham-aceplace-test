@@ -83,28 +83,43 @@ Avoid:
 
 ---
 
+### 🚦 INTENT TRIAGE & VALIDATION (CRITICAL)
+
+Before generating a plan, you MUST evaluate the user's prompt:
+
+1.  **Trivial/Greeting Check**: If the prompt is a simple greeting ("hi", "hello", "test"), a vague word, or lacks any strategic/technical depth, DO NOT generate a complex project plan. Do not hallucinate "protocols" for greetings. 
+    - **Action**: Provide a minimal, professional acknowledgment and ask for a specific strategic objective.
+2.  **Sanity Check**: If the prompt is a real task but lacks context, plan a "Discovery Phase" rather than a full system build.
+3.  **Hallucination Guardrail**: Never invent system requirements that aren't requested. If the user says "hi", they mean "hi", not "Build a Greeting Service".
+
+---
+
 ### 🛡️ OPERATIONAL PROTOCOL (ANTI-GENERIC ENFORCEMENT)
 
 **PRECISION**
 - Every claim must be grounded in:
   - Knowledge Base references ([KB-N])
-  - or Web Intelligence
+  - Web Intelligence
+  - OR High-Fidelity Strategic Synthesis (if external sources are unavailable)
 - If the KB contains technical specs, use the EXACT terminology.
 
 **TECHNICAL DECOMPOSITION**
-- Do NOT plan "research". Plan "extraction of architecture invariants and state machine transitions".
+- Do NOT plan "research". Plan "extraction of architecture invariants and state machine transitions" or "synthesis of first-principles technical specifications".
 - Do NOT plan "writing". Plan "synthesis of high-fidelity technical specifications and investor-grade defensibility analysis".
 
 **DEPTH**
 - Tasks must force deep technical decomposition (no surface summaries).
-- Explicitly demand that agents find non-obvious patterns within the Knowledge Base.
+- Even without a Knowledge Base, the plan must demand deep, specialized analysis from downstream agents (e.g., specific protocol analysis, schema design, or strategic moat evaluation).
+- **EXCEPTION**: If the input is trivial/a greeting, DO NOT apply "forced depth". Be concise and professional.
 
-**GROUNDING**
-- Use explicit identifiers, system components, or runtime primitives.
+**WEB INTELLIGENCE MANDATE**
+- You MUST explicitly command the Researcher agent to perform deep-dive web research for every non-trivial task.
+- Research assignments MUST specify targets for real-time web intelligence (e.g., market trends, technical state-of-the-art, competitor analysis).
+- Never assume the Knowledge Base is sufficient; always demand external validation via web research.
 
 **EXECUTION-AWARE DESIGN**
 - Each assignment must be convertible into a step inside an execution envelope.
-- Rationale must explain the technical necessity of each step.
+- Rationale must explain the technical necessity of each step, even in a synthesis-heavy mode.
 
 ---
 
@@ -136,9 +151,9 @@ Avoid:
     },
     {
       "agent_role": "researcher",
-      "task": "Conduct parallel market and competitor intelligence gathering focused on [Specific Market Angle]. Correlate web intelligence with KB-internal technical moats to identify non-obvious strategic advantages. Map external trends to specific ACEPLACE runtime primitives.",
-      "execution_notes": "Focus on strategic defensibility. How do ACEPLACE primitives (Leases, Envelopes) solve market-wide identity duplication or authority fragmentation issues?",
-      "success_criteria": "A cross-correlated research artifact that bridges technical architecture with strategic market positioning."
+      "task": "Execute a deep-dive web research mission and real-time intelligence gathering focused on [Specific Market Angle/Technical Domain]. You MUST correlate findings from global web sources [WEB-N] with internal Knowledge Base technical moats [KB-N] to identify non-obvious strategic advantages or architectural gaps. Map all external trends to specific ACEPLACE runtime primitives.",
+      "execution_notes": "Focus on strategic defensibility. How do ACEPLACE primitives (Leases, Envelopes) solve market-wide identity duplication or authority fragmentation issues? Use web search to validate these claims against current industry state-of-the-art.",
+      "success_criteria": "A cross-correlated research artifact that bridges technical architecture with globally-sourced web intelligence, containing at least 15+ high-fidelity findings."
     },
     {
       "agent_role": "worker",
@@ -267,12 +282,19 @@ def execute(ctx: dict) -> str:
 
         grounding_note = "\n".join(grounding_summary) if grounding_summary else "- Web Search: always on for deep research"
 
+        web_count = len(phase3['web_results'])
+        web_mandate = (
+            f"\n\nWEB SEARCH STATUS: {web_count} web results have been pre-fetched and are available below."
+            f"\nYou MUST include explicit web research missions in your researcher assignments that reference these results."
+            f"\nEnsure every researcher task explicitly requires [WEB-N] citations from the provided web context."
+        ) if web_count > 0 else "\n\nWEB SEARCH: Always enabled. Command researchers to perform deep web intelligence gathering."
+
         human_content = (
             f"Use this knowledge base:\n"
-            f"{{ {grounding_note}\n{instr_block}{kb_block}{web_block} }}\n\n"
+            f"{{ {grounding_note}{web_mandate}\n{instr_block}{kb_block}{web_block} }}\n\n"
             f"Then strategically answer the task:\n"
             f"{{ {prompt} }}\n\n"
-            f"Create the execution plan. Reference web search results and knowledge base in assignments."
+            f"Create the execution plan. You MUST include explicit deep-dive web research missions in the assignments for researchers."
         )
         messages = [
             SystemMessage(content=COO_SYSTEM_PROMPT),
