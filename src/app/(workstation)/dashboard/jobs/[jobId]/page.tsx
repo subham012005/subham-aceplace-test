@@ -596,7 +596,7 @@ export default function JobDetailsPage() {
                                         md += `* **Verdict:** ${finalGovStatus}\n`;
                                         const graderObj = evaluationContent || job?.runtime_context?.grading_result || job?.grading_result || job?.grader_params || job;
                                         const rationale = graderObj?.reason || graderObj?.reasoning || graderObj?.reasoning_summary || graderObj?.summary || graderObj?.grading_summary || graderObj?.feedback || "*No reasoning provided.*";
-                                        if (rationale) md += `* **Evaluation Reason:** ${typeof rationale === 'object' ? JSON.stringify(rationale) : rationale}\n`;
+                                        // if (rationale) md += `* **Evaluation Reason:** ${typeof rationale === 'object' ? JSON.stringify(rationale) : rationale}\n`;
                                         if (graderObj?.risk_flags && Array.isArray(graderObj.risk_flags) && graderObj.risk_flags.length > 0) {
                                             md += `* **Risk Flags:** ${graderObj.risk_flags.join(', ')}\n`;
                                         }
@@ -1689,8 +1689,8 @@ export default function JobDetailsPage() {
                                                                         <ShieldCheck className={cn("w-3 h-3", (workerData.grounding_report.fabrication_check === 'VERIFIED' || (!workerData.grounding_report.fabrication_check || workerData.grounding_report.fabrication_check === 'UNKNOWN') && (workerData.grounding_report.kb_chunks_cited > 0 || workerData._grounding_meta?.kb_chunks_used > 0)) ? "text-emerald-400" : "text-amber-400")} />
                                                                     </div>
                                                                     <div className="text-lg font-mono font-black text-white">
-                                                                        {workerData.grounding_report.fabrication_check && workerData.grounding_report.fabrication_check !== 'UNKNOWN' 
-                                                                            ? workerData.grounding_report.fabrication_check 
+                                                                        {workerData.grounding_report.fabrication_check && workerData.grounding_report.fabrication_check !== 'UNKNOWN'
+                                                                            ? workerData.grounding_report.fabrication_check
                                                                             : ((workerData.grounding_report.kb_chunks_cited > 0 || workerData._grounding_meta?.kb_chunks_used > 0) ? 'VERIFIED' : 'UNKNOWN')}
                                                                     </div>
                                                                 </div>
