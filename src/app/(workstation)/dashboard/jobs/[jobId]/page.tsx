@@ -559,96 +559,6 @@ export default function JobDetailsPage() {
                             >
                                 <RefreshCcw className={cn("w-5 h-5 group-hover:rotate-180 transition-transform duration-500", jobLoading && "animate-spin")} />
                             </button>
-                            <button
-                                onClick={() => {
-                                    const artifact = artifacts.find(a => ['deliverable', 'artifact_produce', 'produce_artifact', 'report', 'final', 'worker_result', 'worker'].includes(a.artifact_type || ''));
-                                    const result = job?.runtime_context?.worker_result || job?.runtime_context?.final_result || job?.artifact || extractOutputData(job);
-                                    const rawContent = artifact?.artifact_content || result;
-
-                                    // Resolve provider/model with broad fallback chain
-                                    const resolvedProvider = (job as any)?.neural_provider || (job as any)?.model_provider || (job as any)?.provider || (envelope as any)?.neural_provider || (envelope as any)?.provider || 'N/A';
-                                    const resolvedModel = (job as any)?.model_used || (job as any)?.model || (job as any)?.llm_model || (envelope as any)?.model_used || (envelope as any)?.model || 'N/A';
-
-                                    let md = `# Intelligence Report(PRO): ${job?.job_id || jobId}\n\n`;
-                                    md += `## Audit Metadata\n\n`;
-                                    md += `* **Job ID:** ${job?.job_id || jobId}\n`;
-                                    md += `* **Envelope ID:** ${envelope?.envelope_id || job?.envelope_id || 'N/A'}\n`;
-                                    md += `* **Status:** ${derivedStatus?.toUpperCase() || 'UNKNOWN'}\n`;
-                                    // md += `* **Neural Provider:** ${resolvedProvider.toUpperCase()}\n`;
-                                    // md += `* **Compute Model:** ${resolvedModel}\n`;
-                                    md += `* **Compute Cost:** $${Number((typeof job?.token_usage === 'object' ? job?.token_usage?.cost : null) ?? job?.cost ?? 0).toFixed(6)}\n`;
-                                    md += `* **Token Usage:** ${Number(typeof job?.token_usage === 'object' ? job?.token_usage?.total_tokens ?? 0 : job?.token_usage ?? 0).toLocaleString()}\n`;
-                                    md += `* **Generated At:** ${new Date().toLocaleString()}\n\n`;
-
-                                    if (job?.prompt) {
-                                        md += `## Strategic Intent\n\n`;
-                                        md += `> ${job.prompt}\n\n`;
-                                    }
-
-                                    if (job?.runtime_context?.plan) {
-                                        md += `## Strategic Plan\n\n`;
-                                        md += `${typeof job.runtime_context.plan === 'string' ? job.runtime_context.plan : JSON.stringify(job.runtime_context.plan, null, 2)}\n\n`;
-                                    }
-
-                                    if (governanceScore > 0 || evaluationContent) {
-                                        md += `## Governance Grading\n\n`;
-                                        md += `* **Score:** ${governanceScore.toFixed(1)}/10\n`;
-                                        md += `* **Verdict:** ${finalGovStatus}\n`;
-                                        const graderObj = evaluationContent || job?.runtime_context?.grading_result || job?.grading_result || job?.grader_params || job;
-                                        const rationale = graderObj?.reason || graderObj?.reasoning || graderObj?.reasoning_summary || graderObj?.summary || graderObj?.grading_summary || graderObj?.feedback || "*No reasoning provided.*";
-                                        // if (rationale) md += `* **Evaluation Reason:** ${typeof rationale === 'object' ? JSON.stringify(rationale) : rationale}\n`;
-                                        if (graderObj?.risk_flags && Array.isArray(graderObj.risk_flags) && graderObj.risk_flags.length > 0) {
-                                            md += `* **Risk Flags:** ${graderObj.risk_flags.join(', ')}\n`;
-                                        }
-                                        md += `\n`;
-                                    }
-
-                                    let workerData: any = rawContent;
-                                    if (typeof rawContent === 'string' && rawContent.trim().startsWith('{')) {
-                                        try { workerData = JSON.parse(rawContent.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/i, '').trim()); } catch (e) { }
-                                    }
-
-                                    if (workerData?.grounding_report) {
-                                        const gr = workerData.grounding_report;
-                                        md += `## Grounding & Verification\n\n`;
-                                        md += `* **Fabrication Check:** ${gr.fabrication_check || 'UNKNOWN'}\n`;
-                                        md += `* **Knowledge Density:** ${gr.kb_chunks_cited || workerData._grounding_meta?.kb_chunks_used || 0} Knowledge References\n`;
-                                        md += `* **Web Intelligence:** ${workerData._grounding_meta?.web_results_used || gr.web_sources_cited || 0} Web Sources\n\n`;
-                                    }
-
-                                    md += `## Final Deliverable Content\n\n`;
-                                    const formattedContent = formatOutputToMarkdown(rawContent);
-                                    md += formattedContent ? formattedContent : "*No deliverable content was generated for this job.*";
-                                    md += `\n\n`;
-
-                                    if (workerData?.key_conclusions && Array.isArray(workerData.key_conclusions) && workerData.key_conclusions.length > 0) {
-                                        md += `## Strategic Findings\n\n`;
-                                        workerData.key_conclusions.forEach((c: any, i: number) => {
-                                            const conclusion = c.conclusion || (typeof c === 'string' ? c : '');
-                                            md += `### Finding ${i + 1}: ${conclusion}\n\n`;
-                                            if (c.evidence) md += `* **Evidence:** ${c.evidence}\n`;
-                                            if (c.recommendation) md += `* **Recommendation:** ${c.recommendation}\n`;
-                                            md += `\n`;
-                                        });
-                                    }
-
-                                    if (workerData?.source_references && Array.isArray(workerData.source_references) && workerData.source_references.length > 0) {
-                                        md += `## Source Provenance\n\n`;
-                                        workerData.source_references.forEach((ref: any) => {
-                                            md += `* **[${ref.ref_id}] ${ref.title}** - ${ref.usage}\n`;
-                                        });
-                                        md += `\n`;
-                                    }
-
-                                    exportToPDF(md, `job-${job?.job_id || jobId}-full-report.pdf`);
-                                }}
-                                disabled={actionLoading || !['grading', 'graded', 'awaiting_approval', 'approved', 'completed'].includes(derivedStatus?.toLowerCase())}
-                                className="px-4 py-2 glass border border-white/10 text-cyan-400 font-bold uppercase tracking-widest text-[10px] hover:bg-cyan-500/10 hover:border-cyan-500/30 transition-all cursor-target flex items-center justify-center gap-2 group disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:text-slate-500"
-                                title="Save PDF"
-                            >
-                                <Download className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                                Save PDF
-                            </button>
 
                             {(() => {
                                 const status = String(job?.status || "").toLowerCase();
@@ -1829,6 +1739,98 @@ export default function JobDetailsPage() {
                                                                 <MarkdownReport content={typeof rawContent === 'string' ? rawContent : JSON.stringify(rawContent, null, 2)} className="text-sm opacity-80" />
                                                             </div>
                                                         )}
+                                                        <div className="flex justify-center pt-8">
+                                                            <button
+                                                                onClick={() => {
+                                                                    const artifact = artifacts.find(a => ['deliverable', 'artifact_produce', 'produce_artifact', 'report', 'final', 'worker_result', 'worker'].includes(a.artifact_type || ''));
+                                                                    const result = job?.runtime_context?.worker_result || job?.runtime_context?.final_result || job?.artifact || extractOutputData(job);
+                                                                    const rawContent = artifact?.artifact_content || result;
+
+                                                                    // Resolve provider/model with broad fallback chain
+                                                                    const resolvedProvider = (job as any)?.neural_provider || (job as any)?.model_provider || (job as any)?.provider || (envelope as any)?.neural_provider || (envelope as any)?.provider || 'N/A';
+                                                                    const resolvedModel = (job as any)?.model_used || (job as any)?.model || (job as any)?.llm_model || (envelope as any)?.model_used || (envelope as any)?.model || 'N/A';
+
+                                                                    let md = `# Intelligence Report(PRO): ${job?.job_id || jobId}\n\n`;
+                                                                    md += `## Audit Metadata\n\n`;
+                                                                    md += `* **Job ID:** ${job?.job_id || jobId}\n`;
+                                                                    md += `* **Envelope ID:** ${envelope?.envelope_id || job?.envelope_id || 'N/A'}\n`;
+                                                                    md += `* **Status:** ${derivedStatus?.toUpperCase() || 'UNKNOWN'}\n`;
+                                                                    // md += `* **Neural Provider:** ${resolvedProvider.toUpperCase()}\n`;
+                                                                    // md += `* **Compute Model:** ${resolvedModel}\n`;
+                                                                    md += `* **Compute Cost:** $${Number((typeof job?.token_usage === 'object' ? job?.token_usage?.cost : null) ?? job?.cost ?? 0).toFixed(6)}\n`;
+                                                                    md += `* **Token Usage:** ${Number(typeof job?.token_usage === 'object' ? job?.token_usage?.total_tokens ?? 0 : job?.token_usage ?? 0).toLocaleString()}\n`;
+                                                                    md += `* **Generated At:** ${new Date().toLocaleString()}\n\n`;
+
+                                                                    if (job?.prompt) {
+                                                                        md += `## Strategic Intent\n\n`;
+                                                                        md += `> ${job.prompt}\n\n`;
+                                                                    }
+
+                                                                    if (job?.runtime_context?.plan) {
+                                                                        md += `## Strategic Plan\n\n`;
+                                                                        md += `${typeof job.runtime_context.plan === 'string' ? job.runtime_context.plan : JSON.stringify(job.runtime_context.plan, null, 2)}\n\n`;
+                                                                    }
+
+                                                                    if (governanceScore > 0 || evaluationContent) {
+                                                                        md += `## Governance Grading\n\n`;
+                                                                        md += `* **Score:** ${governanceScore.toFixed(1)}/10\n`;
+                                                                        md += `* **Verdict:** ${finalGovStatus}\n`;
+                                                                        const graderObj = evaluationContent || job?.runtime_context?.grading_result || job?.grading_result || job?.grader_params || job;
+                                                                        const rationale = graderObj?.reason || graderObj?.reasoning || graderObj?.reasoning_summary || graderObj?.summary || graderObj?.grading_summary || graderObj?.feedback || "*No reasoning provided.*";
+                                                                        // if (rationale) md += `* **Evaluation Reason:** ${typeof rationale === 'object' ? JSON.stringify(rationale) : rationale}\n`;
+                                                                        if (graderObj?.risk_flags && Array.isArray(graderObj.risk_flags) && graderObj.risk_flags.length > 0) {
+                                                                            md += `* **Risk Flags:** ${graderObj.risk_flags.join(', ')}\n`;
+                                                                        }
+                                                                        md += `\n`;
+                                                                    }
+
+                                                                    let workerData: any = rawContent;
+                                                                    if (typeof rawContent === 'string' && rawContent.trim().startsWith('{')) {
+                                                                        try { workerData = JSON.parse(rawContent.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/i, '').trim()); } catch (e) { }
+                                                                    }
+
+                                                                    if (workerData?.grounding_report) {
+                                                                        const gr = workerData.grounding_report;
+                                                                        md += `## Grounding & Verification\n\n`;
+                                                                        md += `* **Fabrication Check:** ${gr.fabrication_check || 'UNKNOWN'}\n`;
+                                                                        md += `* **Knowledge Density:** ${gr.kb_chunks_cited || workerData._grounding_meta?.kb_chunks_used || 0} Knowledge References\n`;
+                                                                        md += `* **Web Intelligence:** ${workerData._grounding_meta?.web_results_used || gr.web_sources_cited || 0} Web Sources\n\n`;
+                                                                    }
+
+                                                                    md += `## Final Deliverable Content\n\n`;
+                                                                    const formattedContent = formatOutputToMarkdown(rawContent);
+                                                                    md += formattedContent ? formattedContent : "*No deliverable content was generated for this job.*";
+                                                                    md += `\n\n`;
+
+                                                                    if (workerData?.key_conclusions && Array.isArray(workerData.key_conclusions) && workerData.key_conclusions.length > 0) {
+                                                                        md += `## Strategic Findings\n\n`;
+                                                                        workerData.key_conclusions.forEach((c: any, i: number) => {
+                                                                            const conclusion = c.conclusion || (typeof c === 'string' ? c : '');
+                                                                            md += `### Finding ${i + 1}: ${conclusion}\n\n`;
+                                                                            if (c.evidence) md += `* **Evidence:** ${c.evidence}\n`;
+                                                                            if (c.recommendation) md += `* **Recommendation:** ${c.recommendation}\n`;
+                                                                            md += `\n`;
+                                                                        });
+                                                                    }
+
+                                                                    if (workerData?.source_references && Array.isArray(workerData.source_references) && workerData.source_references.length > 0) {
+                                                                        md += `## Source Provenance\n\n`;
+                                                                        workerData.source_references.forEach((ref: any) => {
+                                                                            md += `* **[${ref.ref_id}] ${ref.title}** - ${ref.usage}\n`;
+                                                                        });
+                                                                        md += `\n`;
+                                                                    }
+
+                                                                    exportToPDF(md, `job-${job?.job_id || jobId}-full-report.pdf`);
+                                                                }}
+                                                                disabled={actionLoading || !['grading', 'graded', 'awaiting_approval', 'approved', 'completed'].includes(derivedStatus?.toLowerCase())}
+                                                                className="px-8 py-4 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 font-black uppercase tracking-[0.2em] text-xs hover:bg-cyan-500/20 hover:border-cyan-500 transition-all cursor-target flex items-center justify-center gap-3 group disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent shadow-[0_0_30px_rgba(6,182,212,0.1)] scifi-clip"
+                                                                title="Save PDF"
+                                                            >
+                                                                <Download className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                                                                Save PDF Report
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 );
                                             })()}
