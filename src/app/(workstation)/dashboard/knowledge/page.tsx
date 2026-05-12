@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import { KnowledgeBasePanel, type KBCollection, type InstructionProfile, type KnowledgeSnippet } from "@/components/KnowledgeBasePanel";
-import { 
-    Database, Brain, Sparkles, Shield, Cpu, 
-    Layers, Activity, Info, Zap, Book, 
+import {
+    Database, Brain, Sparkles, Shield, Cpu,
+    Layers, Activity, Info, Zap, Book,
     FileText, Search, PlusCircle, LayoutGrid
 } from "lucide-react";
 import { aceApi } from "@/lib/api-client";
@@ -60,7 +60,7 @@ export default function KnowledgePage() {
             </div>
 
             <div className="relative z-10 p-6 lg:p-10 space-y-8 max-w-[1600px] mx-auto w-full animate-in fade-in slide-in-from-bottom-4 duration-700">
-                
+
                 {/* Header Area */}
                 <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 pb-8 border-b border-white/5">
                     <div className="space-y-4">
@@ -71,14 +71,14 @@ export default function KnowledgePage() {
                             <div className="h-px w-12 bg-gradient-to-r from-cyan-500/50 to-transparent" />
                             <span className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-500/70">Intelligence Core</span>
                         </div>
-                        
+
                         <div className="space-y-2">
                             <h1 className="text-4xl lg:text-5xl font-black text-white uppercase italic tracking-tighter flex items-baseline gap-4">
                                 Knowledge Base
                                 <span className="text-sm font-mono not-italic text-slate-500 tracking-normal bg-white/5 px-2 py-0.5 rounded border border-white/5">SYSTEM_01</span>
                             </h1>
                             <p className="text-slate-400 text-sm font-medium max-w-2xl leading-relaxed">
-                                Deploy advanced grounding contexts for your autonomous agents. Manage technical documentation, 
+                                Deploy advanced grounding contexts for your autonomous agents. Manage technical documentation,
                                 behavioral protocols, and real-time knowledge injections within the ACEPLACE environment.
                             </p>
                         </div>
@@ -88,9 +88,9 @@ export default function KnowledgePage() {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 min-w-[320px]">
                         {[
                             { label: "Collections", value: stats.totalCollections, icon: Layers, color: "text-cyan-400" },
-                            { label: "Data Chunks", value: stats.totalChunks, icon: Cpu, color: "text-purple-400" },
-                            { label: "Profiles", value: stats.totalProfiles, icon: Book, color: "text-amber-400" },
-                            { label: "Snippets", value: stats.totalSnippets, icon: Activity, color: "text-emerald-400" }
+                            { label: "Data Indexed Context Units", value: stats.totalChunks, icon: Cpu, color: "text-purple-400" },
+                            { label: "Instruction Profiles", value: stats.totalProfiles, icon: Book, color: "text-amber-400" },
+                            { label: "Context Blocks", value: stats.totalSnippets, icon: Activity, color: "text-emerald-400" }
                         ].map((stat, i) => (
                             <div key={i} className="bg-white/[0.02] border border-white/5 p-3 rounded-lg backdrop-blur-sm group hover:border-white/10 transition-colors">
                                 <div className="flex items-center gap-2 mb-1">
@@ -107,58 +107,58 @@ export default function KnowledgePage() {
 
                 {/* Main Content Layout */}
                 <div className="w-full space-y-6">
-                        <div className="relative group/panel">
-                            {/* Animated Border Effect */}
-                            <div className="absolute -inset-[1px] bg-gradient-to-r from-cyan-500/20 via-purple-500/20 to-cyan-500/20 rounded-2xl opacity-50 blur-[2px] group-hover/panel:opacity-100 transition-opacity duration-1000" />
-                            
-                            <div className="relative bg-[#020617]/80 backdrop-blur-3xl border border-white/10 rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)]">
-                                <div className="h-1 bg-gradient-to-r from-cyan-500/40 via-purple-500/40 to-cyan-500/40" />
-                                
-                                <div className="p-1 lg:p-4">
-                                    <div className="flex items-center justify-between p-4 lg:px-8 lg:pt-6">
-                                        <div className="flex items-center gap-4">
-                                            <div className="p-3 bg-white/5 rounded-xl border border-white/10">
-                                                <LayoutGrid className="w-5 h-5 text-slate-400" />
-                                            </div>
-                                            <div>
-                                                <h2 className="text-xl font-black text-white uppercase italic tracking-tight">Configuration Matrix</h2>
-                                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Matrix_ID: ACE-KM-99</p>
-                                            </div>
+                    <div className="relative group/panel">
+                        {/* Animated Border Effect */}
+                        <div className="absolute -inset-[1px] bg-gradient-to-r from-cyan-500/20 via-purple-500/20 to-cyan-500/20 rounded-2xl opacity-50 blur-[2px] group-hover/panel:opacity-100 transition-opacity duration-1000" />
+
+                        <div className="relative bg-[#020617]/80 backdrop-blur-3xl border border-white/10 rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)]">
+                            <div className="h-1 bg-gradient-to-r from-cyan-500/40 via-purple-500/40 to-cyan-500/40" />
+
+                            <div className="p-1 lg:p-4">
+                                <div className="flex items-center justify-between p-4 lg:px-8 lg:pt-6">
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-3 bg-white/5 rounded-xl border border-white/10">
+                                            <LayoutGrid className="w-5 h-5 text-slate-400" />
                                         </div>
-
+                                        <div>
+                                            <h2 className="text-xl font-black text-white uppercase italic tracking-tight">Configuration Matrix</h2>
+                                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Matrix_ID: ACE-KM-99</p>
+                                        </div>
                                     </div>
 
-                                    <div className="p-4 lg:p-8 pt-2">
-                                        <KnowledgeBasePanel className="max-w-none border-none bg-transparent" />
-                                    </div>
+                                </div>
+
+                                <div className="p-4 lg:p-8 pt-2">
+                                    <KnowledgeBasePanel className="max-w-none border-none bg-transparent" />
                                 </div>
                             </div>
                         </div>
+                    </div>
 
-                        {/* Status Footer */}
-                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 bg-white/[0.02] border border-white/5 rounded-xl">
-                            <div className="flex items-center gap-4">
-                                <div className="flex -space-x-2">
-                                    {[1, 2, 3].map(i => (
-                                        <div key={i} className="w-6 h-6 rounded-full border border-[#020617] bg-slate-800 flex items-center justify-center">
-                                            <Info className="w-3 h-3 text-slate-400" />
-                                        </div>
-                                    ))}
-                                </div>
-                                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">3 active system monitors linked to this matrix</span>
+                    {/* Status Footer */}
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 bg-white/[0.02] border border-white/5 rounded-xl">
+                        <div className="flex items-center gap-4">
+                            <div className="flex -space-x-2">
+                                {[1, 2, 3].map(i => (
+                                    <div key={i} className="w-6 h-6 rounded-full border border-[#020617] bg-slate-800 flex items-center justify-center">
+                                        <Info className="w-3 h-3 text-slate-400" />
+                                    </div>
+                                ))}
                             </div>
-                            <div className="flex items-center gap-6">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                    <span className="text-[9px] font-black text-white uppercase">Cloud Sync: Active</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-500" />
-                                    <span className="text-[9px] font-black text-white uppercase">Local DB: 98% Optimal</span>
-                                </div>
+                            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">3 active system monitors linked to this matrix</span>
+                        </div>
+                        <div className="flex items-center gap-6">
+                            <div className="flex items-center gap-2">
+                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                <span className="text-[9px] font-black text-white uppercase">Cloud Sync: Active</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-1.5 h-1.5 rounded-full bg-cyan-500" />
+                                <span className="text-[9px] font-black text-white uppercase">Local DB: 98% Optimal</span>
+                            </div>
                         </div>
                     </div>
-                    </div>
+                </div>
             </div>
         </div>
     );
