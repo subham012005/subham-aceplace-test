@@ -1608,7 +1608,7 @@ export default function JobDetailsPage() {
                                                                     <span className="text-[8px] font-black uppercase tracking-widest text-blue-400 block mb-2">Knowledge Density</span>
                                                                     <div className="flex items-baseline gap-2">
                                                                         <span className="text-lg font-mono font-black text-white">{workerData.grounding_report.kb_chunks_cited || workerData._grounding_meta?.kb_chunks_used || 0}</span>
-                                                                        <span className="text-[10px] text-slate-500 uppercase">KB Refs</span>
+                                                                        <span className="text-[10px] text-slate-500 uppercase">Context Units</span>
                                                                     </div>
                                                                 </div>
                                                                 <div className="p-4 bg-purple-500/5 border border-purple-500/10 rounded-sm">
@@ -1793,7 +1793,7 @@ export default function JobDetailsPage() {
                                                                         const gr = workerData.grounding_report;
                                                                         md += `## Grounding & Verification\n\n`;
                                                                         md += `* **Fabrication Check:** ${gr.fabrication_check || 'UNKNOWN'}\n`;
-                                                                        md += `* **Knowledge Density:** ${gr.kb_chunks_cited || workerData._grounding_meta?.kb_chunks_used || 0} Knowledge References\n`;
+                                                                        md += `* **Knowledge Density:** ${gr.kb_chunks_cited || workerData._grounding_meta?.kb_chunks_used || 0} Indexed Context Units\n`;
                                                                         md += `* **Web Intelligence:** ${workerData._grounding_meta?.web_results_used || gr.web_sources_cited || 0} Web Sources\n\n`;
                                                                     }
 

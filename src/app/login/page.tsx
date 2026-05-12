@@ -163,7 +163,7 @@ export default function LoginPage() {
                 {/* Footer security badge */}
                 <div className="mt-8 flex items-center justify-center gap-2 opacity-30 group hover:opacity-100 transition-opacity">
                     <ShieldCheck className="w-3 h-3 text-cyan-500" />
-                    <span className="text-[8px] font-black tracking-[0.3em] uppercase">AES-256 Quantum Encrypted Session</span>
+                    <span className="text-[8px] font-black tracking-[0.3em] uppercase">AES-256 Encrypted Session • Identity-Bound Execution Security (ACELOGIC)</span>
                 </div>
             </div>
         </div>

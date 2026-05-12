@@ -219,7 +219,7 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
                                     🌐 Web Search
                                     {phase3Ctx.direct_text?.trim() && ` · ⚡ Direct Knowledge`}
                                     {phase3Ctx.knowledge_collections.length > 0 && ` · 📚 ${phase3Ctx.knowledge_collections.length} Document${phase3Ctx.knowledge_collections.length > 1 ? "s" : ""}`}
-                                    {phase3Ctx.instruction_profiles.length > 0 && ` · 📋 ${phase3Ctx.instruction_profiles.length} instruction${phase3Ctx.instruction_profiles.length > 1 ? "s" : ""}`}
+                                    {phase3Ctx.instruction_profiles.length > 0 && ` · 📋 ${phase3Ctx.instruction_profiles.length} Instruction Profile${phase3Ctx.instruction_profiles.length > 1 ? "s" : ""}`}
                                 </span>
                                 <button 
                                     type="button"
@@ -315,7 +315,7 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
                         </div>
                         <div>
                             <p className="text-[10px] font-black text-white uppercase tracking-widest">Enhance Agent Precision</p>
-                            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-tighter">Click to attach knowledge collections or instruction profiles</p>
+                            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-tighter">Click to attach knowledge collections or Instruction Profiles</p>
                         </div>
                         <Send className="ml-auto w-3 h-3 text-slate-700 group-hover:text-cyan-500 transition-all rotate-45" />
                     </div>

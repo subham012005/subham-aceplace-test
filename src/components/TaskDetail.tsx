@@ -761,7 +761,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                                 const gr = workerData.grounding_report;
                                                 md += `## Grounding & Verification\n\n`;
                                                 md += `* **Fabrication Check**: ${gr.fabrication_check && gr.fabrication_check !== 'UNKNOWN' ? gr.fabrication_check : ((gr.kb_chunks_cited > 0 || workerData._grounding_meta?.kb_chunks_used > 0) ? 'VERIFIED' : 'UNKNOWN')}\n`;
-                                                md += `* **Knowledge Density**: ${gr.kb_chunks_cited || workerData._grounding_meta?.kb_chunks_used || 0} Knowledge References\n`;
+                                                md += `* **Knowledge Density**: ${gr.kb_chunks_cited || workerData._grounding_meta?.kb_chunks_used || 0} Indexed Context Units\n`;
                                                 md += `* **Web Intelligence**: ${workerData._grounding_meta?.web_results_used || gr.web_sources_cited || 0} Web Sources\n\n`;
                                             }
 
@@ -939,7 +939,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
 
                                                 <div className="flex justify-between items-center pt-1 border-t border-white/5">
                                                     <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Total Grounding Data</span>
-                                                    <span className="text-[9px] text-cyan-400 font-mono">{envelope.knowledge_context.chunks_used || 0} Segmented Chunks</span>
+                                                    <span className="text-[9px] text-cyan-400 font-mono">{envelope.knowledge_context.chunks_used || 0} Indexed Context Units</span>
                                                 </div>
                                             </div>
                                         )}
@@ -976,7 +976,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                     <div className="space-y-2 pt-2 border-t border-white/5">
                                         <div className="flex items-center justify-between">
                                             <span className="text-[8px] uppercase font-black tracking-widest text-slate-500 flex items-center gap-1">
-                                                <ShieldCheckIcon className="w-2 h-2 text-cyan-500" /> Custom Protocols
+                                                <ShieldCheckIcon className="w-2 h-2 text-cyan-500" /> Instruction Profiles
                                             </span>
                                             <span className={cn(
                                                 "text-[8px] font-black px-2 py-0.5 border scifi-clip",
