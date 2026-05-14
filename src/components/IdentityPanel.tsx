@@ -5,13 +5,14 @@
  * T-028 | Sprint 5
  */
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Fingerprint, ShieldCheck, ShieldAlert, Globe } from "lucide-react";
 import { HUDFrame } from "./HUDFrame";
 import { cn } from "@/lib/utils";
 import { useIdentity } from "@/hooks/useIdentity";
 import { TIER_DEFINITIONS } from "@aceplace/runtime-core/shared";
 import type { LicenseTier } from "@aceplace/runtime-core/shared";
+import { aceApi } from "@/lib/api-client";
 
 interface IdentityPanelProps {
   agentId: string;
@@ -19,6 +20,17 @@ interface IdentityPanelProps {
 
 export function IdentityPanel({ agentId }: IdentityPanelProps) {
   const { identity, loading } = useIdentity(agentId);
+  const [config, setConfig] = useState<any>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    aceApi.getIntelligenceConfig().then(data => {
+      if (isMounted && data) {
+        setConfig(data);
+      }
+    }).catch(err => console.error("[IdentityPanel] Failed to load config:", err));
+    return () => { isMounted = false; };
+  }, []);
 
   if (loading) {
     return (
@@ -49,6 +61,28 @@ export function IdentityPanel({ agentId }: IdentityPanelProps) {
   const normalizedFp = identity.fingerprint
     ? "0x" + identity.fingerprint.replace(/^hex:0x|^0x|^hex:/i, "")
     : null;
+
+  let displayMission = identity.mission;
+  if (displayMission && config && identity.agent_id) {
+    const roleMatch = identity.agent_id.match(/agent_(.+)/);
+    if (roleMatch) {
+      const role = roleMatch[1];
+      if (config.agent_models && config.agent_models[role]) {
+        const providerKey = config.agent_models[role];
+        const providerConfig = config.providers?.[providerKey];
+        if (providerConfig && providerConfig.model) {
+          const modelName = providerConfig.model;
+          if (displayMission.includes("using claude-sonnet")) {
+            displayMission = displayMission.replace("using claude-sonnet", `using ${modelName}`);
+          } else if (displayMission.endsWith('.')) {
+            displayMission = `${displayMission.slice(0, -1)} using ${modelName}.`;
+          } else {
+            displayMission = `${displayMission} using ${modelName}.`;
+          }
+        }
+      }
+    }
+  }
 
   return (
     <HUDFrame title="Agent Identity" variant="dark">
@@ -103,11 +137,11 @@ export function IdentityPanel({ agentId }: IdentityPanelProps) {
         </div>
 
         {/* Mission */}
-        {identity.mission && (
+        {displayMission && (
           <div className="space-y-1">
             <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">Mission</span>
             <p className="text-[11px] text-slate-400 italic leading-relaxed border-l-2 border-purple-500/30 pl-3">
-              {identity.mission}
+              {displayMission}
             </p>
           </div>
         )}
