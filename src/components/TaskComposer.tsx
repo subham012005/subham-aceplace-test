@@ -148,18 +148,18 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
                         <div className="flex items-center gap-4">
                             <div className="flex items-center gap-2">
                                 <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse shadow-[0_0_8px_#06b6d4]" />
-                                <span className="text-[9px] font-black text-white tracking-widest uppercase italic">Link: Synced</span>
+                                <span className="text-[10px] font-black text-white tracking-widest uppercase italic">Link: Synced</span>
                             </div>
                             <div className="h-3 w-[1px] bg-white/10" />
-                            <span className="text-[8px] font-bold text-slate-500 tracking-widest uppercase">Latency: 24ms</span>
+                            <span className="text-[10px] font-bold text-slate-500 tracking-widest uppercase">Latency: 24ms</span>
                         </div>
                         <div className="flex items-center gap-4">
                             <div className="flex items-center gap-2">
-                                <span className="text-[8px] font-bold text-cyan-500/60 tracking-widest uppercase">Encryption:</span>
-                                <span className="text-[9px] font-black text-cyan-400 tracking-tighter">RSA_OMEGA_4096</span>
+                                <span className="text-[10px] font-bold text-cyan-500/60 tracking-widest uppercase">Encryption:</span>
+                                <span className="text-[10px] font-black text-cyan-400 tracking-tighter">RSA_OMEGA_4096</span>
                             </div>
                             <div className="h-3 w-[1px] bg-white/10" />
-                            <span className="text-[8px] font-bold tracking-widest uppercase text-amber-400">
+                            <span className="text-[10px] font-bold tracking-widest uppercase text-amber-400">
                                 Deterministic Runtime ON
                             </span>
                         </div>
@@ -168,12 +168,12 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
                     <div className="space-y-6 py-2">
                         <div className="space-y-3">
                             <div className="flex items-center justify-between ml-1">
-                                <label className="text-[9px] uppercase font-black tracking-[0.2em] text-cyan-500/70 flex items-center gap-2">
+                                <label className="text-[10px] uppercase font-black tracking-[0.2em] text-cyan-500/70 flex items-center gap-2">
                                     <Terminal className="w-3 h-3" />
                                     Direct Command Sequence
                                 </label>
                                 <div className="flex items-center gap-3">
-                                    <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Buffer Status</span>
+                                    <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Buffer Status</span>
                                     <div className="w-24 h-1 bg-white/5 border border-white/5 rounded-full overflow-hidden">
                                         <div
                                             className={cn(
@@ -199,7 +199,7 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
                                     <div className="w-1 h-3 bg-cyan-500/50" />
                                     <div className="w-1 h-3 bg-cyan-500/20" />
                                 </div>
-                                <div className="absolute bottom-4 right-4 text-[8px] font-mono text-cyan-500/20 pointer-events-none select-none">
+                                <div className="absolute bottom-4 right-4 text-[10px] font-mono text-cyan-500/20 pointer-events-none select-none">
                                     CMD_ID: {Math.random().toString(16).slice(2, 10).toUpperCase()}
                                 </div>
                             </div>
@@ -207,11 +207,11 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
 
                         {/* Phase 3 context summary badge */}
                         {(phase3Ctx.knowledge_collections.length > 0 || phase3Ctx.instruction_profiles.length > 0 || !!phase3Ctx.direct_text?.trim()) && (
-                            <div className="flex items-center gap-3 px-3 py-2 bg-cyan-500/5 border border-cyan-500/20 text-[9px]">
+                            <div className="flex items-center gap-3 px-3 py-2 bg-cyan-500/5 border border-cyan-500/20 text-[10px]">
                                 <Zap className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
                                 <span className="text-cyan-400 font-bold flex items-center gap-2">
                                     Grounding active
-                                    <span className="px-1.5 py-0.5 bg-cyan-500/20 rounded text-[7px] text-cyan-400 border border-cyan-500/30 font-black">
+                                    <span className="px-1.5 py-0.5 bg-cyan-500/20 rounded text-[10px] text-cyan-400 border border-cyan-500/30 font-black">
                                         {phase3Ctx.knowledge_collections.length} DOCS SELECTED
                                     </span>
                                 </span>
@@ -224,7 +224,7 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
                                 <button 
                                     type="button"
                                     onClick={() => router.push("/dashboard/knowledge")}
-                                    className="ml-auto text-[8px] font-black text-cyan-500 hover:text-cyan-400 uppercase tracking-widest border-b border-cyan-500/30 transition-colors"
+                                    className="ml-auto text-[10px] font-black text-cyan-500 hover:text-cyan-400 uppercase tracking-widest border-b border-cyan-500/30 transition-colors"
                                 >
                                     Manage
                                 </button>
@@ -234,7 +234,7 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
                         {error && (
                             <div className="flex items-center gap-4 p-4 bg-rose-500/10 border border-rose-500/20 scifi-clip animate-in fade-in slide-in-from-top-2">
                                 <AlertCircle className="w-5 h-5 text-rose-500 shrink-0" />
-                                <p className="text-[9px] text-rose-400 uppercase leading-relaxed font-black tracking-wider">
+                                <p className="text-[10px] text-rose-400 uppercase leading-relaxed font-black tracking-wider">
                                     DISPATCH FAILURE: {error}
                                 </p>
                             </div>
@@ -244,7 +244,7 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
                             <div className="absolute inset-x-0 bottom-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
                             <Zap className="w-5 h-5 text-cyan-500 shrink-0 animate-pulse mt-0.5" />
                             <div>
-                                <p className="text-[9px] text-slate-400 uppercase leading-relaxed font-bold tracking-tight">
+                                <p className="text-[10px] text-slate-400 uppercase leading-relaxed font-bold tracking-tight">
                                     <span className="text-cyan-500 font-black">Strategic Guidance:</span> Parameters are non-blocking. The COO will orchestrate Researcher and Worker agents autonomously after deployment.
                                 </p>
                             </div>
@@ -296,7 +296,7 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
                                         />
                                     ))}
                                 </div>
-                                <span className="text-[7px] font-black text-slate-600 uppercase tracking-widest">Deploy readiness: {task.trim() ? "READY" : "STANDBY"}</span>
+                                <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Deploy readiness: {task.trim() ? "READY" : "STANDBY"}</span>
                             </div>
                         </div>
                     </div>
@@ -314,8 +314,8 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
                             <Zap className="w-4 h-4 text-cyan-500" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-black text-white uppercase tracking-widest">Enhance Agent Precision</p>
-                            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-tighter">Click to attach knowledge collections or Instruction Profiles</p>
+                            <p className="text-[11px] font-black text-white uppercase tracking-widest">Enhance Agent Precision</p>
+                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">Click to attach knowledge collections or Instruction Profiles</p>
                         </div>
                         <Send className="ml-auto w-3 h-3 text-slate-700 group-hover:text-cyan-500 transition-all rotate-45" />
                     </div>

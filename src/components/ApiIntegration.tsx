@@ -101,7 +101,7 @@ print(result)
                     <button 
                         onClick={generateKey}
                         disabled={generating || loading}
-                        className="flex items-center gap-1.5 px-2 py-0.5 bg-cyan-500/10 border border-cyan-500/30 text-cyan-500 text-[9px] font-black uppercase tracking-widest hover:bg-cyan-500/20 active:scale-95 transition-all disabled:opacity-50"
+                        className="flex items-center gap-1.5 px-2 py-0.5 bg-cyan-500/10 border border-cyan-500/30 text-cyan-500 text-[10px] font-black uppercase tracking-widest hover:bg-cyan-500/20 active:scale-95 transition-all disabled:opacity-50"
                     >
                         <RefreshCcw className={cn("w-3 h-3", generating && "animate-spin")} />
                         {apiKey ? "Regenerate" : "Generate"}
@@ -117,8 +117,8 @@ print(result)
                             <Key className="w-5 h-5" />
                         </div>
                         <div>
-                            <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-200 italic">API Access Token</h4>
-                            <p className="text-[10px] text-slate-500 font-bold leading-tight">Shared secret used by agents to validate your identity.</p>
+                            <h4 className="text-[12px] font-black uppercase tracking-wider text-slate-200 italic">API Access Token</h4>
+                            <p className="text-[11px] text-slate-500 font-bold leading-tight">Shared secret used by agents to validate your identity.</p>
                         </div>
                     </div>
 
@@ -127,7 +127,7 @@ print(result)
                         
                         <div className="flex items-center justify-between relative z-10">
                             <div className="space-y-1">
-                                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-600">Current Secret</span>
+                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">Current Secret</span>
                                 <div className="text-xs font-mono text-cyan-400 break-all pr-8">
                                     {loading ? "Decrypting..." : (apiKey ? (maskedKey || apiKey) : "No Secret Generated")}
                                 </div>
@@ -143,7 +143,7 @@ print(result)
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2 text-[9px] text-amber-500/80 font-bold uppercase tracking-widest bg-amber-500/5 p-2 border-l-2 border-amber-500/40">
+                    <div className="flex items-center gap-2 text-[10px] text-amber-500/80 font-bold uppercase tracking-widest bg-amber-500/5 p-2 border-l-2 border-amber-500/40">
                          <Shield className="w-3 h-3" /> Warning: Never share this secret. It grants full authority over your agents.
                     </div>
                 </div>
@@ -164,7 +164,7 @@ print(result)
                         </div>
                         <button 
                             onClick={() => copyToClipboard(pythonSnippet)}
-                            className="text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-cyan-400 transition-colors flex items-center gap-1"
+                            className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-cyan-400 transition-colors flex items-center gap-1"
                         >
                             <Copy className="w-3 h-3" /> Copy Snippet
                         </button>
@@ -180,11 +180,11 @@ print(result)
                     <div className="grid grid-cols-2 gap-3 mt-4">
                         <div className="p-2 bg-white/5 border border-white/5 flex items-center gap-2">
                             <Code className="w-3 h-3 text-cyan-500" />
-                            <span className="text-[9px] uppercase font-black text-slate-500 tracking-wider">REST Compliant</span>
+                            <span className="text-[10px] uppercase font-black text-slate-500 tracking-wider">REST Compliant</span>
                         </div>
                         <div className="p-2 bg-white/5 border border-white/5 flex items-center gap-2">
                             <Shield className="w-3 h-3 text-purple-500" />
-                            <span className="text-[9px] uppercase font-black text-slate-500 tracking-wider">Bearer Authenticated</span>
+                            <span className="text-[10px] uppercase font-black text-slate-500 tracking-wider">Bearer Authenticated</span>
                         </div>
                     </div>
                 </div>

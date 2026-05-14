@@ -603,7 +603,7 @@ export default function JobDetailsPage() {
 
                                     <div className="space-y-3">
                                         <div className="flex flex-wrap items-center gap-3">
-                                            <span className="px-2 py-0.5 bg-rose-500 text-black font-black text-[9px] uppercase tracking-widest scifi-clip-sm">
+                                            <span className="px-2 py-0.5 bg-rose-500 text-black font-black text-[10px] uppercase tracking-widest scifi-clip-sm">
                                                 Intervention Required
                                             </span>
                                             <span className="text-[10px] font-black text-rose-400 uppercase tracking-[0.2em] italic">
@@ -702,14 +702,14 @@ export default function JobDetailsPage() {
                                             {isNoWorker ? (
                                                 <>
                                                     <span className="text-xs font-black text-rose-400 uppercase tracking-[0.3em]">RUNTIME WORKER OFFLINE</span>
-                                                    <span className="px-2 py-0.5 bg-rose-500/20 border border-rose-500/40 text-rose-400 text-[9px] font-black uppercase tracking-widest scifi-clip">
+                                                    <span className="px-2 py-0.5 bg-rose-500/20 border border-rose-500/40 text-rose-400 text-[10px] font-black uppercase tracking-widest scifi-clip">
                                                         NO EXECUTOR
                                                     </span>
                                                 </>
                                             ) : (
                                                 <>
                                                     <span className="text-xs font-black text-amber-400 uppercase tracking-[0.3em]">SERVER CRASH DETECTED</span>
-                                                    <span className="px-2 py-0.5 bg-red-500/20 border border-red-500/40 text-red-400 text-[9px] font-black uppercase tracking-widest scifi-clip">
+                                                    <span className="px-2 py-0.5 bg-red-500/20 border border-red-500/40 text-red-400 text-[10px] font-black uppercase tracking-widest scifi-clip">
                                                         PIPELINE STALLED
                                                     </span>
                                                 </>
@@ -776,7 +776,7 @@ export default function JobDetailsPage() {
                                 <div className="space-y-1.5">
                                     <div className="flex flex-wrap items-center gap-2">
                                         <span className="text-xs font-black text-violet-400 uppercase tracking-[0.3em]">AGENT ENGINE UNAVAILABLE</span>
-                                        <span className="px-2 py-0.5 bg-violet-500/20 border border-violet-500/40 text-violet-400 text-[9px] font-black uppercase tracking-widest scifi-clip">
+                                        <span className="px-2 py-0.5 bg-violet-500/20 border border-violet-500/40 text-violet-400 text-[10px] font-black uppercase tracking-widest scifi-clip">
                                             AUTO-FALLBACK READY
                                         </span>
                                     </div>
@@ -844,7 +844,7 @@ export default function JobDetailsPage() {
                             <div className="flex items-start gap-3">
                                 <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
                                 <div className="space-y-1">
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-rose-500 block">Integrity Breach / Execution Failed</span>
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-rose-500 block">Integrity Breach / Execution Failed</span>
                                     <p className="text-[11px] font-mono text-rose-200 leading-tight">
                                         {failureReason}
                                     </p>
@@ -854,7 +854,7 @@ export default function JobDetailsPage() {
                             {isMissingConfig && (
                                 <button
                                     onClick={() => router.push('/system-config')}
-                                    className="w-full py-2 border border-rose-500/30 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all group"
+                                    className="w-full py-2 border border-rose-500/30 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all group"
                                 >
                                     Configure Intelligence Providers
                                     <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
@@ -871,25 +871,25 @@ export default function JobDetailsPage() {
                             <div className="p-6 space-y-8">
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                                     <div className="space-y-1">
-                                        <label className="text-[9px] uppercase font-black text-slate-500 tracking-[0.2em] flex items-center gap-2">
+                                        <label className="text-[10px] uppercase font-black text-slate-500 tracking-[0.2em] flex items-center gap-2">
                                             <ShieldCheck className="w-3 h-3 text-cyan-500" /> Active Agency
                                         </label>
                                         <p className="text-white font-bold uppercase italic text-sm">{String(job?.assigned_agent_id || job?.assigned_agent_role || 'AWAITING')}</p>
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="text-[9px] uppercase font-black text-slate-400 tracking-[0.2em] flex items-center gap-2">
+                                        <label className="text-[10px] uppercase font-black text-slate-400 tracking-[0.2em] flex items-center gap-2">
                                             <Activity className="w-3 h-3 text-cyan-400" /> Current Stage
                                         </label>
                                         <p className="text-cyan-400 font-bold uppercase text-sm truncate">{derivedStatus.replace(/_/g, ' ')}</p>
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="text-[9px] uppercase font-black text-slate-500 tracking-[0.2em] flex items-center gap-2">
+                                        <label className="text-[10px] uppercase font-black text-slate-500 tracking-[0.2em] flex items-center gap-2">
                                             <Calendar className="w-3 h-3" /> Timestamp
                                         </label>
                                         <p className="text-slate-300 font-mono text-xs">{formatDate(job?.created_at || job?.updated_at)}</p>
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="text-[9px] uppercase font-black text-slate-500 tracking-[0.2em] flex items-center gap-2">
+                                        <label className="text-[10px] uppercase font-black text-slate-500 tracking-[0.2em] flex items-center gap-2">
                                             <Layers className="w-3 h-3" /> Kernel Status
                                         </label>
                                         <div className="flex gap-1">
@@ -903,7 +903,7 @@ export default function JobDetailsPage() {
                                 <div className="h-px bg-gradient-to-r from-transparent via-white/5 to-transparent" />
 
                                 <div className="space-y-3">
-                                    <label className="text-[9px] uppercase font-black text-slate-600 tracking-[0.3em] block">Subject Directive</label>
+                                    <label className="text-[10px] uppercase font-black text-slate-600 tracking-[0.3em] block">Subject Directive</label>
                                     <div className="p-6 bg-black/40 border border-white/5 relative overflow-hidden group">
                                         <div className="absolute top-0 left-0 w-1 h-full bg-cyan-500/20 group-hover:bg-cyan-500/50 transition-colors" />
                                         <p className="text-slate-200 text-lg leading-relaxed italic font-light tracking-wide">
@@ -916,7 +916,7 @@ export default function JobDetailsPage() {
                                     <>
                                         <div className="h-px bg-gradient-to-r from-transparent via-white/5 to-transparent pt-4" />
                                         <div className="space-y-3">
-                                            <label className="text-[9px] uppercase font-black text-slate-600 tracking-[0.3em] flex items-center gap-2">
+                                            <label className="text-[10px] uppercase font-black text-slate-600 tracking-[0.3em] flex items-center gap-2">
                                                 <Layers className="w-3 h-3 text-cyan-500" /> Pipeline Operations
                                             </label>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -969,15 +969,15 @@ export default function JobDetailsPage() {
 
                         <div className="grid grid-cols-3 gap-4">
                             <div className="p-4 glass border border-white/5 space-y-2">
-                                <label className="text-[8px] font-black text-slate-600 uppercase tracking-widest block">Total Tokens</label>
+                                <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest block">Total Tokens</label>
                                 <p className="font-mono text-slate-300 font-bold">{Number(typeof job?.token_usage === 'object' ? job.token_usage?.total_tokens ?? 0 : job?.token_usage ?? 0).toLocaleString()}</p>
                             </div>
                             <div className="p-4 glass border border-white/5 space-y-2">
-                                <label className="text-[8px] font-black text-slate-600 uppercase tracking-widest block">Runtime Cost</label>
+                                <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest block">Runtime Cost</label>
                                 <p className="font-mono text-cyan-400 font-bold">${(Number((typeof job?.token_usage === 'object' ? job.token_usage?.cost : null) ?? job?.cost ?? 0)).toFixed(4)}</p>
                             </div>
                             <div className="p-4 glass border border-white/5 space-y-2">
-                                <label className="text-[8px] font-black text-slate-600 uppercase tracking-widest block">I/O Breakdown</label>
+                                <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest block">I/O Breakdown</label>
                                 <div className="flex gap-2 font-mono text-[10px]">
                                     <span className="text-emerald-400">{Number(typeof job?.token_usage === 'object' ? job.token_usage?.input_tokens ?? 0 : 0).toLocaleString()} in</span>
                                     <span className="text-slate-600">/</span>
@@ -1032,7 +1032,7 @@ export default function JobDetailsPage() {
                                     </p>
                                 </div>
                                 <div className="shrink-0 text-right">
-                                    <p className="text-[9px] uppercase font-black tracking-widest text-slate-500">Final Score</p>
+                                    <p className="text-[10px] uppercase font-black tracking-widest text-slate-500">Final Score</p>
                                     <p className={cn("text-2xl font-black italic", approved ? "text-emerald-400" : "text-red-400")}>
                                         {governanceScore.toFixed(1)}<span className="text-sm text-slate-600">/10</span>
                                     </p>
@@ -1055,7 +1055,7 @@ export default function JobDetailsPage() {
                                                 </div>
                                             </div>
                                             <div>
-                                                <p className="text-[9px] font-black uppercase tracking-[0.3em] text-orange-400/70">{actionLoading ? "Syncing..." : "Action Required"}</p>
+                                                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-orange-400/70">{actionLoading ? "Syncing..." : "Action Required"}</p>
                                                 <h2 className="text-xl font-black text-white italic tracking-tighter uppercase leading-tight">
                                                     Mission Verification Console
                                                 </h2>
@@ -1064,7 +1064,7 @@ export default function JobDetailsPage() {
                                         <div className="flex items-center gap-3 shrink-0">
                                             {evaluationContent?.grade && (
                                                 <div className="text-center">
-                                                    <p className="text-[8px] uppercase font-black text-slate-600 tracking-widest mb-0.5">Grade</p>
+                                                    <p className="text-[10px] uppercase font-black text-slate-600 tracking-widest mb-0.5">Grade</p>
                                                     <div className={cn(
                                                         "w-12 h-12 flex items-center justify-center border-2 text-2xl font-black italic scifi-clip",
                                                         isPass ? "border-emerald-500/60 text-emerald-400 bg-emerald-500/10" : "border-amber-500/60 text-amber-400 bg-amber-500/10"
@@ -1074,7 +1074,7 @@ export default function JobDetailsPage() {
                                                 </div>
                                             )}
                                             <div className="text-right">
-                                                <p className="text-[8px] uppercase font-black text-slate-600 tracking-widest mb-0.5">AI Integrity Score</p>
+                                                <p className="text-[10px] uppercase font-black text-slate-600 tracking-widest mb-0.5">AI Integrity Score</p>
                                                 <p className={cn("text-2xl font-black italic", isPass ? "text-emerald-400" : "text-amber-400")}>
                                                     {governanceScore.toFixed(1)}<span className="text-sm text-slate-600">/10</span>
                                                 </p>
@@ -1114,7 +1114,7 @@ export default function JobDetailsPage() {
                                             <Shield className="w-5 h-5 text-slate-600 animate-pulse" />
                                         </div>
                                         <div>
-                                            <p className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-500 italic animate-pulse">
+                                            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 italic animate-pulse">
                                                 Awaiting Certification Stage
                                             </p>
                                             <h2 className="text-base font-black text-white/50 italic tracking-tighter uppercase leading-tight">
@@ -1126,11 +1126,11 @@ export default function JobDetailsPage() {
                                         <div className="h-1 w-full bg-white/5 overflow-hidden rounded-full">
                                             <div className="h-full bg-gradient-to-r from-cyan-500/20 via-cyan-500/50 to-cyan-500/20 animate-shimmer-fast" style={{ width: '100%' }} />
                                         </div>
-                                        <p className="text-[8px] uppercase font-black tracking-widest text-slate-700 mt-2 text-center italic">
+                                        <p className="text-[10px] uppercase font-black tracking-widest text-slate-700 mt-2 text-center italic">
                                             Neural Scanning Artifact integrity...
                                         </p>
                                     </div>
-                                    <div className="px-4 py-2 bg-white/5 border border-white/10 text-[9px] font-black text-slate-500 uppercase tracking-widest opacity-50">
+                                    <div className="px-4 py-2 bg-white/5 border border-white/10 text-[10px] font-black text-slate-500 uppercase tracking-widest opacity-50">
                                         Buttons Pending
                                     </div>
                                 </div>
@@ -1161,11 +1161,11 @@ export default function JobDetailsPage() {
                                                     </div>
                                                     <div>
                                                         <span className="font-black text-white uppercase italic tracking-widest text-sm block">Mission Strategy</span>
-                                                        <span className="text-[8px] font-black uppercase tracking-widest text-slate-600">Primary: Strategic Planning Unit (COO)</span>
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">Primary: Strategic Planning Unit (COO)</span>
                                                     </div>
                                                 </div>
                                                 <div className={cn(
-                                                    "px-3 py-1 text-[8px] font-black uppercase tracking-widest scifi-clip-sm",
+                                                    "px-3 py-1 text-[10px] font-black uppercase tracking-widest scifi-clip-sm",
                                                     (job?.runtime_context?.plan || artifacts.some(a => a.artifact_type === 'plan')) ? "bg-emerald-500/20 text-emerald-500 border border-emerald-500/50" : "bg-blue-500/10 text-blue-500 border border-blue-500/30"
                                                 )}>
                                                     {(job?.runtime_context?.plan || artifacts.some(a => ['plan', 'task_plan'].includes(a.artifact_type || ''))) ? "COMPLETE" : "OPERATING"}
@@ -1198,19 +1198,19 @@ export default function JobDetailsPage() {
                                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                                                             {complexity && (
                                                                 <div className="p-3 bg-cyan-500/5 border border-cyan-500/20 rounded-sm">
-                                                                    <p className="text-[8px] uppercase font-black tracking-widest text-cyan-400 mb-1">Complexity</p>
+                                                                    <p className="text-[10px] uppercase font-black tracking-widest text-cyan-400 mb-1">Complexity</p>
                                                                     <p className="text-xs font-bold text-white uppercase">{String(complexity)}</p>
                                                                 </div>
                                                             )}
                                                             {tasks.length > 0 && (
                                                                 <div className="p-3 bg-purple-500/5 border border-purple-500/20 rounded-sm">
-                                                                    <p className="text-[8px] uppercase font-black tracking-widest text-purple-400 mb-1">Assignments</p>
+                                                                    <p className="text-[10px] uppercase font-black tracking-widest text-purple-400 mb-1">Assignments</p>
                                                                     <p className="text-xs font-bold text-white">{tasks.length} Tactical Units</p>
                                                                 </div>
                                                             )}
                                                             {qualityBar && (
                                                                 <div className="p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-sm">
-                                                                    <p className="text-[8px] uppercase font-black tracking-widest text-emerald-400 mb-1">Quality Bar</p>
+                                                                    <p className="text-[10px] uppercase font-black tracking-widest text-emerald-400 mb-1">Quality Bar</p>
                                                                     <p className="text-xs text-slate-300 leading-relaxed">{String(qualityBar)}</p>
                                                                 </div>
                                                             )}
@@ -1219,7 +1219,7 @@ export default function JobDetailsPage() {
                                                         {/* Strategic Objective */}
                                                         {strategicObj && (
                                                             <div className="p-4 bg-blue-500/5 border border-blue-500/20 rounded-sm">
-                                                                <p className="text-[9px] uppercase font-black tracking-widest text-blue-400 mb-2">Strategic Objective</p>
+                                                                <p className="text-[10px] uppercase font-black tracking-widest text-blue-400 mb-2">Strategic Objective</p>
                                                                 <p className="text-sm text-slate-300 leading-relaxed">{String(strategicObj)}</p>
                                                             </div>
                                                         )}
@@ -1227,7 +1227,7 @@ export default function JobDetailsPage() {
                                                         {/* Mission Context */}
                                                         {missionCtx && (
                                                             <div className="p-4 bg-white/[0.02] border border-white/10 rounded-sm">
-                                                                <p className="text-[9px] uppercase font-black tracking-widest text-slate-400 mb-2">Mission Context</p>
+                                                                <p className="text-[10px] uppercase font-black tracking-widest text-slate-400 mb-2">Mission Context</p>
                                                                 <p className="text-sm text-slate-400 leading-relaxed">{String(missionCtx)}</p>
                                                             </div>
                                                         )}
@@ -1235,7 +1235,7 @@ export default function JobDetailsPage() {
                                                         {/* Role Assignments */}
                                                         {tasks.length > 0 && (
                                                             <div className="space-y-3">
-                                                                <p className="text-[9px] uppercase font-black tracking-widest text-slate-500 px-1">Role Assignments</p>
+                                                                <p className="text-[10px] uppercase font-black tracking-widest text-slate-500 px-1">Role Assignments</p>
                                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                                                     {tasks.map((task: any, idx: number) => {
                                                                         const taskName = task.name || task.task_name || task.title || `Assignment ${idx + 1}`;
@@ -1248,27 +1248,27 @@ export default function JobDetailsPage() {
                                                                         return (
                                                                             <div key={idx} className="p-4 bg-white/[0.03] border border-white/10 scifi-clip hover:bg-white/[0.06] transition-colors space-y-3">
                                                                                 <div className="flex items-start justify-between gap-2">
-                                                                                    <span className="text-[9px] font-black text-cyan-400 uppercase tracking-widest">{String(taskName)}</span>
+                                                                                    <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">{String(taskName)}</span>
                                                                                     {priority && (
-                                                                                        <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 border shrink-0 ${priorityColor}`}>{String(priority)}</span>
+                                                                                        <span className={`text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 border shrink-0 ${priorityColor}`}>{String(priority)}</span>
                                                                                     )}
                                                                                 </div>
                                                                                 {assignedTo && (
                                                                                     <div className="flex items-center gap-1.5">
                                                                                         <User className="w-3 h-3 text-slate-600" />
-                                                                                        <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">{String(assignedTo)}</span>
+                                                                                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{String(assignedTo)}</span>
                                                                                     </div>
                                                                                 )}
                                                                                 <p className="text-xs text-slate-300 leading-relaxed">{String(taskDesc)}</p>
                                                                                 {expectedOutput && (
                                                                                     <div className="pt-2 border-t border-white/5">
-                                                                                        <p className="text-[8px] uppercase font-black tracking-widest text-emerald-500/70 mb-1">Expected Output</p>
+                                                                                        <p className="text-[10px] uppercase font-black tracking-widest text-emerald-500/70 mb-1">Expected Output</p>
                                                                                         <p className="text-[11px] text-slate-400 leading-relaxed">{String(expectedOutput)}</p>
                                                                                     </div>
                                                                                 )}
                                                                                 {successCriteria && (
                                                                                     <div className="pt-2 border-t border-white/5">
-                                                                                        <p className="text-[8px] uppercase font-black tracking-widest text-blue-500/70 mb-1">Success Criteria</p>
+                                                                                        <p className="text-[10px] uppercase font-black tracking-widest text-blue-500/70 mb-1">Success Criteria</p>
                                                                                         <p className="text-[11px] text-slate-400 leading-relaxed">{String(successCriteria)}</p>
                                                                                     </div>
                                                                                 )}
@@ -1282,7 +1282,7 @@ export default function JobDetailsPage() {
                                                         {/* Constraints */}
                                                         {constraints.length > 0 && (
                                                             <div className="p-4 bg-red-500/5 border border-red-500/10 rounded-sm">
-                                                                <p className="text-[9px] uppercase font-black tracking-widest text-red-400/70 mb-3">Constraints & Requirements</p>
+                                                                <p className="text-[10px] uppercase font-black tracking-widest text-red-400/70 mb-3">Constraints & Requirements</p>
                                                                 <div className="flex flex-wrap gap-2">
                                                                     {constraints.map((c: any, i: number) => (
                                                                         <span key={i} className="px-2 py-1 bg-red-500/5 border border-red-500/20 text-[10px] text-slate-400">{String(c)}</span>
@@ -1316,11 +1316,11 @@ export default function JobDetailsPage() {
                                                     </div>
                                                     <div>
                                                         <span className="font-black text-white uppercase italic tracking-widest text-sm block">Intelligence Report</span>
-                                                        <span className="text-[8px] font-black uppercase tracking-widest text-slate-600">Primary: Research Intelligence Unit</span>
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">Primary: Research Intelligence Unit</span>
                                                     </div>
                                                 </div>
                                                 <div className={cn(
-                                                    "px-3 py-1 text-[8px] font-black uppercase tracking-widest scifi-clip-sm",
+                                                    "px-3 py-1 text-[10px] font-black uppercase tracking-widest scifi-clip-sm",
                                                     (job?.runtime_context?.research_result || artifacts.some(a => ['research', 'intelligence'].includes(a.artifact_type || ''))) ? "bg-emerald-500/20 text-emerald-500 border border-emerald-500/50" : "bg-white/5 text-slate-600 border border-white/10"
                                                 )}>
                                                     {(job?.runtime_context?.research_result || artifacts.some(a => ['assignment', 'assign', 'research', 'intelligence', 'task_assign'].includes(a.artifact_type || ''))) ? "COMPLETE" : "IDLE"}
@@ -1353,8 +1353,8 @@ export default function JobDetailsPage() {
                                                         {summary && (
                                                             <div className="p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-sm">
                                                                 <div className="flex items-center justify-between mb-2">
-                                                                    <p className="text-[9px] uppercase font-black tracking-widest text-emerald-400">Intelligence Summary</p>
-                                                                    {confidence && <span className="text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">{confidence} confidence</span>}
+                                                                    <p className="text-[10px] uppercase font-black tracking-widest text-emerald-400">Intelligence Summary</p>
+                                                                    {confidence && <span className="text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">{confidence} confidence</span>}
                                                                 </div>
                                                                 <p className="text-sm text-slate-300 leading-relaxed">{String(summary)}</p>
                                                             </div>
@@ -1363,7 +1363,7 @@ export default function JobDetailsPage() {
                                                         {/* Key Findings */}
                                                         {findings.length > 0 && (
                                                             <div className="space-y-3">
-                                                                <p className="text-[9px] uppercase font-black tracking-widest text-slate-500 px-1">Intelligence Findings</p>
+                                                                <p className="text-[10px] uppercase font-black tracking-widest text-slate-500 px-1">Intelligence Findings</p>
                                                                 <div className="space-y-3">
                                                                     {findings.map((f: any, i: number) => {
                                                                         const title = typeof f === 'string' ? `Finding ${i + 1}` : (f.title || `Finding ${i + 1}`);
@@ -1373,14 +1373,14 @@ export default function JobDetailsPage() {
                                                                             <div key={i} className="p-4 bg-white/[0.03] border border-white/10 scifi-clip hover:bg-white/[0.06] transition-colors">
                                                                                 <div className="flex items-start gap-3 mb-2">
                                                                                     <div className="w-5 h-5 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shrink-0 mt-0.5">
-                                                                                        <span className="text-[9px] font-black text-emerald-400">{i + 1}</span>
+                                                                                        <span className="text-[10px] font-black text-emerald-400">{i + 1}</span>
                                                                                     </div>
                                                                                     <p className="text-[10px] font-black text-emerald-300 uppercase tracking-wider">{String(title)}</p>
                                                                                 </div>
                                                                                 <p className="text-xs text-slate-300 leading-relaxed pl-8">{String(detail)}</p>
                                                                                 {significance && (
                                                                                     <div className="mt-3 pl-8">
-                                                                                        <p className="text-[8px] uppercase font-black tracking-widest text-blue-400/70 mb-1">Significance</p>
+                                                                                        <p className="text-[10px] uppercase font-black tracking-widest text-blue-400/70 mb-1">Significance</p>
                                                                                         <p className="text-[11px] text-blue-300/70 leading-relaxed italic">{String(significance)}</p>
                                                                                     </div>
                                                                                 )}
@@ -1394,7 +1394,7 @@ export default function JobDetailsPage() {
                                                         {/* Resources */}
                                                         {resources.length > 0 && (
                                                             <div className="space-y-2">
-                                                                <p className="text-[9px] uppercase font-black tracking-widest text-slate-500 px-1">Resources & References</p>
+                                                                <p className="text-[10px] uppercase font-black tracking-widest text-slate-500 px-1">Resources & References</p>
                                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                                                     {resources.map((r: any, i: number) => {
                                                                         const title = typeof r === 'string' ? r : (r.title || r.name || `Resource ${i + 1}`);
@@ -1404,7 +1404,7 @@ export default function JobDetailsPage() {
                                                                             <div key={i} className="p-3 bg-white/[0.02] border border-white/10 rounded-sm">
                                                                                 <div className="flex items-start justify-between gap-2 mb-1">
                                                                                     <span className="text-[10px] font-bold text-slate-300">{String(title)}</span>
-                                                                                    {type && <span className="text-[8px] px-1.5 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 font-black uppercase tracking-wider shrink-0">{String(type)}</span>}
+                                                                                    {type && <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 font-black uppercase tracking-wider shrink-0">{String(type)}</span>}
                                                                                 </div>
                                                                                 {relevance && <p className="text-[10px] text-slate-500 leading-relaxed">{String(relevance)}</p>}
                                                                             </div>
@@ -1417,7 +1417,7 @@ export default function JobDetailsPage() {
                                                         {/* Recommended Approach */}
                                                         {approach && (
                                                             <div className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-sm">
-                                                                <p className="text-[9px] uppercase font-black tracking-widest text-amber-400 mb-2">Recommended Approach for Worker</p>
+                                                                <p className="text-[10px] uppercase font-black tracking-widest text-amber-400 mb-2">Recommended Approach for Worker</p>
                                                                 <p className="text-sm text-slate-300 leading-relaxed">{String(approach)}</p>
                                                             </div>
                                                         )}
@@ -1425,7 +1425,7 @@ export default function JobDetailsPage() {
                                                         {/* Risk Factors */}
                                                         {riskFactors.length > 0 && (
                                                             <div className="p-3 bg-red-500/5 border border-red-500/10 rounded-sm">
-                                                                <p className="text-[9px] uppercase font-black tracking-widest text-red-400/70 mb-2">Risk Factors</p>
+                                                                <p className="text-[10px] uppercase font-black tracking-widest text-red-400/70 mb-2">Risk Factors</p>
                                                                 <div className="flex flex-wrap gap-2">
                                                                     {riskFactors.map((r: any, i: number) => <span key={i} className="px-2 py-1 bg-red-500/5 border border-red-500/20 text-[10px] text-slate-400">{String(r)}</span>)}
                                                                 </div>
@@ -1450,11 +1450,11 @@ export default function JobDetailsPage() {
                                                     </div>
                                                     <div>
                                                         <span className="font-black text-white uppercase italic tracking-widest text-sm block">Final Deliverable</span>
-                                                        <span className="text-[8px] font-black uppercase tracking-widest text-slate-600">Primary: Autonomous Worker Unit</span>
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">Primary: Autonomous Worker Unit</span>
                                                     </div>
                                                 </div>
                                                 <div className={cn(
-                                                    "px-3 py-1 text-[8px] font-black uppercase tracking-widest scifi-clip-sm",
+                                                    "px-3 py-1 text-[10px] font-black uppercase tracking-widest scifi-clip-sm",
                                                     (job?.runtime_context?.final_result || artifacts.some(a => ['final', 'artifact_produce', 'worker_result', 'deliverable'].includes(a.artifact_type || ''))) ? "bg-emerald-500/20 text-emerald-500 border border-emerald-500/50" : "bg-white/5 text-slate-600 border border-white/10"
                                                 )}>
                                                     {(job?.runtime_context?.final_result || artifacts.some(a => ['final', 'artifact_produce', 'worker_result', 'deliverable'].includes(a.artifact_type || ''))) ? "COMPLETE" : "IDLE"}
@@ -1595,7 +1595,7 @@ export default function JobDetailsPage() {
                                                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                                                 <div className="p-4 bg-cyan-500/5 border border-cyan-500/10 rounded-sm">
                                                                     <div className="flex items-center justify-between mb-2">
-                                                                        <span className="text-[8px] font-black uppercase tracking-widest text-cyan-400">Grounding Status</span>
+                                                                        <span className="text-[10px] font-black uppercase tracking-widest text-cyan-400">Grounding Status</span>
                                                                         <ShieldCheck className={cn("w-3 h-3", (workerData.grounding_report.fabrication_check === 'VERIFIED' || (!workerData.grounding_report.fabrication_check || workerData.grounding_report.fabrication_check === 'UNKNOWN') && (workerData.grounding_report.kb_chunks_cited > 0 || workerData._grounding_meta?.kb_chunks_used > 0)) ? "text-emerald-400" : "text-amber-400")} />
                                                                     </div>
                                                                     <div className="text-lg font-mono font-black text-white">
@@ -1605,14 +1605,14 @@ export default function JobDetailsPage() {
                                                                     </div>
                                                                 </div>
                                                                 <div className="p-4 bg-blue-500/5 border border-blue-500/10 rounded-sm">
-                                                                    <span className="text-[8px] font-black uppercase tracking-widest text-blue-400 block mb-2">Knowledge Density</span>
+                                                                    <span className="text-[10px] font-black uppercase tracking-widest text-blue-400 block mb-2">Knowledge Density</span>
                                                                     <div className="flex items-baseline gap-2">
                                                                         <span className="text-lg font-mono font-black text-white">{workerData.grounding_report.kb_chunks_cited || workerData._grounding_meta?.kb_chunks_used || 0}</span>
                                                                         <span className="text-[10px] text-slate-500 uppercase">Context Units</span>
                                                                     </div>
                                                                 </div>
                                                                 <div className="p-4 bg-purple-500/5 border border-purple-500/10 rounded-sm">
-                                                                    <span className="text-[8px] font-black uppercase tracking-widest text-purple-400 block mb-2">Intelligence Source</span>
+                                                                    <span className="text-[10px] font-black uppercase tracking-widest text-purple-400 block mb-2">Intelligence Source</span>
                                                                     <div className="flex items-baseline gap-2">
                                                                         <span className="text-lg font-mono font-black text-white">{workerData._grounding_meta?.web_results_used || workerData.grounding_report?.web_sources_cited || 0}</span>
                                                                         <span className="text-[10px] text-slate-500 uppercase">Web Data</span>
@@ -1624,7 +1624,7 @@ export default function JobDetailsPage() {
                                                         <div className="space-y-6">
                                                             <div className="flex items-center gap-2 px-1 opacity-60">
                                                                 <BookOpen className="w-3 h-3 text-cyan-500" />
-                                                                <span className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-400">Full Deliverable Content</span>
+                                                                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Full Deliverable Content</span>
                                                             </div>
 
                                                             <div className="p-10 bg-black border border-white/5 rounded-sm shadow-2xl relative overflow-hidden">
@@ -1637,7 +1637,7 @@ export default function JobDetailsPage() {
                                                         {/* Strategic Findings */}
                                                         {conclusions.length > 0 && (
                                                             <div className="space-y-4 pt-4">
-                                                                <p className="text-[9px] uppercase font-black tracking-[0.2em] text-slate-500 px-1 text-center">Strategic Findings HUD</p>
+                                                                <p className="text-[10px] uppercase font-black tracking-[0.2em] text-slate-500 px-1 text-center">Strategic Findings HUD</p>
                                                                 <div className="grid grid-cols-1 gap-3">
                                                                     {conclusions.map((c: any, i: number) => {
                                                                         const conclusion = c.conclusion || (typeof c === 'string' ? c : '');
@@ -1652,7 +1652,7 @@ export default function JobDetailsPage() {
                                                                                         <p className="text-sm font-bold text-slate-200 leading-relaxed">{String(conclusion)}</p>
                                                                                         {evidence && (
                                                                                             <div className="p-3 bg-black/20 border border-white/5 rounded-sm">
-                                                                                                <p className="text-[8px] uppercase font-black tracking-widest text-blue-400/70 mb-1">Empirical Evidence</p>
+                                                                                                <p className="text-[10px] uppercase font-black tracking-widest text-blue-400/70 mb-1">Empirical Evidence</p>
                                                                                                 <p className="text-[11px] text-slate-400 leading-relaxed italic">{String(evidence)}</p>
                                                                                             </div>
                                                                                         )}
@@ -1674,14 +1674,14 @@ export default function JobDetailsPage() {
                                                         {/* Source References */}
                                                         {workerData.source_references && workerData.source_references.length > 0 && (
                                                             <div className="space-y-3 pt-6">
-                                                                <p className="text-[9px] uppercase font-black tracking-[0.2em] text-slate-500 px-1">Source Provenance</p>
+                                                                <p className="text-[10px] uppercase font-black tracking-[0.2em] text-slate-500 px-1">Source Provenance</p>
                                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                                                     {workerData.source_references.map((ref: any, i: number) => (
                                                                         <div key={i} className="p-3 bg-white/[0.02] border border-white/5 rounded-sm flex items-start gap-3">
-                                                                            <div className="px-1.5 py-0.5 bg-blue-500/10 border border-blue-500/20 text-[8px] font-mono font-bold text-blue-400 rounded-xs mt-0.5">{ref.ref_id}</div>
+                                                                            <div className="px-1.5 py-0.5 bg-blue-500/10 border border-blue-500/20 text-[10px] font-mono font-bold text-blue-400 rounded-xs mt-0.5">{ref.ref_id}</div>
                                                                             <div className="space-y-1">
                                                                                 <p className="text-[10px] font-bold text-slate-300">{ref.title}</p>
-                                                                                <p className="text-[9px] text-slate-500 leading-tight">{ref.usage}</p>
+                                                                                <p className="text-[10px] text-slate-500 leading-tight">{ref.usage}</p>
                                                                             </div>
                                                                         </div>
                                                                     ))}
@@ -1692,7 +1692,7 @@ export default function JobDetailsPage() {
                                                         {/* Evidence Gaps */}
                                                         {workerData.evidence_gaps && workerData.evidence_gaps.length > 0 && (
                                                             <div className="space-y-3 pt-6">
-                                                                <p className="text-[9px] uppercase font-black tracking-[0.2em] text-amber-500/60 px-1">Identified Intelligence Gaps</p>
+                                                                <p className="text-[10px] uppercase font-black tracking-[0.2em] text-amber-500/60 px-1">Identified Intelligence Gaps</p>
                                                                 <div className="space-y-2">
                                                                     {workerData.evidence_gaps.map((gap: any, i: number) => (
                                                                         <div key={i} className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-sm flex items-start gap-4">
@@ -1700,7 +1700,7 @@ export default function JobDetailsPage() {
                                                                             <div className="space-y-1 flex-1">
                                                                                 <p className="text-xs font-bold text-amber-200/90">{gap.gap}</p>
                                                                                 <p className="text-[10px] text-slate-400">{gap.impact}</p>
-                                                                                <div className="mt-2 text-[9px] text-amber-400/80 font-mono italic">Resolution: {gap.recommended_resolution}</div>
+                                                                                <div className="mt-2 text-[10px] text-amber-400/80 font-mono italic">Resolution: {gap.recommended_resolution}</div>
                                                                             </div>
                                                                         </div>
                                                                     ))}
@@ -1724,7 +1724,7 @@ export default function JobDetailsPage() {
                                                             <div className="p-4 bg-white/[0.02] border border-white/5 rounded-sm mt-4">
                                                                 <div className="flex items-center gap-3 mb-3">
                                                                     <Info className="w-4 h-4 text-slate-500" />
-                                                                    <p className="text-[9px] uppercase font-black tracking-widest text-slate-500">Scoped Constraints</p>
+                                                                    <p className="text-[10px] uppercase font-black tracking-widest text-slate-500">Scoped Constraints</p>
                                                                 </div>
                                                                 <div className="flex flex-wrap gap-2">
                                                                     {limitations.map((l: any, i: number) => <span key={i} className="px-2.5 py-1 bg-black/40 border border-white/10 text-[10px] font-mono text-slate-400 rounded-sm">{String(l)}</span>)}
@@ -1850,11 +1850,11 @@ export default function JobDetailsPage() {
                                                     </div>
                                                     <div>
                                                         <span className="font-black text-white uppercase italic tracking-widest text-sm block">Governance Grading</span>
-                                                        <span className="text-[8px] font-black uppercase tracking-widest text-slate-600">Primary: Quality Assurance Grader (QA)</span>
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">Primary: Quality Assurance Grader (QA)</span>
                                                     </div>
                                                 </div>
                                                 <div className={cn(
-                                                    "px-3 py-1 text-[8px] font-black uppercase tracking-widest scifi-clip-sm",
+                                                    "px-3 py-1 text-[10px] font-black uppercase tracking-widest scifi-clip-sm",
                                                     (governanceScore > 0 || evaluationArtifact) ? "bg-emerald-500/20 text-emerald-500 border border-emerald-500/50" : "bg-white/5 text-slate-600 border border-white/10"
                                                 )}>
                                                     {(governanceScore > 0 || evaluationArtifact) ? "GRADED" : "IDLE"}
@@ -1886,31 +1886,31 @@ export default function JobDetailsPage() {
                                                                 <span className={cn("text-base font-black italic leading-none", isPass ? "text-emerald-400" : (finalGovStatus === 'FAIL' ? "text-red-400" : "text-amber-400"))}>
                                                                     {governanceScore.toFixed(1)}
                                                                 </span>
-                                                                <span className="text-[8px] text-slate-600 font-bold">/10</span>
+                                                                <span className="text-[10px] text-slate-600 font-bold">/10</span>
                                                             </div>
                                                         </div>
 
                                                         {/* Labels */}
                                                         <div className="flex-1 space-y-2">
-                                                            <p className="text-[9px] uppercase font-black tracking-widest text-slate-500">Governance Score</p>
+                                                            <p className="text-[10px] uppercase font-black tracking-widest text-slate-500">Governance Score</p>
                                                             <p className={cn("text-3xl font-black italic tracking-tighter leading-none", isPass ? "text-emerald-400" : (finalGovStatus === 'FAIL' ? "text-red-400" : "text-amber-400"))}>
                                                                 {governanceScore.toFixed(1)}<span className="text-sm text-slate-600 ml-1">/10</span>
                                                             </p>
                                                             <div className="flex items-center gap-2 flex-wrap pt-1">
                                                                 <div className={cn(
-                                                                    "px-2 py-0.5 text-[8px] font-black uppercase tracking-widest scifi-clip-sm border",
+                                                                    "px-2 py-0.5 text-[10px] font-black uppercase tracking-widest scifi-clip-sm border",
                                                                     isPass ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30" : (finalGovStatus === 'FAIL' ? "bg-red-500/10 text-red-500 border-red-500/30" : "bg-amber-500/10 text-amber-500 border-amber-500/30")
                                                                 )}>
                                                                     {finalGovStatus}
                                                                 </div>
                                                                 {evaluationContent?.grade && (
-                                                                    <div className="px-2 py-0.5 text-[8px] font-black uppercase tracking-widest scifi-clip-sm bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
+                                                                    <div className="px-2 py-0.5 text-[10px] font-black uppercase tracking-widest scifi-clip-sm bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
                                                                         Grade: {String(evaluationContent.grade)}
                                                                     </div>
                                                                 )}
                                                                 {evaluationContent?.recommendation && (
                                                                     <div className={cn(
-                                                                        "px-2 py-0.5 text-[8px] font-black uppercase tracking-widest scifi-clip-sm border",
+                                                                        "px-2 py-0.5 text-[10px] font-black uppercase tracking-widest scifi-clip-sm border",
                                                                         isPass
                                                                             ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                                                                             : "bg-rose-500/10 text-rose-400 border-rose-500/20"
@@ -1925,7 +1925,7 @@ export default function JobDetailsPage() {
                                                     {/* ── Criteria Score Bars ────────────────────────────── */}
                                                     {evaluationContent?.criteria_scores && Object.keys(evaluationContent.criteria_scores).length > 0 && (
                                                         <div className="p-4 bg-black/30 border border-white/5 rounded-sm space-y-3">
-                                                            <p className="text-[9px] uppercase font-black tracking-widest text-slate-500 mb-4">Evaluation Criteria Breakdown</p>
+                                                            <p className="text-[10px] uppercase font-black tracking-widest text-slate-500 mb-4">Evaluation Criteria Breakdown</p>
                                                             {Object.entries(evaluationContent.criteria_scores as Record<string, number>).map(([criterion, score]) => {
                                                                 const pct = Math.min(100, Math.max(0, Number(score)));
                                                                 const barColor = pct >= 80 ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]'
@@ -1935,7 +1935,7 @@ export default function JobDetailsPage() {
                                                                 return (
                                                                     <div key={criterion} className="group space-y-1.5">
                                                                         <div className="flex items-center justify-between">
-                                                                            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 capitalize">
+                                                                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 capitalize">
                                                                                 {criterion.replace(/_/g, ' ')}
                                                                             </span>
                                                                             <span className={cn("text-[10px] font-black tabular-nums", textColor)}>
@@ -1959,7 +1959,7 @@ export default function JobDetailsPage() {
                                                         <div className="flex items-start gap-3 p-4 bg-purple-500/5 border-l-2 border-purple-500/60 border border-purple-500/10 rounded-sm">
                                                             <GraduationCap className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
                                                             <div>
-                                                                <p className="text-[9px] uppercase font-black tracking-widest text-purple-400 mb-1.5">Evaluation Summary</p>
+                                                                <p className="text-[10px] uppercase font-black tracking-widest text-purple-400 mb-1.5">Evaluation Summary</p>
                                                                 <p className="text-slate-200 text-sm leading-relaxed italic">
                                                                     "{String(evaluationContent?.summary || evaluationContent?.grading_summary || '')}"
                                                                 </p>
@@ -1970,7 +1970,7 @@ export default function JobDetailsPage() {
                                                     {/* ── Full Detailed Feedback ─────────────────────────── */}
                                                     {(evaluationContent?.feedback || evaluationContent?.reasoning) && (
                                                         <div className="space-y-2">
-                                                            <p className="text-[9px] uppercase font-black tracking-widest text-slate-500">Detailed Feedback</p>
+                                                            <p className="text-[10px] uppercase font-black tracking-widest text-slate-500">Detailed Feedback</p>
                                                             <div className="relative p-5 bg-black/40 border border-white/5 rounded-sm overflow-hidden">
                                                                 <div className="absolute top-0 left-0 w-0.5 h-full bg-gradient-to-b from-purple-500/0 via-purple-500/50 to-purple-500/0" />
                                                                 <div className="absolute top-2 right-2 flex gap-1 opacity-40">
@@ -1998,7 +1998,7 @@ export default function JobDetailsPage() {
                                                     {/* ── Approve / Reject ───────────────────────────────── */}
                                                     {['grading', 'graded', 'awaiting_approval'].includes(derivedStatus) && (
                                                         <div className="space-y-3 pt-2 border-t border-white/5">
-                                                            <p className="text-[9px] uppercase font-black tracking-widest text-slate-500">Operator Decision Required</p>
+                                                            <p className="text-[10px] uppercase font-black tracking-widest text-slate-500">Operator Decision Required</p>
                                                             <div className="flex gap-3">
                                                                 <button
                                                                     onClick={handleApprove}
@@ -2053,9 +2053,9 @@ export default function JobDetailsPage() {
                                 <div className="flex items-center justify-between mb-4">
                                     <div className="flex items-center gap-2">
                                         <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
-                                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Live Agent Stream</span>
+                                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Live Agent Stream</span>
                                     </div>
-                                    <span className="text-[8px] font-mono text-slate-700">{agentLogs.length} EVENTS</span>
+                                    <span className="text-[10px] font-mono text-slate-700">{agentLogs.length} EVENTS</span>
                                 </div>
                                 <div className="flex-1 overflow-auto custom-scroll pr-2">
                                     <AgentLogPanel
@@ -2084,7 +2084,7 @@ export default function JobDetailsPage() {
                                             <p className="text-[10px] font-black text-white uppercase truncate group-hover:text-cyan-400 transition-colors">
                                                 {artifact.title || (artifact.artifact_type ? artifact.artifact_type.replace(/_/g, ' ') : 'DATA_MANIFEST')}
                                             </p>
-                                            <p className="text-[8px] font-mono text-slate-600 uppercase tracking-tighter">
+                                            <p className="text-[10px] font-mono text-slate-600 uppercase tracking-tighter">
                                                 {artifact.produced_by_agent || 'SYSTEM'} / {new Date(artifact.created_at).toLocaleTimeString()}
                                             </p>
                                         </div>

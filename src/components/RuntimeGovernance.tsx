@@ -65,7 +65,7 @@ export function RuntimeGovernance({ executionId, steps, onApprove, onReject }: R
         {awaitingSteps.length === 0 ? (
           <div className="flex items-center justify-center p-8 text-slate-600">
             <ShieldCheck className="w-5 h-5 mr-2 opacity-30" />
-            <span className="text-[9px] font-black uppercase tracking-[0.3em]">No Pending Gates</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.3em]">No Pending Gates</span>
           </div>
         ) : (
           awaitingSteps.map((step) => (
@@ -73,10 +73,10 @@ export function RuntimeGovernance({ executionId, steps, onApprove, onReject }: R
               <div className="flex items-center gap-3">
                 <AlertCircle className="w-4 h-4 text-orange-400" />
                 <div className="flex-1">
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white">
+                  <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white">
                     Human Review Required
                   </span>
-                  <p className="text-[8px] font-bold tracking-widest text-slate-500 uppercase mt-0.5">
+                  <p className="text-[10px] font-bold tracking-widest text-slate-500 uppercase mt-0.5">
                     Step: {step.step_id} • Type: {step.step_type}
                   </p>
                 </div>

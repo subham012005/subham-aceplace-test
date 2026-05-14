@@ -52,7 +52,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                         <Image src="/ace-symbol.png" alt="ACEPLACE Symbol" width={48} height={48} className="h-12 w-auto object-contain" />
                         <div className="flex flex-col">
                             <span className="font-black text-xl tracking-tighter text-white uppercase italic leading-none">ACEPLACE</span>
-                            <span className="text-[10px] font-mono text-cyan-500/60 tracking-[0.2em] font-bold">WORKSTATION</span>
+                            <span className="text-[11px] font-mono text-cyan-500/60 tracking-[0.2em] font-bold">WORKSTATION</span>
                         </div>
                     </div>
 
@@ -66,7 +66,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 </div>
 
                 <nav className="flex-1 p-4 space-y-3 overflow-y-auto relative">
-                    <div className="text-[9px] uppercase font-bold text-slate-600 tracking-[0.2em] mb-4 ml-2">Main Interface</div>
+                    <div className="text-[11px] uppercase font-black text-slate-600 tracking-[0.2em] mb-4 ml-2">Main Interface</div>
                     {menuItems.map((item) => {
                         const isActive = pathname === item.href || 
                             (item.href === "/dashboard" && pathname.startsWith("/dashboard/jobs")) ||

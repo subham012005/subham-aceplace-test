@@ -53,8 +53,8 @@ export function PurgeConfirmationModal({
                         </div>
 
                         <div className="bg-rose-500/5 border-l-2 border-rose-500 p-4 space-y-3">
-                            <p className="text-[9px] font-black text-rose-500 uppercase tracking-[0.25em]">Critical Warning:</p>
-                            <ul className="text-[8px] text-rose-400/80 uppercase tracking-[0.15em] space-y-1.5 list-none">
+                            <p className="text-[10px] font-black text-rose-500 uppercase tracking-[0.25em]">Critical Warning:</p>
+                            <ul className="text-[10px] text-rose-400/80 uppercase tracking-[0.15em] space-y-1.5 list-none">
                                 <li className="flex items-center gap-2">
                                     <div className="w-1 h-1 bg-rose-500 rotate-45" />
                                     Permanent removal from dimensional database
@@ -73,7 +73,7 @@ export function PurgeConfirmationModal({
                         <div className="flex gap-4">
                             <button
                                 onClick={onClose}
-                                className="flex-1 py-3 border border-white/10 hover:bg-white/5 transition-all text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 hover:text-white scifi-clip-sm cursor-target"
+                                className="flex-1 py-3 border border-white/10 hover:bg-white/5 transition-all text-xs font-black uppercase tracking-[0.3em] text-slate-500 hover:text-white scifi-clip-sm cursor-target"
                             >
                                 Abort
                             </button>
@@ -82,7 +82,7 @@ export function PurgeConfirmationModal({
                                     onConfirm();
                                     onClose();
                                 }}
-                                className="flex-1 py-3 bg-rose-500/10 border border-rose-500/50 hover:bg-rose-500 hover:text-black transition-all text-[10px] font-black uppercase tracking-[0.3em] text-rose-500 scifi-clip-sm cursor-target"
+                                className="flex-1 py-3 bg-rose-500/10 border border-rose-500/50 hover:bg-rose-500 hover:text-black transition-all text-xs font-black uppercase tracking-[0.3em] text-rose-500 scifi-clip-sm cursor-target"
                             >
                                 Confirm Purge
                             </button>

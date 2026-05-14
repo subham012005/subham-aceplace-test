@@ -393,11 +393,11 @@ export function KnowledgeBasePanel({ onContextChange, className }: KnowledgeBase
               <Zap className="w-4 h-4 text-purple-400" />
             </div>
             <div className="flex flex-col items-start">
-              <span className="text-[10px] font-black text-purple-400 tracking-[0.2em] uppercase">Runtime Context Injection</span>
-              <span className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">Primary Command Override Matrix</span>
+              <span className="text-[11px] font-black text-purple-400 tracking-[0.2em] uppercase">Runtime Context Injection</span>
+              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Primary Command Override Matrix</span>
             </div>
             {(directText.trim() || selectedSnippetIds.length > 0) && (
-              <span className="ml-2 px-1.5 py-0.5 bg-purple-500/20 text-purple-400 text-[7px] font-bold rounded flex items-center gap-1">
+              <span className="ml-2 px-1.5 py-0.5 bg-purple-500/20 text-purple-400 text-[10px] font-bold rounded flex items-center gap-1">
                 <Check className="w-2 h-2" /> {selectedSnippetIds.length + (directText.trim() ? 1 : 0)} ACTIVE
               </span>
             )}
@@ -406,7 +406,7 @@ export function KnowledgeBasePanel({ onContextChange, className }: KnowledgeBase
 
           {directTextExpanded && (
             <div className="p-4 pt-0 space-y-3">
-              <p className="text-[8px] text-slate-500 leading-relaxed">
+              <p className="text-[10px] text-slate-500 leading-relaxed">
                 The information pasted here is treated as high-priority context and will directly influence task execution. Use this to define objectives, constraints, requirements, or any critical domain knowledge.
               </p>
               <div className="relative">
@@ -432,7 +432,7 @@ Output: [What the final deliverable should look like]`}
                 )}
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[7px] text-slate-600 font-mono uppercase tracking-tighter">
+                <span className="text-[10px] text-slate-600 font-mono uppercase tracking-tighter">
                   {directText.length} chars typed · {selectedSnippetIds.length} cards selected
                 </span>
                 <div className="flex gap-2">
@@ -440,7 +440,7 @@ Output: [What the final deliverable should look like]`}
                     <button
                       onClick={saveAsSnippet}
                       disabled={savingSnippet}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 text-purple-400 border border-purple-500/30 text-[9px] font-black uppercase hover:bg-slate-700 transition-all"
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 text-purple-400 border border-purple-500/30 text-[10px] font-black uppercase hover:bg-slate-700 transition-all"
                     >
                       {savingSnippet ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
                       Save as Block
@@ -450,14 +450,14 @@ Output: [What the final deliverable should look like]`}
                     <button
                       onClick={saveDirectKnowledge}
                       disabled={savingDirectText}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white text-[9px] font-black uppercase hover:bg-purple-500 transition-all active:scale-95 shadow-[0_0_15px_rgba(147,51,234,0.3)]"
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white text-[10px] font-black uppercase hover:bg-purple-500 transition-all active:scale-95 shadow-[0_0_15px_rgba(147,51,234,0.3)]"
                     >
                       {savingDirectText ? <Loader2 className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
                       Sync to Session
                     </button>
                   )}
                   {(directText.trim() || selectedSnippetIds.length > 0) && (
-                    <div className="flex items-center gap-2 text-[8px] font-black text-emerald-400 uppercase bg-emerald-500/10 px-3 py-1.5 border border-emerald-500/30 animate-in fade-in zoom-in-95 duration-500">
+                    <div className="flex items-center gap-2 text-[10px] font-black text-emerald-400 uppercase bg-emerald-500/10 px-3 py-1.5 border border-emerald-500/30 animate-in fade-in zoom-in-95 duration-500">
                       <CheckCircle2 className="w-3 h-3" /> AI Context Armed
                     </div>
                   )}
@@ -466,16 +466,16 @@ Output: [What the final deliverable should look like]`}
 
               {/* Snippets Cards Grid */}
               <div className="space-y-2 pt-2 border-t border-white/5">
-                <p className="text-[8px] text-slate-500 uppercase tracking-widest font-bold">Previous Runtime Context Blocks</p>
+                <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Previous Runtime Context Blocks</p>
                 {loadingSnippets ? (
                   <div className="flex items-center justify-center py-4">
                     <Loader2 className="w-4 h-4 text-slate-600 animate-spin" />
                   </div>
                 ) : snippets.length === 0 ? (
-                  <div className="py-6 flex flex-col items-center justify-center gap-2 text-[9px] text-slate-500 font-mono border border-dashed border-white/10 rounded-xl bg-white/[0.01]">
+                  <div className="py-6 flex flex-col items-center justify-center gap-2 text-[10px] text-slate-500 font-mono border border-dashed border-white/10 rounded-xl bg-white/[0.01]">
                     <Zap className="w-5 h-5 text-purple-700 mb-1 opacity-50" />
                     <span>No runtime context blocks saved</span>
-                    <span className="text-[7px] text-slate-600">Type above and click "Save as Block"</span>
+                    <span className="text-[10px] text-slate-600">Type above and click "Save as Block"</span>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
@@ -506,9 +506,9 @@ Output: [What the final deliverable should look like]`}
                             <Trash2 className="w-2.5 h-2.5" />
                           </button>
                         </div>
-                        <p className="text-[9px] font-bold text-white leading-tight mb-1 line-clamp-1">{s.title}</p>
-                        <p className="text-[8px] text-slate-500 line-clamp-2 font-mono">{s.content}</p>
-                        <p className="text-[6px] text-slate-700 mt-2 uppercase font-black tracking-tighter">
+                        <p className="text-[10px] font-bold text-white leading-tight mb-1 line-clamp-1">{s.title}</p>
+                        <p className="text-[10px] text-slate-500 line-clamp-2 font-mono">{s.content}</p>
+                        <p className="text-[10px] text-slate-700 mt-2 uppercase font-black tracking-tighter">
                           {new Date(s.created_at).toLocaleDateString()}
                         </p>
                       </div>
@@ -532,8 +532,8 @@ Output: [What the final deliverable should look like]`}
                 <Database className="w-4 h-4 text-cyan-400" />
               </div>
               <div className="flex flex-col items-start">
-                <span className="text-[10px] font-black text-cyan-400 tracking-[0.2em] uppercase">Document Repository</span>
-                <span className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">{selectedCollections.length}/{collections.length} Collections Active</span>
+                <span className="text-[11px] font-black text-cyan-400 tracking-[0.2em] uppercase">Document Repository</span>
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{selectedCollections.length}/{collections.length} Collections Active</span>
               </div>
               {kbExpanded ? <ChevronUp className="ml-auto w-3 h-3 text-slate-500" /> : <ChevronDown className="ml-auto w-3 h-3 text-slate-500" />}
             </button>
@@ -542,7 +542,7 @@ Output: [What the final deliverable should look like]`}
               <div className="p-4 space-y-4">
                 {/* File type selector */}
                 <div className="space-y-2">
-                  <p className="text-[8px] text-slate-500 uppercase tracking-widest font-bold">1. Select File Type</p>
+                  <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">1. Select File Type</p>
                   <div className="flex gap-1.5 flex-wrap">
                     {FILE_TYPES.map(ft => (
                       <button
@@ -550,7 +550,7 @@ Output: [What the final deliverable should look like]`}
                         type="button"
                         onClick={() => setSelectedFileType(ft.value)}
                         className={cn(
-                          "px-3 py-1.5 text-[9px] font-black tracking-wider uppercase transition-all flex items-center gap-1.5",
+                          "px-3 py-1.5 text-[10px] font-black tracking-wider uppercase transition-all flex items-center gap-1.5",
                           selectedFileType === ft.value
                             ? "bg-cyan-500 text-black shadow-[0_0_12px_rgba(6,182,212,0.4)]"
                             : "bg-white/5 border border-white/10 text-slate-400 hover:border-cyan-500/30 hover:text-cyan-400"
@@ -565,7 +565,7 @@ Output: [What the final deliverable should look like]`}
 
                 {/* Upload */}
                 <div className="space-y-2">
-                  <p className="text-[8px] text-slate-500 uppercase tracking-widest font-bold">2. Upload File</p>
+                  <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">2. Upload File</p>
                   <div className="space-y-3 bg-black/40 border border-white/5 p-4 rounded-xl">
                     <input
                       type="text"
@@ -586,7 +586,7 @@ Output: [What the final deliverable should look like]`}
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploading}
                       className={cn(
-                        "w-full py-6 flex flex-col items-center justify-center gap-3 text-[10px] font-black uppercase tracking-widest transition-all rounded-lg border border-dashed",
+                        "w-full py-6 flex flex-col items-center justify-center gap-3 text-[11px] font-black uppercase tracking-widest transition-all rounded-lg border border-dashed",
                         uploading
                           ? "bg-slate-900 border-white/5 text-slate-500 cursor-wait"
                           : "bg-cyan-500/5 border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 hover:border-cyan-500/60"
@@ -604,7 +604,7 @@ Output: [What the final deliverable should look like]`}
                           </div>
                           <div className="flex flex-col items-center gap-1">
                             <span>Select or Drop .{selectedFileType} Document</span>
-                            <span className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">Max size 25MB · Text extraction automatic</span>
+                            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Max size 25MB · Text extraction automatic</span>
                           </div>
                         </>
                       )}
@@ -612,7 +612,7 @@ Output: [What the final deliverable should look like]`}
 
                     {uploadStatus && (
                       <div className={cn(
-                        "flex items-center gap-2 p-2 text-[9px] font-bold border",
+                        "flex items-center gap-2 p-2 text-[10px] font-bold border",
                         uploadStatus.type === "success"
                           ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
                           : "bg-rose-500/10 border-rose-500/30 text-rose-400"
@@ -630,15 +630,15 @@ Output: [What the final deliverable should look like]`}
                 {/* Collections list */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <p className="text-[8px] text-slate-500 uppercase tracking-widest font-bold">3. Select Collections</p>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">3. Select Collections</p>
                     {loadingCollections && <Loader2 className="w-3 h-3 text-slate-600 animate-spin" />}
                   </div>
 
                   {collections.length === 0 ? (
-                    <div className="py-8 flex flex-col items-center justify-center gap-2 text-[9px] text-slate-500 font-mono border border-dashed border-white/10 rounded-xl bg-white/[0.01]">
+                    <div className="py-8 flex flex-col items-center justify-center gap-2 text-[10px] text-slate-500 font-mono border border-dashed border-white/10 rounded-xl bg-white/[0.01]">
                       <FileText className="w-6 h-6 text-slate-700 mb-1 opacity-50" />
                       <span>No collections active</span>
-                      <span className="text-[7px] text-slate-600">Upload a document above to begin indexing</span>
+                      <span className="text-[10px] text-slate-600">Upload a document above to begin indexing</span>
                     </div>
                   ) : (
                     <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1 custom-scrollbar">
@@ -664,9 +664,9 @@ Output: [What the final deliverable should look like]`}
                           <FileText className="w-3 h-3 text-slate-500 shrink-0" />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <p className="text-[9px] font-bold text-white truncate">{c.name}</p>
+                              <p className="text-[10px] font-bold text-white truncate">{c.name}</p>
                               <span className={cn(
-                                "text-[6px] font-black uppercase px-1 border",
+                                "text-[10px] font-black uppercase px-1 border",
                                 c.status === "ready" ? "text-emerald-500 border-emerald-500/20 bg-emerald-500/5" :
                                   c.status === "indexing" ? "text-cyan-500 border-cyan-500/20 bg-cyan-500/5 animate-pulse" :
                                     "text-slate-500 border-white/5"
@@ -674,7 +674,7 @@ Output: [What the final deliverable should look like]`}
                                 {c.status || "PENDING"}
                               </span>
                             </div>
-                            <p className="text-[8px] text-slate-500 font-mono">
+                            <p className="text-[10px] text-slate-500 font-mono">
                               {c.chunk_count} units · {c.file_type.toUpperCase()}
                             </p>
                           </div>
@@ -705,8 +705,8 @@ Output: [What the final deliverable should look like]`}
                 <BookOpen className="w-4 h-4 text-amber-400" />
               </div>
               <div className="flex flex-col items-start">
-                <span className="text-[10px] font-black text-amber-400 tracking-[0.2em] uppercase">Protocol Modules</span>
-                <span className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">{selectedProfiles.length}/{profiles.length} Instruction Profiles Active</span>
+                <span className="text-[11px] font-black text-amber-400 tracking-[0.2em] uppercase">Protocol Modules</span>
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{selectedProfiles.length}/{profiles.length} Instruction Profiles Active</span>
               </div>
               {instrExpanded ? <ChevronUp className="ml-auto w-3 h-3 text-slate-500" /> : <ChevronDown className="ml-auto w-3 h-3 text-slate-500" />}
             </button>
@@ -717,8 +717,8 @@ Output: [What the final deliverable should look like]`}
                 <div className="flex items-center gap-3 p-3 bg-emerald-500/8 border border-emerald-500/25">
                   <Globe className="w-4 h-4 text-emerald-400 shrink-0" />
                   <div className="flex-1">
-                    <p className="text-[9px] font-black text-emerald-400 uppercase tracking-wider">Web Search — Always Active</p>
-                    <p className="text-[8px] text-slate-500 mt-0.5 leading-relaxed">
+                    <p className="text-[10px] font-black text-emerald-400 uppercase tracking-wider">Web Search — Always Active</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">
                       DuckDuckGo research runs for every task. Sources are cited in traces.
                     </p>
                   </div>
@@ -733,10 +733,10 @@ Output: [What the final deliverable should look like]`}
                     </div>
                   )}
                   {!loadingProfiles && profiles.length === 0 && (
-                    <div className="py-8 flex flex-col items-center justify-center gap-2 text-[9px] text-slate-500 font-mono border border-dashed border-white/10 rounded-xl bg-white/[0.01]">
+                    <div className="py-8 flex flex-col items-center justify-center gap-2 text-[10px] text-slate-500 font-mono border border-dashed border-white/10 rounded-xl bg-white/[0.01]">
                       <BookOpen className="w-6 h-6 text-slate-700 mb-1 opacity-50" />
                       <span>No instruction profiles configured</span>
-                      <span className="text-[7px] text-slate-600">Create a new behavior profile below</span>
+                      <span className="text-[10px] text-slate-600">Create a new behavior profile below</span>
                     </div>
                   )}
                   <div className="space-y-1.5">
@@ -760,8 +760,8 @@ Output: [What the final deliverable should look like]`}
                           {selectedProfiles.includes(p.profile_id) && <Check className="w-2 h-2 text-black" />}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[9px] font-bold text-white truncate">{p.name}</p>
-                          <p className="text-[8px] text-slate-500 truncate font-mono">{p.instructions.slice(0, 60)}…</p>
+                          <p className="text-[10px] font-bold text-white truncate">{p.name}</p>
+                          <p className="text-[10px] text-slate-500 truncate font-mono">{p.instructions.slice(0, 60)}…</p>
                         </div>
                         <button
                           type="button"
@@ -780,7 +780,7 @@ Output: [What the final deliverable should look like]`}
                   <div className="space-y-3 border border-amber-500/20 p-4 bg-amber-500/5 rounded-xl">
                     <div className="flex items-center gap-2 mb-1">
                       <Plus className="w-3 h-3 text-amber-500" />
-                      <span className="text-[9px] font-bold text-amber-500 uppercase tracking-widest">Create Instruction Profile</span>
+                      <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Create Instruction Profile</span>
                     </div>
                     <input
                       type="text"
@@ -801,14 +801,14 @@ Output: [What the final deliverable should look like]`}
                         type="button"
                         onClick={saveProfile}
                         disabled={savingProfile}
-                        className="flex-1 py-2.5 bg-amber-500 text-black text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-amber-400 transition-colors shadow-[0_0_15px_rgba(245,158,11,0.2)]"
+                        className="flex-1 py-2.5 bg-amber-500 text-black text-[11px] font-black uppercase tracking-widest rounded-lg hover:bg-amber-400 transition-colors shadow-[0_0_15px_rgba(245,158,11,0.2)]"
                       >
                         {savingProfile ? "Saving..." : "Save Profile"}
                       </button>
                       <button
                         type="button"
                         onClick={() => setShowNewProfile(false)}
-                        className="px-4 py-2.5 bg-white/[0.05] border border-white/10 text-slate-400 text-[10px] font-bold rounded-lg hover:bg-white/10 hover:text-white transition-colors"
+                        className="px-4 py-2.5 bg-white/[0.05] border border-white/10 text-slate-400 text-[11px] font-bold rounded-lg hover:bg-white/10 hover:text-white transition-colors"
                       >
                         <X className="w-4 h-4" />
                       </button>
@@ -834,18 +834,18 @@ Output: [What the final deliverable should look like]`}
             <div className="flex items-center gap-3">
               <Zap className="w-3.5 h-3.5 text-cyan-400" />
               <div className="flex flex-col">
-                <span className="text-[8px] font-black text-cyan-400 uppercase tracking-widest">Active Grounding Context</span>
-                <span className="text-[6px] text-slate-500 uppercase">Information is synced for the next agent dispatch</span>
+                <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">Active Grounding Context</span>
+                <span className="text-[10px] text-slate-500 uppercase">Information is synced for the next agent dispatch</span>
               </div>
               <div className="flex gap-2">
-                {(directText.trim() || selectedSnippetIds.length > 0) && <span className="text-[7px] bg-purple-500/20 text-purple-400 px-1.5 py-0.5 font-bold border border-purple-500/20">DIRECT KNOWLEDGE ARMED</span>}
-                {selectedCollections.length > 0 && <span className="text-[7px] bg-cyan-500/20 text-cyan-400 px-1.5 py-0.5 font-bold border border-cyan-500/20">{selectedCollections.length} KNOWLEDGE BASES</span>}
-                {selectedProfiles.length > 0 && <span className="text-[7px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 font-bold border border-amber-500/20">{selectedProfiles.length} INSTRUCTION PROFILES</span>}
+                {(directText.trim() || selectedSnippetIds.length > 0) && <span className="text-[10px] bg-purple-500/20 text-purple-400 px-1.5 py-0.5 font-bold border border-purple-500/20">DIRECT KNOWLEDGE ARMED</span>}
+                {selectedCollections.length > 0 && <span className="text-[10px] bg-cyan-500/20 text-cyan-400 px-1.5 py-0.5 font-bold border border-cyan-500/20">{selectedCollections.length} KNOWLEDGE BASES</span>}
+                {selectedProfiles.length > 0 && <span className="text-[10px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 font-bold border border-amber-500/20">{selectedProfiles.length} INSTRUCTION PROFILES</span>}
               </div>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-1 h-1 rounded-full bg-emerald-500 animate-ping" />
-              <span className="text-[7px] text-emerald-500 font-black uppercase">Ready</span>
+              <span className="text-[10px] text-emerald-500 font-black uppercase">Ready</span>
             </div>
           </div>
         )}

@@ -59,7 +59,7 @@ export default function LoginPage() {
                         <div className="h-8 w-[1px] bg-white/10 mx-2" />
                         <span className="text-xl font-bold text-white tracking-[0.3em] uppercase">Security</span>
                     </div>
-                    <p className="text-[10px] text-cyan-500/50 font-black tracking-[0.4em] uppercase">Command Center Authorization</p>
+                    <p className="text-[11px] text-cyan-500/50 font-black tracking-[0.4em] uppercase">Command Center Authorization</p>
                 </div>
 
                 <HUDFrame title={isLogin ? "AUTHORIZATION REQUIRED" : "CREATE NEW IDENTITY"} className="p-6">
@@ -76,13 +76,13 @@ export default function LoginPage() {
                         {error && (
                             <div className="p-3 bg-rose-500/10 border border-rose-500/30 flex items-center gap-3 animate-in fade-in slide-in-from-top-1">
                                 <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
-                                <p className="text-[10px] font-bold text-rose-500 uppercase tracking-widest leading-tight">{error}</p>
+                                <p className="text-[11px] font-bold text-rose-500 uppercase tracking-widest leading-tight">{error}</p>
                             </div>
                         )}
 
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div className="space-y-2">
-                                <label className="text-[9px] uppercase font-black tracking-widest text-slate-500 px-1">Dimensional ID (Email)</label>
+                                <label className="text-[10px] uppercase font-black tracking-widest text-slate-500 px-1">Dimensional ID (Email)</label>
                                 <div className="relative group">
                                     <div className="absolute left-3 top-1/2 -translate-y-1/2">
                                         <Mail className="w-4 h-4 text-slate-500 group-focus-within:text-cyan-500 transition-colors" />
@@ -99,7 +99,7 @@ export default function LoginPage() {
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-[9px] uppercase font-black tracking-widest text-slate-500 px-1">Access Protocol (Password)</label>
+                                <label className="text-[10px] uppercase font-black tracking-widest text-slate-500 px-1">Access Protocol (Password)</label>
                                 <div className="relative group">
                                     <div className="absolute left-3 top-1/2 -translate-y-1/2">
                                         <Lock className="w-4 h-4 text-slate-500 group-focus-within:text-cyan-500 transition-colors" />
@@ -137,13 +137,13 @@ export default function LoginPage() {
 
                         <div className="flex items-center gap-4 py-2">
                             <div className="flex-1 h-[1px] bg-white/5" />
-                            <span className="text-[9px] font-black text-slate-600 tracking-widest italic">OR</span>
+                            <span className="text-[10px] font-black text-slate-600 tracking-widest italic">OR</span>
                             <div className="flex-1 h-[1px] bg-white/5" />
                         </div>
 
                         <button
                             onClick={handleGoogleSignIn}
-                            className="w-full p-3 border border-white/5 bg-white/5 hover:bg-white/10 transition-all font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-3"
+                            className="w-full p-3 border border-white/5 bg-white/5 hover:bg-white/10 transition-all font-bold text-[11px] uppercase tracking-widest flex items-center justify-center gap-3"
                         >
                             <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-4 h-4" alt="Google" />
                             Continue with Nexus ID
@@ -152,7 +152,7 @@ export default function LoginPage() {
                         <div className="pt-4 text-center">
                             <button
                                 onClick={() => setIsLogin(!isLogin)}
-                                className="text-[9px] font-black text-cyan-500/50 hover:text-cyan-500 transition-colors uppercase tracking-[0.2em]"
+                                className="text-[10px] font-black text-cyan-500/50 hover:text-cyan-500 transition-colors uppercase tracking-[0.2em]"
                             >
                                 {isLogin ? "Terminate session? Create new identity" : "Already registered? Authentication portal"}
                             </button>
@@ -163,7 +163,7 @@ export default function LoginPage() {
                 {/* Footer security badge */}
                 <div className="mt-8 flex items-center justify-center gap-2 opacity-30 group hover:opacity-100 transition-opacity">
                     <ShieldCheck className="w-3 h-3 text-cyan-500" />
-                    <span className="text-[8px] font-black tracking-[0.3em] uppercase">AES-256 Encrypted Session • Identity-Bound Execution Security (ACELOGIC)</span>
+                    <span className="text-[10px] font-black tracking-[0.3em] uppercase">AES-256 Encrypted Session • Identity-Bound Execution Security (ACELOGIC)</span>
                 </div>
             </div>
         </div>

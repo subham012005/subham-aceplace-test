@@ -95,7 +95,7 @@ export default function KnowledgePage() {
                             <div key={i} className="bg-white/[0.02] border border-white/5 p-3 rounded-lg backdrop-blur-sm group hover:border-white/10 transition-colors">
                                 <div className="flex items-center gap-2 mb-1">
                                     <stat.icon className={cn("w-3 h-3", stat.color)} />
-                                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{stat.label}</span>
+                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{stat.label}</span>
                                 </div>
                                 <div className="text-xl font-mono font-black text-white">
                                     {loading ? <div className="w-8 h-5 bg-white/5 animate-pulse rounded" /> : stat.value}
@@ -145,16 +145,16 @@ export default function KnowledgePage() {
                                     </div>
                                 ))}
                             </div>
-                            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">3 active system monitors linked to this matrix</span>
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">3 active system monitors linked to this matrix</span>
                         </div>
                         <div className="flex items-center gap-6">
                             <div className="flex items-center gap-2">
                                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                <span className="text-[9px] font-black text-white uppercase">Cloud Sync: Active</span>
+                                <span className="text-[10px] font-black text-white uppercase">Cloud Sync: Active</span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <div className="w-1.5 h-1.5 rounded-full bg-cyan-500" />
-                                <span className="text-[9px] font-black text-white uppercase">Local DB: 98% Optimal</span>
+                                <span className="text-[10px] font-black text-white uppercase">Local DB: 98% Optimal</span>
                             </div>
                         </div>
                     </div>

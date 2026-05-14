@@ -46,11 +46,11 @@ export function LeaseManager() {
       {loading ? (
         <div className="flex items-center justify-center p-6">
           <Clock className="w-4 h-4 text-cyan-500 animate-pulse" />
-          <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 ml-2">Loading...</span>
+          <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-2">Loading...</span>
         </div>
       ) : activeLeases.length === 0 ? (
         <div className="flex items-center justify-center p-6 text-slate-600">
-          <span className="text-[9px] font-black uppercase tracking-[0.3em]">No Active Leases</span>
+          <span className="text-[10px] font-black uppercase tracking-[0.3em]">No Active Leases</span>
         </div>
       ) : (
         <div className="space-y-2 py-2">
@@ -73,16 +73,16 @@ export function LeaseManager() {
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black text-white tracking-tighter uppercase">
+                    <span className="text-[11px] font-black text-white tracking-tighter uppercase">
                       {lease.agent_id.replace("agent_", "").toUpperCase()}
                     </span>
-                    <span className="text-[9px] font-mono text-slate-500 truncate opacity-60">
+                    <span className="text-[10px] font-mono text-slate-500 truncate opacity-60">
                       ({lease.envelope_id.slice(-6)})
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-[7px] font-black uppercase tracking-widest text-slate-600">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">
                       ID: {lease.authority_lease.holder_instance_id.slice(0, 12)}...
                     </span>
                   </div>
@@ -90,12 +90,12 @@ export function LeaseManager() {
 
                 <div className="text-right">
                     <div className={cn(
-                    "text-[10px] font-black tabular-nums tracking-tight",
+                    "text-[11px] font-black tabular-nums tracking-tight",
                     isUrgent ? "text-red-500" : "text-purple-400",
                     )}>
                     {formatCountdown(lease.authority_lease.expires_at)}
                     </div>
-                    <div className="text-[6px] font-bold text-slate-700 uppercase tracking-tighter">Time to TTL</div>
+                    <div className="text-[10px] font-bold text-slate-700 uppercase tracking-tighter">Time to TTL</div>
                 </div>
 
                 <button

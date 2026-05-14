@@ -36,7 +36,7 @@ export default function TaskComposerPage() {
                             <item.icon className={cn("w-5 h-5", item.color)} />
                         </div>
                         <div>
-                            <p className="text-[9px] text-slate-500 uppercase font-black tracking-widest">{item.label}</p>
+                            <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest">{item.label}</p>
                             <p className="text-sm font-black text-white tracking-widest italic">{item.value}</p>
                         </div>
                     </div>

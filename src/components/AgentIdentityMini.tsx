@@ -23,7 +23,7 @@ export function AgentIdentityMini({ agentId }: AgentIdentityMiniProps) {
     return (
       <div className="mt-2 pt-2 border-t border-white/5 flex items-center gap-1.5">
         <Fingerprint className="w-2.5 h-2.5 text-purple-400/40 animate-pulse" />
-        <span className="text-[7px] font-mono text-slate-700 uppercase tracking-widest animate-pulse">
+        <span className="text-[10px] font-mono text-slate-700 uppercase tracking-widest animate-pulse">
           Verifying…
         </span>
       </div>
@@ -34,7 +34,7 @@ export function AgentIdentityMini({ agentId }: AgentIdentityMiniProps) {
     return (
       <div className="mt-2 pt-2 border-t border-white/5 flex items-center gap-1.5">
         <ShieldAlert className="w-2.5 h-2.5 text-rose-500/60 shrink-0" />
-        <span className="text-[7px] font-black uppercase tracking-widest text-rose-500/60">
+        <span className="text-[10px] font-black uppercase tracking-widest text-rose-500/60">
           Identity Unregistered
         </span>
       </div>
@@ -58,7 +58,7 @@ export function AgentIdentityMini({ agentId }: AgentIdentityMiniProps) {
       {/* Verification badge */}
       <div
         className={cn(
-          "inline-flex items-center gap-1 px-1.5 py-0.5 border text-[6px] font-black uppercase tracking-widest",
+          "inline-flex items-center gap-1 px-1.5 py-0.5 border text-[10px] font-black uppercase tracking-widest",
           isVerified
             ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/5"
             : "border-orange-400/30 text-orange-400 bg-orange-400/5"
@@ -74,10 +74,10 @@ export function AgentIdentityMini({ agentId }: AgentIdentityMiniProps) {
 
       {/* ACELOGIC ID */}
       <div className="flex items-center gap-1">
-        <span className="text-[6px] font-black uppercase text-slate-700 tracking-widest w-14 shrink-0">
+        <span className="text-[10px] font-black uppercase text-slate-700 tracking-widest w-14 shrink-0">
           ACELOGIC:
         </span>
-        <span className="text-[7px] font-mono text-cyan-400/80 truncate">
+        <span className="text-[10px] font-mono text-cyan-400/80 truncate">
           {shortId}
         </span>
       </div>
@@ -85,7 +85,7 @@ export function AgentIdentityMini({ agentId }: AgentIdentityMiniProps) {
       {/* Fingerprint */}
       <div className="flex items-center gap-1" title={normalizedFp || undefined}>
         <Fingerprint className="w-2 h-2 text-purple-400/60 shrink-0" />
-        <span className="text-[7px] font-mono text-purple-400/80 truncate">
+        <span className="text-[10px] font-mono text-purple-400/80 truncate">
           {shortFp}
         </span>
       </div>
