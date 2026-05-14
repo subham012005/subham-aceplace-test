@@ -99,7 +99,7 @@ export function DeliverableItem({
                     {(title || subtitle) && (
                         <div className="border-b border-white/10 pb-4 mb-4">
                             {subtitle && (
-                                <span className={cn("text-[9px] uppercase font-bold tracking-widest block mb-1", theme.color)}>
+                                <span className={cn("text-[10px] uppercase font-bold tracking-widest block mb-1", theme.color)}>
                                     {subtitle}
                                 </span>
                             )}
@@ -138,7 +138,7 @@ export function DeliverableItem({
                             {finalSources.map((src, idx) => {
                                 const srcText = typeof src === 'object' ? (src.title || src.url || JSON.stringify(src)) : String(src);
                                 return (
-                                    <span key={idx} className="px-2 py-1 bg-white/5 text-[9px] text-slate-500 font-mono border border-white/10 italic truncate max-w-[200px]" title={String(srcText)}>
+                                    <span key={idx} className="px-2 py-1 bg-white/5 text-[10px] text-slate-500 font-mono border border-white/10 italic truncate max-w-[200px]" title={String(srcText)}>
                                         REF: {String(srcText)}
                                     </span>
                                 );

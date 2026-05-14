@@ -37,7 +37,7 @@ export default function LandingPage() {
               <h1 className="text-6xl md:text-8xl font-black text-white italic tracking-tighter text-center">
                 ACEPLACE <span className="text-cyan-500">WORKSTATION</span>
               </h1>
-              <p className="text-cyan-500/60 font-mono text-[10px] md:text-sm tracking-[0.4em] font-black uppercase mt-2">Dimensional Control Plane</p>
+              <p className="text-cyan-500/60 font-mono text-[11px] md:text-sm tracking-[0.4em] font-black uppercase mt-2">Dimensional Control Plane</p>
             </div>
           </div>
 
@@ -56,7 +56,7 @@ export default function LandingPage() {
               <div className="w-12 h-12 scifi-clip bg-white/5 flex items-center justify-center mx-auto transition-transform group-hover:scale-110">
                 <feature.icon className={cn("w-6 h-6", feature.color)} />
               </div>
-              <p className="text-[10px] uppercase font-black tracking-[0.2em] text-cyan-500/50">{feature.title}</p>
+              <p className="text-[11px] uppercase font-black tracking-[0.2em] text-cyan-500/50">{feature.title}</p>
               <p className="text-[11px] text-slate-400 font-medium leading-relaxed uppercase tracking-tight">{feature.desc}</p>
             </div>
           ))}
@@ -69,7 +69,7 @@ export default function LandingPage() {
           >
             Access Workstation
           </Link>
-          <div className="flex items-center gap-4 text-slate-600 font-mono text-[10px] font-bold uppercase tracking-[0.2em]">
+          <div className="flex items-center gap-4 text-slate-600 font-mono text-[11px] font-bold uppercase tracking-[0.2em]">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             Control Protocol v1.0.5-Delta Active
           </div>

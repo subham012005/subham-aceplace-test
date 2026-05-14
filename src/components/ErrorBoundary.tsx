@@ -53,18 +53,18 @@ export class ErrorBoundary extends Component<Props, State> {
               <div className="absolute inset-0 bg-rose-500/20 blur-xl rounded-full" />
             </div>
             <div className="space-y-1">
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-rose-400">
+              <p className="text-xs font-black uppercase tracking-[0.3em] text-rose-400">
                 Component Fault Detected
               </p>
               {this.state.error && (
-                <p className="text-[9px] font-mono text-slate-500 max-w-sm break-all">
+                <p className="text-[10px] font-mono text-slate-500 max-w-sm break-all">
                   {this.state.error.message}
                 </p>
               )}
             </div>
             <button
               onClick={this.handleReset}
-              className="flex items-center gap-2 px-4 py-2 border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-[9px] font-black uppercase tracking-[0.2em] transition-all"
+              className="flex items-center gap-2 px-4 py-2 border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-[10px] font-black uppercase tracking-[0.2em] transition-all"
             >
               <RotateCw className="w-3 h-3" />
               Reinitialize Component

@@ -46,7 +46,7 @@ export function StepGraph({ steps, currentStepId }: StepGraphProps) {
               >
                 <span
                   className={cn(
-                    "text-[9px] font-black",
+                    "text-[10px] font-black",
                     isCompleted && "text-emerald-400",
                     isFailed && "text-red-400",
                     isRunning && "text-cyan-400",
@@ -61,7 +61,7 @@ export function StepGraph({ steps, currentStepId }: StepGraphProps) {
               {/* Label */}
               <span
                 className={cn(
-                  "text-[7px] font-black uppercase tracking-[0.15em] text-center leading-tight max-w-[70px]",
+                  "text-[10px] font-black uppercase tracking-[0.15em] text-center leading-tight max-w-[70px]",
                   isCompleted && "text-emerald-500/70",
                   isFailed && "text-red-500/70",
                   isRunning && "text-cyan-500",

@@ -32,7 +32,7 @@ export default function WorkstationLayout({
                     <img src="/ace-symbol.png" alt="ACEPLACE Symbol" className="h-10 w-auto object-contain" />
                     <div className="flex flex-col">
                         <span className="font-black text-lg tracking-tighter text-white uppercase italic leading-none">ACEPLACE</span>
-                        <span className="text-[8px] uppercase text-cyan-500 shadow-sm tracking-[0.2em] font-black font-mono">Workstation</span>
+                        <span className="text-[10px] uppercase text-cyan-500 shadow-sm tracking-[0.2em] font-black font-mono">Workstation</span>
                     </div>
                 </div>
                 <button

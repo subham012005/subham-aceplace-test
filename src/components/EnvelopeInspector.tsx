@@ -55,7 +55,7 @@ function CopyableId({ value }: { value: string }) {
   };
   return (
     <button onClick={handleCopy} className="flex items-center gap-1 group/copy cursor-pointer" title={value}>
-      <span className="text-[8px] font-mono text-cyan-400 truncate max-w-[140px]">{value}</span>
+      <span className="text-[10px] font-mono text-cyan-400 truncate max-w-[140px]">{value}</span>
       {copied ? (
         <Check className="w-2.5 h-2.5 text-emerald-500 shrink-0" />
       ) : (
@@ -112,7 +112,7 @@ export function EnvelopeInspector({ executionId, hideFailureBanner = false }: En
           <div className="flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
             <div className="space-y-1">
-              <span className="text-[9px] font-black uppercase tracking-widest text-rose-500 block">Integrity Breach / Execution Failed</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-rose-500 block">Integrity Breach / Execution Failed</span>
               <p className="text-[11px] font-mono text-rose-200 leading-tight">
                 {failureReason}
               </p>
@@ -122,7 +122,7 @@ export function EnvelopeInspector({ executionId, hideFailureBanner = false }: En
           {isMissingConfig && (
             <button 
               onClick={() => router.push('/system-config')}
-              className="w-full py-2 border border-rose-500/30 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all group"
+              className="w-full py-2 border border-rose-500/30 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all group"
             >
               Configure Intelligence Providers
               <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
@@ -137,7 +137,7 @@ export function EnvelopeInspector({ executionId, hideFailureBanner = false }: En
           <div className="flex items-start gap-3">
             <Activity className="w-4 h-4 text-orange-500 shrink-0 mt-0.5 animate-spin-slow" />
             <div className="space-y-1">
-              <span className="text-[9px] font-black uppercase tracking-widest text-orange-500 block">Fallback Pending Approval</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-orange-500 block">Fallback Pending Approval</span>
               <p className="text-[10px] font-mono text-orange-200 leading-tight">
                 {envelope.fallback_metadata?.reason || "System requires approval to switch model/runtime."}
               </p>
@@ -154,10 +154,10 @@ export function EnvelopeInspector({ executionId, hideFailureBanner = false }: En
           {/* envelope_id + state */}
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="min-w-0">
-              <span className="text-[7px] font-black uppercase tracking-widest text-slate-600 block mb-0.5">Envelope ID</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 block mb-0.5">Envelope ID</span>
               <CopyableId value={envelope.envelope_id ?? executionId} />
             </div>
-            <div className={cn("flex items-center gap-1.5 px-2.5 py-1 border text-[8px] font-black uppercase tracking-widest shrink-0", statusColor)}>
+            <div className={cn("flex items-center gap-1.5 px-2.5 py-1 border text-[10px] font-black uppercase tracking-widest shrink-0", statusColor)}>
               <Activity className="w-3 h-3" />
               {statusDisplay}
             </div>
@@ -166,8 +166,8 @@ export function EnvelopeInspector({ executionId, hideFailureBanner = false }: En
           {/* Progress bar */}
           <div>
             <div className="flex justify-between items-center mb-1">
-              <span className="text-[7px] font-black uppercase tracking-widest text-slate-600">Step Progress</span>
-              <span className="text-[8px] font-black text-slate-400">{completedCount} / {totalCount} ({progress}%)</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">Step Progress</span>
+              <span className="text-[10px] font-black text-slate-400">{completedCount} / {totalCount} ({progress}%)</span>
             </div>
             <div className="h-1 bg-white/5 border border-white/5 relative overflow-hidden">
               <div className="absolute inset-y-0 left-0 bg-cyan-500 shadow-[0_0_8px_#06b6d4] transition-all duration-700" style={{ width: `${progress}%` }} />
@@ -176,7 +176,7 @@ export function EnvelopeInspector({ executionId, hideFailureBanner = false }: En
 
           {/* Active Agents & Identity */}
           <div className="space-y-2">
-            <span className="text-[7px] font-black uppercase tracking-widest text-slate-600 block mb-1">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 block mb-1">
               Active Agent Identities ({agents.length})
             </span>
             <div className="space-y-1.5">
@@ -189,7 +189,7 @@ export function EnvelopeInspector({ executionId, hideFailureBanner = false }: En
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
                         <User className={cn("w-2.5 h-2.5", isActive ? "text-cyan-400" : "text-slate-600")} />
-                        <span className="text-[8px] font-black uppercase tracking-widest text-slate-300 truncate">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-300 truncate">
                           {aid}
                         </span>
                         {ctx?.verified && (
@@ -198,17 +198,17 @@ export function EnvelopeInspector({ executionId, hideFailureBanner = false }: En
                       </div>
                       <div className="flex items-center gap-1.5">
                         <ShieldCheck className="w-2.5 h-2.5 text-slate-700" />
-                        <span className="text-[7px] font-mono text-slate-500 truncate" title={ctx?.identity_fingerprint}>
+                        <span className="text-[10px] font-mono text-slate-500 truncate" title={ctx?.identity_fingerprint}>
                           {ctx?.identity_fingerprint?.slice(0, 12)}…
                         </span>
                       </div>
                     </div>
                     {lease && (
                       <div className="text-right shrink-0">
-                        <div className={cn("text-[7px] font-black uppercase tracking-widest mb-0.5", isActive ? "text-amber-400" : "text-slate-700")}>
+                        <div className={cn("text-[10px] font-black uppercase tracking-widest mb-0.5", isActive ? "text-amber-400" : "text-slate-700")}>
                           {isActive ? "ACTIVE LEASE" : "EXPIRED"}
                         </div>
-                        <div className="text-[7px] font-mono text-slate-600 flex items-center justify-end gap-1">
+                        <div className="text-[10px] font-mono text-slate-600 flex items-center justify-end gap-1">
                            <Clock className="w-2 h-2" />
                            {new Date(lease.lease_expires_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                         </div>
@@ -218,7 +218,7 @@ export function EnvelopeInspector({ executionId, hideFailureBanner = false }: En
                 );
               })}
               {agents.length === 0 && (
-                <div className="text-[8px] text-slate-70) italic p-2 border border-dashed border-white/5">
+                <div className="text-[10px] text-slate-700 italic p-2 border border-dashed border-white/5">
                   No identities bound to envelope.
                 </div>
               )}
@@ -227,16 +227,16 @@ export function EnvelopeInspector({ executionId, hideFailureBanner = false }: En
 
           <div className="grid grid-cols-2 gap-3 border-t border-white/5 pt-3">
              <div className="space-y-0.5">
-               <span className="text-[7px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1"><GitBranch className="w-2.5 h-2.5" /> Current Step</span>
+               <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1"><GitBranch className="w-2.5 h-2.5" /> Current Step</span>
                {currentStep ? (
-                 <p className="text-[8px] font-mono text-blue-400 truncate">{currentStep.step_id}</p>
+                 <p className="text-[10px] font-mono text-blue-400 truncate">{currentStep.step_id}</p>
                ) : (
-                 <p className="text-[8px] font-mono text-slate-700 italic">—</p>
+                 <p className="text-[10px] font-mono text-slate-700 italic">—</p>
                )}
              </div>
              <div className="space-y-0.5 text-right">
-               <span className="text-[7px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1 justify-end"><Hash className="w-2.5 h-2.5" /> Events</span>
-               <p className="text-[8px] font-mono text-purple-400">{traceCount}</p>
+               <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1 justify-end"><Hash className="w-2.5 h-2.5" /> Events</span>
+               <p className="text-[10px] font-mono text-purple-400">{traceCount}</p>
              </div>
           </div>
         </div>

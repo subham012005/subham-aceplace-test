@@ -38,7 +38,7 @@ export default function SystemConfigPage() {
                                 <SettingsIcon className="w-5 h-5 text-cyan-400" />
                             </div>
                             <div className="h-px w-12 bg-gradient-to-r from-cyan-500/50 to-transparent" />
-                            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-500/70">Governance Control</span>
+                            <span className="text-[11px] font-black uppercase tracking-[0.4em] text-cyan-500/70">Governance Control</span>
                         </div>
                         
                         <div className="space-y-2">
@@ -68,7 +68,7 @@ export default function SystemConfigPage() {
                                     <button
                                         onClick={() => setActiveTab("ui")}
                                         className={cn(
-                                            "pb-2 text-[10px] font-black uppercase tracking-widest transition-all relative",
+                                            "pb-2 text-[11px] font-black uppercase tracking-widest transition-all relative",
                                             activeTab === "ui" ? "text-cyan-400" : "text-slate-500 hover:text-slate-300"
                                         )}
                                     >
@@ -78,7 +78,7 @@ export default function SystemConfigPage() {
                                     <button
                                         onClick={() => setActiveTab("providers")}
                                         className={cn(
-                                            "pb-2 text-[10px] font-black uppercase tracking-widest transition-all relative whitespace-nowrap",
+                                            "pb-2 text-[11px] font-black uppercase tracking-widest transition-all relative whitespace-nowrap",
                                             activeTab === "providers" ? "text-amber-400" : "text-slate-500 hover:text-slate-300"
                                         )}
                                     >
@@ -92,13 +92,13 @@ export default function SystemConfigPage() {
                                         <div className="max-w-2xl space-y-8 animate-in fade-in slide-in-from-left-4 duration-500">
                                             {/* User Identity Section */}
                                             <div className="space-y-4">
-                                                <div className="flex items-center gap-2 text-[10px] uppercase font-black text-cyan-500/60 tracking-[0.2em] mb-2">
+                                                <div className="flex items-center gap-2 text-[11px] uppercase font-black text-cyan-500/60 tracking-[0.2em] mb-2">
                                                     <Shield className="w-3.5 h-3.5" /> Identity Signature
                                                 </div>
                                                 <div className="p-6 border border-white/5 bg-white/[0.02] rounded-xl flex items-center justify-between hover:border-cyan-500/30 transition-all group group relative overflow-hidden">
                                                     <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                                                     <div className="space-y-1 min-w-0 flex-1 mr-4 relative z-10">
-                                                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Local UID Signature</span>
+                                                        <span className="text-[11px] font-black uppercase tracking-wider text-slate-500">Local UID Signature</span>
                                                         <p className="text-sm font-mono text-cyan-400 truncate">{userId}</p>
                                                     </div>
                                                     <button
@@ -112,7 +112,7 @@ export default function SystemConfigPage() {
 
                                             {/* Interface Section */}
                                             <div className="space-y-4">
-                                                <div className="flex items-center gap-2 text-[10px] uppercase font-black text-cyan-500/60 tracking-[0.2em] mb-2">
+                                                <div className="flex items-center gap-2 text-[11px] uppercase font-black text-cyan-500/60 tracking-[0.2em] mb-2">
                                                     <Shield className="w-3.5 h-3.5" /> System Security
                                                 </div>
 
@@ -142,18 +142,18 @@ export default function SystemConfigPage() {
                     <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 bg-white/[0.02] border border-white/5 rounded-xl">
                         <div className="flex items-center gap-4">
                             <div className="flex flex-col">
-                                <span className="text-[8px] font-mono text-slate-600 uppercase tracking-tighter">Build Hash: 0xACE_77_ALPHA</span>
-                                <span className="text-[8px] font-mono text-cyan-500/40 uppercase tracking-widest animate-pulse">ACEPLACE-CORE_STABLE</span>
+                                <span className="text-[10px] font-mono text-slate-600 uppercase tracking-tighter">Build Hash: 0xACE_77_ALPHA</span>
+                                <span className="text-[10px] font-mono text-cyan-500/40 uppercase tracking-widest animate-pulse">ACEPLACE-CORE_STABLE</span>
                             </div>
                         </div>
                         <div className="flex items-center gap-6">
                             <div className="flex items-center gap-2">
                                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                <span className="text-[9px] font-black text-white uppercase">Encryption: AES-256</span>
+                                <span className="text-[10px] font-black text-white uppercase">Encryption: AES-256</span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <Globe className="w-3 h-3 text-cyan-500" />
-                                <span className="text-[9px] font-black text-white uppercase">Global Node: Active</span>
+                                <span className="text-[10px] font-black text-white uppercase">Global Node: Active</span>
                             </div>
                         </div>
                     </div>

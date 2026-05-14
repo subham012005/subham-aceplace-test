@@ -160,7 +160,7 @@ function drawCoverHeader(ctx: Ctx, title: string, subtitle: string, metadata: Re
     });
     // Subtitle
     drawText(ctx, sanitize(subtitle), margin, ctx.y - 34, {
-        font: fonts.regular, size: 9, color: rgb(0.8, 0.93, 0.97),
+        font: fonts.regular, size: 10, color: rgb(0.8, 0.93, 0.97),
     });
     // Divider line below bar
     ctx.y -= 72;
@@ -170,7 +170,7 @@ function drawCoverHeader(ctx: Ctx, title: string, subtitle: string, metadata: Re
     // Metadata grid: two columns
     const col1 = margin;
     const col2 = margin + contentW / 2;
-    const metaSize = 8.5;
+    const metaSize = 10;
     const lineH = 14;
     const entries = Object.entries(metadata);
     for (let i = 0; i < entries.length; i += 2) {
@@ -234,7 +234,7 @@ function drawParagraph(ctx: Ctx, text: string, opts?: { indent?: number; italic?
     const { margin, width, fonts } = ctx;
     const indent = opts?.indent ?? 0;
     const font = opts?.italic ? fonts.italic : fonts.regular;
-    const size = opts?.small ? 9 : 10;
+    const size = opts?.small ? 10 : 10.5;
     const maxW = width - margin * 2 - indent;
     const lineH = size * 1.55;
     const clean = stripInlineMarkers(text);
@@ -271,7 +271,7 @@ function drawBullet(ctx: Ctx, text: string, depth = 0): Ctx {
 function drawBlockquote(ctx: Ctx, text: string): Ctx {
     const { margin, width, fonts } = ctx;
     const indent = 18;
-    const size = 9.5;
+    const size = 10;
     const maxW = width - margin * 2 - indent - 6;
     const lineH = size * 1.6;
     const clean = stripInlineMarkers(text);
@@ -292,7 +292,7 @@ function drawBlockquote(ctx: Ctx, text: string): Ctx {
 
 function drawCodeBlock(ctx: Ctx, text: string): Ctx {
     const { margin, width, fonts } = ctx;
-    const size = 8.5;
+    const size = 10;
     const lineH = size * 1.5;
     const lines = text.split('\n');
     const blockH = lines.length * lineH + 12;
@@ -324,7 +324,7 @@ function stampFooters(doc: PDFDocument, fonts: any, totalPages: number, jobId: s
         const { width } = p.getSize();
         const footerY = 24;
         const text = `ACEPLACE Intelligence Report -- job-${jobId}   Page ${i + 1} of ${totalPages}`;
-        const size = 7;
+        const size = 10;
         const textW = fonts.regular.widthOfTextAtSize(text, size);
 
         p.drawText(text, {

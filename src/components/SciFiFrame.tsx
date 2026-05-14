@@ -51,7 +51,7 @@ export function SciFiFrame({
         {title && (
           <div className="flex items-center gap-2 mb-4 border-b border-white/5 pb-2">
             <div className="w-1.5 h-4 bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.5)]" />
-            <h3 className="text-[10px] uppercase font-bold tracking-[0.2em] text-slate-400 italic">
+            <h3 className="text-[11px] uppercase font-bold tracking-[0.2em] text-slate-400 italic">
               {title}
             </h3>
             <div className="flex-1 h-[1px] bg-gradient-to-r from-white/10 to-transparent ml-2" />

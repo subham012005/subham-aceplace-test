@@ -396,14 +396,14 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                 </button>
                             </div>
                             <div className="flex items-center gap-3 mt-1">
-                                <span className={cn("text-[8px] font-black uppercase tracking-[0.2em] border px-2 py-0.5", statusColors[envelope?.fallback_suggested ? 'fallback_pending' : displayJob.status] || "text-slate-400")}>
+                                <span className={cn("text-[10px] font-black uppercase tracking-[0.2em] border px-2 py-0.5", statusColors[envelope?.fallback_suggested ? 'fallback_pending' : displayJob.status] || "text-slate-400")}>
                                     {envelope?.fallback_suggested ? "FALLBACK PENDING" : (displayJob.status === "quarantined" ? (
                                         displayJob.reason?.toLowerCase().includes("lease") || displayJob.reason?.toLowerCase().includes("fork") || displayJob.block_reason?.toLowerCase().includes("fork")
                                             ? "BLOCKED (LEASE CONFLICT)"
                                             : "QUARANTINED (IDENTITY FAILURE)"
                                     ) : displayJob.status)}
                                 </span>
-                                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest flex items-center gap-1">
+                                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest flex items-center gap-1">
                                     <Clock className="w-3 h-3" />
                                     {displayJob.updated_at ? new Date(displayJob.updated_at).toLocaleString() : (displayJob.created_at ? new Date(displayJob.created_at).toLocaleString() : "Syncing...")}
                                 </span>
@@ -433,7 +433,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                             )}
                         >
                             <tab.icon className="w-4 h-4" />
-                            <span className="text-[8px] font-black uppercase tracking-[0.2em] cursor-target">{tab.label}</span>
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] cursor-target">{tab.label}</span>
                             {activeTab === tab.id && <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-cyan-500 shadow-[0_0_10px_#06b6d4]" />}
                         </button>
                     ))}
@@ -446,8 +446,8 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                         <div className="flex items-center gap-3">
                             <AlertCircle className="w-5 h-5 text-rose-500 animate-pulse" />
                             <div className="flex-1">
-                                <p className="text-[10px] text-rose-500 uppercase font-black tracking-[0.3em]">Critical Protocol Breach Detected</p>
-                                <p className="text-[11px] text-rose-200/90 font-mono mt-1 leading-tight">{error}</p>
+                                <p className="text-xs text-rose-500 uppercase font-black tracking-[0.3em]">Critical Protocol Breach Detected</p>
+                                <p className="text-xs text-rose-200/90 font-mono mt-1 leading-tight">{error}</p>
                             </div>
                             <button onClick={clearError} className="p-1 hover:bg-rose-500/10 rounded transition-colors self-start">
                                 <X className="w-4 h-4 text-rose-500/50 hover:text-rose-500" />
@@ -469,8 +469,8 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                             <div className="flex items-start gap-3">
                                 <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
                                 <div className="space-y-1">
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-rose-500 block">Integrity Breach / Execution Failed</span>
-                                    <p className="text-[11px] font-mono text-rose-200 leading-tight">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-rose-500 block">Integrity Breach / Execution Failed</span>
+                                    <p className="text-xs font-mono text-rose-200 leading-tight">
                                         {failureReason}
                                     </p>
                                 </div>
@@ -479,7 +479,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                             {isMissingConfig && (
                                 <button
                                     onClick={() => router.push('/system-config')}
-                                    className="w-full py-2 border border-rose-500/30 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all group cursor-target"
+                                    className="w-full py-2 border border-rose-500/30 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all group cursor-target"
                                 >
                                     Configure Intelligence Providers
                                     <ChevronRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
@@ -494,7 +494,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                     {activeTab === "execution" && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                             <HUDFrame title="Initial Prompt" variant="glass">
-                                <p className="text-sm font-medium text-slate-300 leading-relaxed italic border-l-2 border-cyan-500/50 pl-4 py-1">
+                                <p className="text-base font-medium text-slate-300 leading-relaxed italic border-l-2 border-cyan-500/50 pl-4 py-1">
                                     "{displayJob.prompt}"
                                 </p>
                             </HUDFrame>
@@ -508,13 +508,13 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                             <AlertTriangle className="w-6 h-6 text-rose-500 animate-pulse" />
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <h3 className="text-sm font-black text-white uppercase italic tracking-tighter">Intervention Required</h3>
-                                            <p className="text-[10px] text-rose-400 font-black uppercase tracking-[0.2em] mt-0.5">Agent Engine Fallback Protocol Triggered</p>
+                                            <h3 className="text-base font-black text-white uppercase italic tracking-tighter">Intervention Required</h3>
+                                            <p className="text-xs text-rose-400 font-black uppercase tracking-[0.2em] mt-0.5">Agent Engine Fallback Protocol Triggered</p>
                                         </div>
                                     </div>
 
                                     <div className="bg-black/40 border border-rose-500/20 p-3 scifi-clip-sm">
-                                        <p className="text-[10px] text-rose-200/90 leading-relaxed font-mono">
+                                        <p className="text-xs text-rose-200/90 leading-relaxed font-mono">
                                             <span className="text-rose-500 font-black mr-2">CAUSE:</span>
                                             BYO-LLM configuration missing for organization: The provider &apos;{(envelope?.fallback_metadata as any)?.failed_provider || 'anthropic'}&apos; is not enabled for your environment.
                                         </p>
@@ -523,14 +523,14 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                     <div className="flex flex-col sm:flex-row items-center gap-3 mt-1">
                                         <button
                                             onClick={() => router.push('/system-config')}
-                                            className="w-full sm:w-auto px-4 py-2 bg-rose-500/20 border border-rose-500/40 hover:bg-rose-500/30 transition-all text-rose-500 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 cursor-target"
+                                            className="w-full sm:w-auto px-4 py-2 bg-rose-500/20 border border-rose-500/40 hover:bg-rose-500/30 transition-all text-rose-500 text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 cursor-target"
                                         >
                                             <SettingsIcon className="w-3.5 h-3.5" />
                                             Configure API Keys
                                         </button>
                                         <div className="flex-1 flex items-center gap-2 px-2">
                                             <div className="w-1.5 h-1.5 bg-rose-500 animate-ping rounded-full" />
-                                            <span className="text-[8px] text-rose-400/60 uppercase font-black tracking-widest">Awaiting Manual Configuration</span>
+                                            <span className="text-[10px] text-rose-400/60 uppercase font-black tracking-widest">Awaiting Manual Configuration</span>
                                         </div>
                                     </div>
                                 </div>
@@ -549,14 +549,14 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                 <div className="space-y-4">
                                     <div className="flex items-center gap-2 px-1">
                                         <div className="h-[1px] flex-1 bg-white/10" />
-                                        <span className="text-[9px] font-black uppercase tracking-[0.3em] text-cyan-500/50">Execution Insights</span>
+                                        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-500/50">Execution Insights</span>
                                         <div className="h-[1px] flex-1 bg-white/10" />
                                     </div>
 
                                     {displayJob.runtime_context?.plan && (
                                         <HUDFrame title="Strategic Plan" variant="dark">
                                             <div className="p-1">
-                                                <p className="text-[11px] text-slate-300 leading-relaxed font-mono whitespace-pre-wrap">
+                                                <p className="text-xs text-slate-300 leading-relaxed font-mono whitespace-pre-wrap">
                                                     {typeof displayJob.runtime_context.plan === 'object'
                                                         ? JSON.stringify(displayJob.runtime_context.plan, null, 2)
                                                         : displayJob.runtime_context.plan}
@@ -568,7 +568,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                     {displayJob.runtime_context?.research_result && (
                                         <HUDFrame title="Intelligence Report" variant="dark">
                                             <div className="p-1">
-                                                <p className="text-[11px] text-slate-300 leading-relaxed italic whitespace-pre-wrap">
+                                                <p className="text-xs text-slate-300 leading-relaxed italic whitespace-pre-wrap">
                                                     {typeof displayJob.runtime_context.research_result === 'object'
                                                         ? JSON.stringify(displayJob.runtime_context.research_result, null, 2)
                                                         : displayJob.runtime_context.research_result}
@@ -580,7 +580,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                     {displayJob.runtime_context?.worker_result && (
                                         <HUDFrame title="Operational Output" variant="dark">
                                             <div className="p-1">
-                                                <p className="text-[11px] text-emerald-400/90 leading-relaxed font-mono whitespace-pre-wrap">
+                                                <p className="text-xs text-emerald-400/90 leading-relaxed font-mono whitespace-pre-wrap">
                                                     {typeof displayJob.runtime_context.worker_result === 'object'
                                                         ? JSON.stringify(displayJob.runtime_context.worker_result, null, 2)
                                                         : displayJob.runtime_context.worker_result}
@@ -594,28 +594,28 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                             <HUDFrame title="Metadata Matrix" variant="dark">
                                 <div className="grid grid-cols-2 gap-4 py-2">
                                     <div className="space-y-1">
-                                        <p className="text-[8px] uppercase font-black tracking-widest text-slate-500">Node Operator</p>
-                                        <p className="text-xs font-bold text-white uppercase">{String(displayJob.agent_role || displayJob.job_type || "Pending...")}</p>
+                                        <p className="text-[10px] uppercase font-black tracking-widest text-slate-500">Node Operator</p>
+                                        <p className="text-sm font-bold text-white uppercase">{String(displayJob.agent_role || displayJob.job_type || "Pending...")}</p>
                                     </div>
                                     <div className="space-y-1">
-                                        <p className="text-[8px] uppercase font-black tracking-widest text-slate-500">Neural Provider</p>
-                                        <p className="text-xs font-bold text-cyan-500 uppercase">{String(resolvedProvider)}</p>
+                                        <p className="text-[10px] uppercase font-black tracking-widest text-slate-500">Neural Provider</p>
+                                        <p className="text-sm font-bold text-cyan-500 uppercase">{String(resolvedProvider)}</p>
                                     </div>
                                     <div className="space-y-1">
-                                        <p className="text-[8px] uppercase font-black tracking-widest text-slate-500">Compute Model</p>
-                                        <p className="text-xs font-mono text-slate-400 truncate">{String(resolvedModel)}</p>
+                                        <p className="text-[10px] uppercase font-black tracking-widest text-slate-500">Compute Model</p>
+                                        <p className="text-sm font-mono text-slate-400 truncate">{String(resolvedModel)}</p>
                                     </div>
                                     <div className="space-y-1">
-                                        <p className="text-[8px] uppercase font-black tracking-widest text-slate-500">Compute Cost</p>
-                                        <p className="text-xs font-mono text-emerald-500">${Number((typeof displayJob.token_usage === 'object' ? displayJob.token_usage?.cost : null) ?? displayJob.cost ?? 0).toFixed(6)}</p>
+                                        <p className="text-[10px] uppercase font-black tracking-widest text-slate-500">Compute Cost</p>
+                                        <p className="text-sm font-mono text-emerald-500">${Number((typeof displayJob.token_usage === 'object' ? displayJob.token_usage?.cost : null) ?? displayJob.cost ?? 0).toFixed(6)}</p>
                                     </div>
                                     <div className="space-y-1">
-                                        <p className="text-[8px] uppercase font-black tracking-widest text-slate-500">Token Usage</p>
-                                        <p className="text-xs font-mono text-slate-400">{Number(typeof displayJob.token_usage === 'object' ? displayJob.token_usage?.total_tokens ?? 0 : displayJob.token_usage ?? 0).toLocaleString()}</p>
+                                        <p className="text-[10px] uppercase font-black tracking-widest text-slate-500">Token Usage</p>
+                                        <p className="text-sm font-mono text-slate-400">{Number(typeof displayJob.token_usage === 'object' ? displayJob.token_usage?.total_tokens ?? 0 : displayJob.token_usage ?? 0).toLocaleString()}</p>
                                     </div>
                                     <div className="space-y-1">
-                                        <p className="text-[8px] uppercase font-black tracking-widest text-slate-500">Dimensional ID</p>
-                                        <p className="text-xs font-mono text-slate-400 truncate">{String(displayJob.job_id)}</p>
+                                        <p className="text-[10px] uppercase font-black tracking-widest text-slate-500">Dimensional ID</p>
+                                        <p className="text-sm font-mono text-slate-400 truncate">{String(displayJob.job_id)}</p>
                                     </div>
                                 </div>
                             </HUDFrame>
@@ -624,16 +624,16 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                 <div className="space-y-4 py-2">
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-1">
-                                            <p className="text-[8px] uppercase font-black tracking-widest text-slate-500 flex items-center gap-1">
+                                            <p className="text-[10px] uppercase font-black tracking-widest text-slate-500 flex items-center gap-1">
                                                 <FingerprintIcon className="w-2 h-2" /> Agent Fingerprint
                                             </p>
-                                            <p className="text-xs font-mono text-purple-400 font-bold">{(() => { const raw = displayJob.identity_fingerprint || displayJob.identity_id; if (!raw) return "PENDING_REGISTRATION"; return "0x" + String(raw).replace(/^hex:0x|^0x|^hex:/i, ''); })()}</p>
+                                            <p className="text-sm font-mono text-purple-400 font-bold">{(() => { const raw = displayJob.identity_fingerprint || displayJob.identity_id; if (!raw) return "PENDING_REGISTRATION"; return "0x" + String(raw).replace(/^hex:0x|^0x|^hex:/i, ''); })()}</p>
                                         </div>
                                         <div className="space-y-1">
-                                            <p className="text-[8px] uppercase font-black tracking-widest text-slate-500 flex items-center gap-1">
+                                            <p className="text-[10px] uppercase font-black tracking-widest text-slate-500 flex items-center gap-1">
                                                 <BoxSelect className="w-2 h-2" /> Canonical ID
                                             </p>
-                                            <p className="text-xs font-mono text-white truncate">{typeof displayJob.canonical_job_id === 'object' ? JSON.stringify(displayJob.canonical_job_id) : String(displayJob.canonical_job_id || "ORIGIN")}</p>
+                                            <p className="text-sm font-mono text-white truncate">{typeof displayJob.canonical_job_id === 'object' ? JSON.stringify(displayJob.canonical_job_id) : String(displayJob.canonical_job_id || "ORIGIN")}</p>
                                         </div>
                                     </div>
 
@@ -646,8 +646,8 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                                 <ShieldAlert className={cn("w-4 h-4", (attemptsCount > 0 || displayJob.event_id || displayJob.fork_attempted) && "animate-pulse")} />
                                             </div>
                                             <div>
-                                                <p className="text-[10px] font-black uppercase text-white leading-none">Fork Attempts (SIMULATED)</p>
-                                                <p className="text-[8px] uppercase font-bold text-slate-500 mt-1">
+                                                <p className="text-xs font-black uppercase text-white leading-none">Fork Attempts (SIMULATED)</p>
+                                                <p className="text-[10px] uppercase font-bold text-slate-500 mt-1">
                                                     {(attemptsCount > 0 || displayJob.event_id || displayJob.fork_attempted) ? `${Math.max(attemptsCount, displayJob.event_id ? 1 : 0, displayJob.fork_attempted ? 1 : 0)} Detection Event${Math.max(attemptsCount, displayJob.event_id ? 1 : 0, displayJob.fork_attempted ? 1 : 0) > 1 ? 's' : ''}` : "Clean Lineage Verified"}
                                                 </p>
                                             </div>
@@ -661,25 +661,25 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                         <div className="space-y-3 p-3 bg-rose-500/5 border border-rose-500/20 scifi-clip animate-in fade-in duration-500">
                                             <div className="flex justify-between items-start">
                                                 <div>
-                                                    <p className="text-[8px] uppercase font-black tracking-widest text-rose-500 leading-none">Latest Attempt</p>
-                                                    <p className="text-[10px] text-white font-mono mt-1">
+                                                    <p className="text-[10px] uppercase font-black tracking-widest text-rose-500 leading-none">Latest Attempt</p>
+                                                    <p className="text-xs text-white font-mono mt-1">
                                                         {latestEvent ? new Date(latestEvent.created_at).toLocaleString() : (displayJob.updated_at ? new Date(displayJob.updated_at).toLocaleString() : "Recent Event Detected")}
                                                     </p>
                                                 </div>
-                                                <div className="px-2 py-0.5 bg-rose-500 text-black text-[8px] font-black uppercase tracking-tighter scifi-clip">
+                                                <div className="px-2 py-0.5 bg-rose-500 text-black text-[10px] font-black uppercase tracking-tighter scifi-clip">
                                                     {latestEvent?.action_taken || displayJob.action_taken || "quarantined"}
                                                 </div>
                                             </div>
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div className="space-y-1">
-                                                    <p className="text-[8px] uppercase font-black tracking-widest text-slate-500">Block Reason</p>
-                                                    <p className="text-[10px] text-rose-400 font-bold uppercase break-words whitespace-pre-wrap">
+                                                    <p className="text-[10px] uppercase font-black tracking-widest text-slate-500">Block Reason</p>
+                                                    <p className="text-xs text-rose-400 font-bold uppercase break-words whitespace-pre-wrap">
                                                         {typeof (latestEvent?.block_reason || displayJob.block_reason) === 'object' ? JSON.stringify(latestEvent?.block_reason || displayJob.block_reason) : String(latestEvent?.block_reason || displayJob.block_reason || "SHADOW_FORK_ALERT")}
                                                     </p>
                                                 </div>
                                                 <div className="space-y-1">
-                                                    <p className="text-[8px] uppercase font-black tracking-widest text-slate-500">Detected Reason</p>
-                                                    <p className="text-[10px] text-slate-300 italic break-words whitespace-pre-wrap">
+                                                    <p className="text-[10px] uppercase font-black tracking-widest text-slate-500">Detected Reason</p>
+                                                    <p className="text-xs text-slate-300 italic break-words whitespace-pre-wrap">
                                                         "{typeof (latestEvent?.reason || displayJob.reason) === 'object' ? JSON.stringify(latestEvent?.reason || displayJob.reason) : String(latestEvent?.reason || displayJob.reason || "Autonomous Forking Signature")}"
                                                     </p>
                                                 </div>
@@ -693,7 +693,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                         className="w-full h-10 border border-white/5 bg-white/5 hover:bg-rose-500/10 hover:border-rose-500/30 transition-all flex items-center justify-center gap-2 group cursor-target"
                                     >
                                         <Network className={cn("w-3.5 h-3.5 text-slate-500 group-hover:text-rose-500", isProcessing && "animate-spin")} />
-                                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 group-hover:text-rose-500">Trigger Fork Simulation (SIMULATOR)</span>
+                                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 group-hover:text-rose-500">Trigger Fork Simulation (SIMULATOR)</span>
                                     </button>
                                 </div>
                             </HUDFrame>
@@ -793,7 +793,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                             exportToPDF(md, `job-${displayJob.job_id}-full-report.pdf`);
                                         }}
                                         className={cn(
-                                            "flex items-center gap-1.5 px-2 py-1 border scifi-clip transition-all text-[9px] uppercase font-black tracking-wider",
+                                            "flex items-center gap-1.5 px-2 py-1 border scifi-clip transition-all text-[10px] uppercase font-black tracking-wider",
                                             ['awaiting_approval', 'graded', 'approved', 'completed'].includes(displayJob.status) && artifactContent
                                                 ? "text-cyan-500 border-cyan-500/50 hover:bg-cyan-500/10 cursor-target"
                                                 : "text-slate-500 border-white/10 opacity-50 cursor-not-allowed"
@@ -812,7 +812,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                 ) : (
                                     <div className="flex flex-col items-center justify-center p-12 text-slate-600 border border-dashed border-white/10 scifi-clip">
                                         <RotateCw className="w-8 h-8 animate-spin mb-4 opacity-20" />
-                                        <p className="text-[10px] uppercase font-black tracking-widest">Waiting for execution stream...</p>
+                                        <p className="text-xs uppercase font-black tracking-widest">Waiting for execution stream...</p>
                                     </div>
                                 )}
                             </HUDFrame>
@@ -859,21 +859,21 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                             <HUDFrame title="Covenant Context" variant="glass">
                                 <div className="space-y-4 py-2">
                                     <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                                        <span className="text-[8px] uppercase font-black tracking-widest text-slate-500">Execution ID</span>
-                                        <span className="text-[10px] font-mono text-cyan-500 tracking-tighter truncate max-w-[200px]">{envelope?.envelope_id || job?.execution_id || "LEGACY_CONTEXT"}</span>
+                                        <span className="text-[10px] uppercase font-black tracking-widest text-slate-500">Execution ID</span>
+                                        <span className="text-xs font-mono text-cyan-500 tracking-tighter truncate max-w-[200px]">{envelope?.envelope_id || job?.execution_id || "LEGACY_CONTEXT"}</span>
                                     </div>
                                     <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                                        <span className="text-[8px] uppercase font-black tracking-widest text-slate-500">Active Leases</span>
+                                        <span className="text-[10px] uppercase font-black tracking-widest text-slate-500">Active Leases</span>
                                         <span className={cn(
-                                            "text-[10px] font-black uppercase tracking-widest",
+                                            "text-xs font-black uppercase tracking-widest",
                                             Object.keys((envelope as any)?.authority_leases || {}).length > 0 ? "text-emerald-500" : "text-amber-500"
                                         )}>
                                             {Object.keys((envelope as any)?.authority_leases || {}).length} GRANTED
                                         </span>
                                     </div>
                                     <div className="flex items-center justify-between">
-                                        <span className="text-[8px] uppercase font-black tracking-widest text-slate-500">Protocol Shard</span>
-                                        <span className="text-[10px] font-mono text-slate-400">#us#.shard.01</span>
+                                        <span className="text-[10px] uppercase font-black tracking-widest text-slate-500">Protocol Shard</span>
+                                        <span className="text-xs font-mono text-slate-400">#us#.shard.01</span>
                                     </div>
                                 </div>
                             </HUDFrame>
@@ -883,11 +883,11 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                     {/* Knowledge Base Grounding */}
                                     <div className="space-y-2">
                                         <div className="flex items-center justify-between">
-                                            <span className="text-[8px] uppercase font-black tracking-widest text-slate-500 flex items-center gap-1">
+                                            <span className="text-[10px] uppercase font-black tracking-widest text-slate-500 flex items-center gap-1">
                                                 <Layers className="w-2 h-2 text-cyan-500" /> Knowledge Grounding
                                             </span>
                                             <span className={cn(
-                                                "text-[8px] font-black px-2 py-0.5 border scifi-clip",
+                                                "text-[10px] font-black px-2 py-0.5 border scifi-clip",
                                                 envelope?.knowledge_context?.enabled ? "text-emerald-500 border-emerald-500/30 bg-emerald-500/5" : "text-slate-500 border-white/5"
                                             )}>
                                                 {envelope?.knowledge_context?.enabled ? "ACTIVE" : "INACTIVE"}
@@ -896,8 +896,8 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                         {envelope?.knowledge_context?.enabled && (
                                             <div className="pl-3 border-l border-white/10 space-y-3 mt-2">
                                                 <div className="flex justify-between items-center">
-                                                    <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Collections</span>
-                                                    <span className="text-[9px] text-white font-mono">{envelope.knowledge_context.collections?.length || 0} Targeted</span>
+                                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Collections</span>
+                                                    <span className="text-[10px] text-white font-mono">{envelope.knowledge_context.collections?.length || 0} Targeted</span>
                                                 </div>
 
                                                 {/* Progressive Status for each collection */}
@@ -911,9 +911,9 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                                         return (
                                                             <div key={cid} className="space-y-1.5">
                                                                 <div className="flex items-center justify-between gap-2">
-                                                                    <span className="text-[8px] font-mono text-slate-500 truncate max-w-[150px]">{status?.name || cid}</span>
+                                                                    <span className="text-[10px] font-mono text-slate-500 truncate max-w-[150px]">{status?.name || cid}</span>
                                                                     <span className={cn(
-                                                                        "text-[7px] font-black uppercase tracking-tighter px-1 border",
+                                                                        "text-[10px] font-black uppercase tracking-tighter px-1 border",
                                                                         isReady ? "text-emerald-500 border-emerald-500/20 bg-emerald-500/5" :
                                                                             isIndexing ? "text-cyan-500 border-cyan-500/20 bg-cyan-500/5 animate-pulse" :
                                                                                 "text-slate-500 border-white/5"
@@ -938,8 +938,8 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                                 </div>
 
                                                 <div className="flex justify-between items-center pt-1 border-t border-white/5">
-                                                    <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Total Grounding Data</span>
-                                                    <span className="text-[9px] text-cyan-400 font-mono">{envelope.knowledge_context.chunks_used || 0} Indexed Context Units</span>
+                                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Total Grounding Data</span>
+                                                    <span className="text-[10px] text-cyan-400 font-mono">{envelope.knowledge_context.chunks_used || 0} Indexed Context Units</span>
                                                 </div>
                                             </div>
                                         )}
@@ -948,11 +948,11 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                     {/* Web Search Context */}
                                     <div className="space-y-2 pt-2 border-t border-white/5">
                                         <div className="flex items-center justify-between">
-                                            <span className="text-[8px] uppercase font-black tracking-widest text-slate-500 flex items-center gap-1">
+                                            <span className="text-[10px] uppercase font-black tracking-widest text-slate-500 flex items-center gap-1">
                                                 <Network className="w-2 h-2 text-cyan-500" /> Web Intelligence
                                             </span>
                                             <span className={cn(
-                                                "text-[8px] font-black px-2 py-0.5 border scifi-clip",
+                                                "text-[10px] font-black px-2 py-0.5 border scifi-clip",
                                                 envelope?.web_search_context?.enabled ? "text-emerald-500 border-emerald-500/30 bg-emerald-500/5" : "text-slate-500 border-white/5"
                                             )}>
                                                 {envelope?.web_search_context?.enabled ? "ENABLED" : "DISABLED"}
@@ -961,12 +961,12 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                         {envelope?.web_search_context?.enabled && (
                                             <div className="pl-3 border-l border-white/10 space-y-2 mt-2">
                                                 <div className="flex justify-between items-center">
-                                                    <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Queries Executed</span>
-                                                    <span className="text-[9px] text-white font-mono">{envelope.web_search_context.queries?.length || 0} Deep Searches</span>
+                                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Queries Executed</span>
+                                                    <span className="text-[10px] text-white font-mono">{envelope.web_search_context.queries?.length || 0} Deep Searches</span>
                                                 </div>
                                                 <div className="flex justify-between items-center">
-                                                    <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Sources Cited</span>
-                                                    <span className="text-[9px] text-emerald-400 font-mono">{envelope.web_search_context.sources_used?.length || 0} External</span>
+                                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Sources Cited</span>
+                                                    <span className="text-[10px] text-emerald-400 font-mono">{envelope.web_search_context.sources_used?.length || 0} External</span>
                                                 </div>
                                             </div>
                                         )}
@@ -975,11 +975,11 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                     {/* Instruction Profiles */}
                                     <div className="space-y-2 pt-2 border-t border-white/5">
                                         <div className="flex items-center justify-between">
-                                            <span className="text-[8px] uppercase font-black tracking-widest text-slate-500 flex items-center gap-1">
+                                            <span className="text-[10px] uppercase font-black tracking-widest text-slate-500 flex items-center gap-1">
                                                 <ShieldCheckIcon className="w-2 h-2 text-cyan-500" /> Instruction Profiles
                                             </span>
                                             <span className={cn(
-                                                "text-[8px] font-black px-2 py-0.5 border scifi-clip",
+                                                "text-[10px] font-black px-2 py-0.5 border scifi-clip",
                                                 envelope?.instruction_context?.enabled ? "text-cyan-500 border-cyan-500/30 bg-cyan-500/5" : "text-slate-500 border-white/5"
                                             )}>
                                                 {envelope?.instruction_context?.enabled ? "ACTIVE" : "INACTIVE"}
@@ -988,7 +988,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                         {envelope?.instruction_context?.enabled && envelope.instruction_context.profiles && (
                                             <div className="pl-3 border-l border-white/10 flex flex-wrap gap-1 mt-2">
                                                 {envelope.instruction_context.profiles.map((p: string) => (
-                                                    <span key={p} className="text-[7px] font-mono text-cyan-500/70 bg-cyan-500/5 px-1.5 py-0.5 border border-cyan-500/20">
+                                                    <span key={p} className="text-[10px] font-mono text-cyan-500/70 bg-cyan-500/5 px-1.5 py-0.5 border border-cyan-500/20">
                                                         {p}
                                                     </span>
                                                 ))}
@@ -1047,9 +1047,9 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                                         {graderData.score.toFixed(1)}<span className="text-xl opacity-50 ml-1">/10</span>
                                                     </span>
                                                     <div className="flex flex-col items-center">
-                                                        <span className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-500 mt-1">Reliability</span>
+                                                        <span className="text-xs font-black uppercase tracking-[0.3em] text-slate-500 mt-1">Reliability</span>
                                                         {displayJob.grader_model && (
-                                                            <span className="text-[7px] font-bold uppercase tracking-widest text-cyan-500/50 mt-1">{String(displayJob.grader_model)}</span>
+                                                            <span className="text-[10px] font-bold uppercase tracking-widest text-cyan-500/50 mt-1">{String(displayJob.grader_model)}</span>
                                                         )}
                                                     </div>
                                                 </div>
@@ -1099,7 +1099,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                                     </p>
                                                 </div>
                                                 <div className="space-y-2">
-                                                    <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest block">Operational Result Summary</label>
+                                                    <label className="text-xs uppercase font-black text-slate-500 tracking-widest block">Operational Result Summary</label>
                                                     <div className={cn(
                                                         "text-xs leading-relaxed p-4 bg-black/40 border rounded-sm",
                                                         graderData.pass_fail === 'pass' ? "text-emerald-400/90 border-emerald-500/20" : "text-red-400/90 border-red-500/20"
@@ -1131,8 +1131,8 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                             ) : (
                                 <div className="flex flex-col items-center justify-center p-20 text-slate-600 border border-dashed border-white/10 scifi-clip">
                                     <ShieldCheck className="w-12 h-12 mb-4 opacity-10" />
-                                    <p className="text-[10px] uppercase font-black tracking-[.3em]">Awaiting Automated Grading</p>
-                                    <p className="text-[8px] uppercase font-bold text-slate-700 mt-2 italic">Neural vetting will begin upon completion</p>
+                                    <p className="text-xs uppercase font-black tracking-[.3em]">Awaiting Automated Grading</p>
+                                    <p className="text-[10px] uppercase font-bold text-slate-700 mt-2 italic">Neural vetting will begin upon completion</p>
                                 </div>
                             )}
                         </div>
@@ -1142,17 +1142,17 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                             <HUDFrame title="Decision Interface">
                                 <div className="space-y-4 py-2">
-                                    <p className="text-[10px] text-slate-400 uppercase font-bold leading-relaxed">
+                                    <p className="text-xs text-slate-400 uppercase font-bold leading-relaxed">
                                         Governance actions require <span className="text-white">Operator Validation</span>. Once approved, the job response is marked as canonical. Once rejected, it is removed from the active pipeline.
                                     </p>
 
                                     <div className="grid grid-cols-2 gap-4 mt-2">
                                         <div className="space-y-1">
-                                            <p className="text-[8px] uppercase font-black tracking-widest text-slate-500">Policy Version</p>
+                                            <p className="text-[10px] uppercase font-black tracking-widest text-slate-500">Policy Version</p>
                                             <p className="text-xs font-mono text-cyan-400">{typeof displayJob.policy_version === 'object' ? JSON.stringify(displayJob.policy_version) : String(displayJob.policy_version || "v1_legacy")}</p>
                                         </div>
                                         <div className="space-y-1">
-                                            <p className="text-[8px] uppercase font-black tracking-widest text-slate-500">Gate Level</p>
+                                            <p className="text-[10px] uppercase font-black tracking-widest text-slate-500">Gate Level</p>
                                             <p className="text-xs font-mono text-cyan-400">{typeof displayJob.gate_level === 'object' ? JSON.stringify(displayJob.gate_level) : String(displayJob.gate_level || "G0_UNRESTRICTED")}</p>
                                         </div>
                                     </div>
@@ -1181,7 +1181,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                             ) : (
                                                 <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
                                                     <div className="space-y-2">
-                                                        <label className="text-[8px] uppercase font-black tracking-widest text-rose-500">Rejection Reason Terminal</label>
+                                                        <label className="text-[10px] uppercase font-black tracking-widest text-rose-500">Rejection Reason Terminal</label>
                                                         <textarea
                                                             value={rejectReason}
                                                             onChange={(e) => setRejectReason(e.target.value)}
@@ -1214,8 +1214,8 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                     ) : (
                                         <div className="bg-white/5 border border-white/5 p-8 flex flex-col items-center justify-center text-center scifi-clip">
                                             <Lock className="w-8 h-8 text-slate-700 mb-4" />
-                                            <p className="text-[10px] uppercase font-black tracking-widest text-slate-500 italic">Governance Controls Locked</p>
-                                            <p className="text-[8px] uppercase font-bold text-slate-600 mt-2">
+                                            <p className="text-xs uppercase font-black tracking-widest text-slate-500 italic">Governance Controls Locked</p>
+                                            <p className="text-[10px] uppercase font-bold text-slate-600 mt-2">
                                                 State must be <span className="text-orange-500">graded</span> or <span className="text-amber-500">awaiting approval</span> to unlock decisions. Current: <span className="text-cyan-500">{displayJob.status}</span>
                                             </p>
                                         </div>
@@ -1227,18 +1227,18 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                 <HUDFrame title="Decision Audit Log">
                                     <div className="space-y-4 py-2">
                                         <div className="flex justify-between items-center border-b border-white/5 pb-2">
-                                            <span className="text-[8px] uppercase font-black tracking-widest text-slate-500">Decision Outcome</span>
+                                            <span className="text-[10px] uppercase font-black tracking-widest text-slate-500">Decision Outcome</span>
                                             <span className={cn("text-xs font-black uppercase tracking-widest italic", displayJob.approved_at ? "text-emerald-500" : "text-rose-500")}>
                                                 {displayJob.approved_at ? "Approved" : "Rejected"}
                                             </span>
                                         </div>
                                         <div className="flex justify-between items-center border-b border-white/5 pb-2">
-                                            <span className="text-[8px] uppercase font-black tracking-widest text-slate-500">Validator ID</span>
+                                            <span className="text-[10px] uppercase font-black tracking-widest text-slate-500">Validator ID</span>
                                             <span className="text-xs font-bold text-white uppercase">{displayJob.approved_by || displayJob.rejected_by || "System Admin"}</span>
                                         </div>
                                         {displayJob.failure_reason && (
                                             <div className="space-y-1">
-                                                <span className="text-[8px] uppercase font-black tracking-widest text-slate-500">Failure Reason</span>
+                                                <span className="text-[10px] uppercase font-black tracking-widest text-slate-500">Failure Reason</span>
                                                 <p className="text-xs text-rose-400/80 italic">"{displayJob.failure_reason}"</p>
                                             </div>
                                         )}
@@ -1258,7 +1258,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
 
                                     return (
                                         <>
-                                            <p className="text-[10px] text-slate-400 uppercase font-bold leading-relaxed">
+                                            <p className="text-xs text-slate-400 uppercase font-bold leading-relaxed">
                                                 Jobs in <span className="text-rose-500">failed</span>, <span className="text-rose-500">rejected</span>, or <span className="text-amber-500">stalled</span> states can be resurrected into the active lifecycle. This creates an immutable lineage event. (Continuity Restore)
                                             </p>
 
@@ -1276,7 +1276,7 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                                     ) : (
                                                         <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
                                                             <div className="space-y-2">
-                                                                <label className="text-[8px] uppercase font-black tracking-widest text-cyan-500">Continuity Restore Authorization Terminal</label>
+                                                                <label className="text-[10px] uppercase font-black tracking-widest text-cyan-500">Continuity Restore Authorization Terminal</label>
                                                                 <textarea
                                                                     value={resurrectReason}
                                                                     onChange={(e) => setResurrectReason(e.target.value)}
@@ -1309,13 +1309,13 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                             ) || (
                                                     <div className="bg-white/5 border border-white/5 p-8 flex flex-col items-center justify-center text-center scifi-clip">
                                                         <AlertCircle className="w-8 h-8 text-slate-700 mb-4" />
-                                                        <p className="text-[10px] uppercase font-black tracking-widest text-slate-500 italic">Continuity Restore Unavailable</p>
+                                                        <p className="text-xs uppercase font-black tracking-widest text-slate-500 italic">Continuity Restore Unavailable</p>
                                                         {isStalledJob ? (
-                                                            <p className="text-[8px] uppercase font-bold text-cyan-500 mt-2 animate-pulse">
+                                                            <p className="text-[10px] uppercase font-bold text-cyan-500 mt-2 animate-pulse">
                                                                 Stall detected. Lineage restoration is available in the terminal.
                                                             </p>
                                                         ) : (
-                                                            <p className="text-[8px] uppercase font-bold text-slate-600 mt-2 italic">
+                                                            <p className="text-[10px] uppercase font-bold text-slate-600 mt-2 italic">
                                                                 Dimensional lineage is intact. Standard terminal state not reached.
                                                             </p>
                                                         )}
@@ -1331,14 +1331,14 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                     <div className="space-y-4 py-2 border-l-2 border-cyan-500/30 pl-4 ml-2">
                                         <div className="space-y-1">
                                             <div className="flex items-center gap-2">
-                                                <span className="text-[8px] uppercase font-black tracking-widest text-cyan-500">Identity: #{displayJob.job_id.slice(-4)}</span>
-                                                <span className="text-[8px] text-slate-600">|</span>
-                                                <span className="text-[8px] font-mono text-slate-500">{new Date(displayJob.resurrected_at).toLocaleString()}</span>
+                                                <span className="text-[10px] uppercase font-black tracking-widest text-cyan-500">Identity: #{displayJob.job_id.slice(-4)}</span>
+                                                <span className="text-[10px] text-slate-600">|</span>
+                                                <span className="text-[10px] font-mono text-slate-500">{new Date(displayJob.resurrected_at).toLocaleString()}</span>
                                             </div>
-                                            <p className="text-[10px] text-white font-bold italic uppercase tracking-tight">
+                                            <p className="text-xs text-white font-bold italic uppercase tracking-tight">
                                                 " {typeof displayJob.resurrection_reason === 'object' ? JSON.stringify(displayJob.resurrection_reason) : String(displayJob.resurrection_reason)} "
                                             </p>
-                                            <p className="text-[8px] uppercase text-slate-500 font-bold tracking-widest mt-1">Authorized by: <span className="text-cyan-500">{typeof displayJob.resurrected_by === 'object' ? JSON.stringify(displayJob.resurrected_by) : String(displayJob.resurrected_by)}</span></p>
+                                            <p className="text-[10px] uppercase text-slate-500 font-bold tracking-widest mt-1">Authorized by: <span className="text-cyan-500">{typeof displayJob.resurrected_by === 'object' ? JSON.stringify(displayJob.resurrected_by) : String(displayJob.resurrected_by)}</span></p>
                                         </div>
                                     </div>
                                 </HUDFrame>
@@ -1349,11 +1349,11 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
 
                 {/* Footer info bar */}
                 <div className="p-4 bg-black/60 border-t border-white/5 flex items-center justify-between">
-                    <div className="flex items-center gap-3 text-[9px] font-black uppercase tracking-[0.2em] text-cyan-500/50">
+                    <div className="flex items-center gap-3 text-xs font-black uppercase tracking-[0.2em] text-cyan-500/50">
                         <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
                         Live Telemetry Link Active
                     </div>
-                    <div className="text-[8px] uppercase font-bold text-slate-600 tracking-tighter italic">
+                    <div className="text-[10px] uppercase font-bold text-slate-600 tracking-tighter italic">
                         ACEPLACE-CORE V1.0.5-DELTA
                     </div>
                 </div>

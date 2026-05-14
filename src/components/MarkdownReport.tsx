@@ -44,7 +44,7 @@ export function MarkdownReport({ content, className }: MarkdownReportProps) {
                             <table className="w-full text-left text-sm border-collapse" {...props} />
                         </div>
                     ),
-                    thead: ({ ...props }) => <thead className="bg-cyan-500/10 border-b border-cyan-500/30 font-mono text-[10px] uppercase tracking-wider text-cyan-400" {...props} />,
+                    thead: ({ ...props }) => <thead className="bg-cyan-500/10 border-b border-cyan-500/30 font-mono text-[11px] uppercase tracking-wider text-cyan-400" {...props} />,
                     th: ({ ...props }) => <th className="px-4 py-3 font-bold" {...props} />,
                     td: ({ ...props }) => <td className="px-4 py-3 border-t border-white/5 text-slate-400" {...props} />,
                     blockquote: ({ ...props }) => (

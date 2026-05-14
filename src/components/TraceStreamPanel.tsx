@@ -100,25 +100,25 @@ function TraceRow({ event }: { event: TraceEvent }) {
         )}
 
         {/* Event type badge */}
-        <span className={cn("text-[7px] font-black uppercase tracking-widest border px-1.5 py-0.5 shrink-0 truncate max-w-[130px]", style)}>
+        <span className={cn("text-[10px] font-black uppercase tracking-widest border px-1.5 py-0.5 shrink-0 truncate max-w-[130px]", style)}>
           {label}
         </span>
 
         {/* Agent */}
-        <span className="text-[7px] font-mono text-slate-500 truncate flex-1">
+        <span className="text-[10px] font-mono text-slate-500 truncate flex-1">
           {event.agent_id ?? "unknown"}
         </span>
 
         {/* Fingerprint badge */}
         {shortFp && (
-          <span className="text-[7px] font-mono text-purple-400/70 flex items-center gap-0.5 shrink-0">
+          <span className="text-[10px] font-mono text-purple-400/70 flex items-center gap-0.5 shrink-0">
             <Fingerprint className="w-2 h-2" />
             {shortFp}
           </span>
         )}
 
         {/* Timestamp */}
-        <span className="text-[7px] font-mono text-slate-700 shrink-0 ml-1">
+        <span className="text-[10px] font-mono text-slate-700 shrink-0 ml-1">
           {formatRelativeTime(event.timestamp)}
         </span>
       </button>
@@ -127,23 +127,23 @@ function TraceRow({ event }: { event: TraceEvent }) {
         <div className="px-7 pb-3 space-y-2">
           {/* Envelope ID */}
           <div>
-            <span className="text-[6px] font-black uppercase tracking-widest text-slate-600 block">Envelope</span>
-            <p className="text-[7px] font-mono text-cyan-500">{event.envelope_id}</p>
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 block">Envelope</span>
+            <p className="text-[10px] font-mono text-cyan-500">{event.envelope_id}</p>
           </div>
 
           {/* Full fingerprint */}
           {event.identity_fingerprint && (
             <div>
-              <span className="text-[6px] font-black uppercase tracking-widest text-slate-600 block">Identity Fingerprint</span>
-              <p className="text-[7px] font-mono text-purple-400 break-all">{event.identity_fingerprint}</p>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 block">Identity Fingerprint</span>
+              <p className="text-[10px] font-mono text-purple-400 break-all">{event.identity_fingerprint}</p>
             </div>
           )}
 
           {/* Metadata */}
           {event.metadata && Object.keys(event.metadata).length > 0 && (
             <div>
-              <span className="text-[6px] font-black uppercase tracking-widest text-slate-600 block mb-1">Metadata</span>
-              <pre className="text-[7px] font-mono text-slate-400 bg-black/40 p-2 border border-white/5 overflow-x-auto whitespace-pre-wrap break-all">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 block mb-1">Metadata</span>
+              <pre className="text-[10px] font-mono text-slate-400 bg-black/40 p-2 border border-white/5 overflow-x-auto whitespace-pre-wrap break-all">
                 {JSON.stringify(event.metadata, null, 2)}
               </pre>
             </div>
@@ -243,12 +243,12 @@ export function TraceStreamPanel({
                 : "bg-slate-600"
             )}
           />
-          <span className="text-[7px] font-black uppercase tracking-widest text-slate-500">
+          <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
             {isLive ? "LIVE" : "PAUSED"}
           </span>
           <button
             onClick={() => setIsLive(!isLive)}
-            className="text-[7px] font-black uppercase tracking-widest text-slate-600 hover:text-cyan-400 transition-colors border border-white/5 px-1.5 py-0.5"
+            className="text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-cyan-400 transition-colors border border-white/5 px-1.5 py-0.5"
           >
             {isLive ? "Pause" : "Resume"}
           </button>
@@ -259,17 +259,17 @@ export function TraceStreamPanel({
         {loading ? (
           <div className="flex items-center gap-2 justify-center p-6">
             <Activity className="w-4 h-4 text-cyan-500 animate-pulse" />
-            <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">
+            <span className="text-xs font-black uppercase tracking-widest text-slate-500">
               Connecting to Trace Stream…
             </span>
           </div>
         ) : traces.length === 0 ? (
           <div className="p-6 text-center border border-dashed border-white/5">
             <Radio className="w-5 h-5 text-slate-700 mx-auto mb-2" />
-            <p className="text-[8px] uppercase font-black tracking-[0.3em] text-slate-600 italic">
+            <p className="text-[10px] uppercase font-black tracking-[0.3em] text-slate-600 italic">
               No trace events found
             </p>
-            <p className="text-[7px] text-slate-700 mt-1 font-mono">
+            <p className="text-[10px] text-slate-700 mt-1 font-mono">
               Traces populate when the runtime worker executes steps
             </p>
           </div>
@@ -281,10 +281,10 @@ export function TraceStreamPanel({
       {/* Stats strip */}
       {traces.length > 0 && (
         <div className="flex items-center justify-between px-2 pt-2 border-t border-white/5 mt-2">
-          <span className="text-[7px] font-mono text-slate-700">
+          <span className="text-[10px] font-mono text-slate-700">
             {traces.length} of {maxItems} max events loaded
           </span>
-          <span className="text-[7px] font-mono text-cyan-500/50">
+          <span className="text-[10px] font-mono text-cyan-500/50">
             Firestore: execution_traces
           </span>
         </div>

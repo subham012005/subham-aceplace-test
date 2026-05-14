@@ -98,7 +98,7 @@ function AgentIdentityRoster() {
         <div className="border border-white/5 bg-black/40 overflow-hidden">
             {/* Header */}
             <div className="px-3 pt-3 pb-0">
-                <p className="text-[8px] font-black uppercase tracking-[0.25em] text-slate-500 mb-2">Agent Identity Registry</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 mb-2">Agent Identity Registry</p>
                 {/* Agent Tabs */}
                 <div className="flex gap-1 overflow-x-auto scrollbar-hide">
                     {AGENT_ROSTER.map(a => (
@@ -106,7 +106,7 @@ function AgentIdentityRoster() {
                             key={a.agentId}
                             onClick={() => setActiveAgent(a.agentId)}
                             className={cn(
-                                "text-[7px] font-black uppercase tracking-widest px-2 py-1 border transition-all whitespace-nowrap shrink-0",
+                                "text-[10px] font-black uppercase tracking-widest px-2 py-1 border transition-all whitespace-nowrap shrink-0",
                                 activeAgent === a.agentId
                                     ? `${a.color} ${a.border} ${a.bg}`
                                     : "text-slate-600 border-white/5 hover:text-slate-400"
@@ -591,7 +591,7 @@ export default function DashboardPage() {
                         <span className="text-xl md:text-2xl font-black text-white italic tracking-tighter glitch-text">ACEPLACE</span>
                         <span className="text-lg md:text-xl font-bold text-white tracking-widest uppercase glitch-text">WORKSTATION</span>
                     </div>
-                    <span className="hidden lg:block text-[10px] text-cyan-500/50 font-black tracking-[0.3em] uppercase border-l border-white/10 pl-6 border-cyan-500/20 whitespace-nowrap">AgentSpace Control Panel</span>
+                    <span className="hidden lg:block text-[11px] text-cyan-500/50 font-black tracking-[0.3em] uppercase border-l border-white/10 pl-6 border-cyan-500/20 whitespace-nowrap">AgentSpace Control Panel</span>
                 </div>
                 <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto">
 
@@ -614,10 +614,10 @@ export default function DashboardPage() {
 
                     <div className="flex items-center gap-3 pl-4 border-l border-white/10">
                         <div className="text-right hidden sm:block">
-                            <p className="text-[10px] font-black tracking-widest text-white truncate max-w-[150px]">
+                            <p className="text-[11px] font-black tracking-widest text-white truncate max-w-[150px]">
                                 {user?.email?.split('@')[0].toUpperCase() || "ADMINISTRATOR"}
                             </p>
-                            <p className="text-[9px] text-cyan-500/50 uppercase tracking-tighter font-bold">
+                            <p className="text-[10px] text-cyan-500/50 uppercase tracking-tighter font-bold">
                                 {user?.email || "ACEPLACE System User"}
                             </p>
                         </div>
@@ -658,7 +658,7 @@ export default function DashboardPage() {
                             </div>
                             <div className="flex-1 min-w-0 flex flex-col justify-center overflow-hidden">
                                 <div className="flex items-baseline justify-between gap-2 w-full">
-                                    <span className="text-[9px] md:text-[10px] uppercase font-black tracking-[0.2em] text-slate-500 truncate" title={stat.label}>
+                                    <span className="text-[10px] md:text-[11px] uppercase font-black tracking-[0.2em] text-slate-500 truncate" title={stat.label}>
                                         {stat.label}
                                     </span>
                                     {isJobsSyncing || isStatsSyncing ? (
@@ -673,7 +673,7 @@ export default function DashboardPage() {
                                         </span>
                                     )}
                                 </div>
-                                <p className="text-[8px] uppercase text-cyan-500/40 font-bold tracking-[0.3em] leading-none mt-1 truncate" title={stat.sub}>
+                                <p className="text-[10px] uppercase text-cyan-500/40 font-bold tracking-[0.3em] leading-none mt-1 truncate" title={stat.sub}>
                                     {stat.sub}
                                 </p>
                             </div>
@@ -719,11 +719,11 @@ export default function DashboardPage() {
                                         <CheckCircle2 className="w-3 h-3 text-emerald-500 opacity-80" />
                                     </div>
                                     <div className="flex flex-col min-w-0 flex-1">
-                                        <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-emerald-400 truncate">{job.prompt}</span>
+                                        <span className="text-[10px] md:text-[11px] font-black uppercase tracking-widest text-slate-400 group-hover:text-emerald-400 truncate">{job.prompt}</span>
                                         <div className="flex items-center justify-between gap-2">
-                                            <span className="text-[7px] uppercase font-bold text-slate-600 tracking-tighter italic shrink-0">Status: {formatStatus(deriveHomeStatus(job))}</span>
-                                            <span className="text-[7px] font-mono text-purple-500/60 uppercase truncate">{(() => { const raw = job.identity_fingerprint || job.identity_id; if (!raw) return "PENDING_REGISTRATION"; return "0x" + String(raw).replace(/^hex:0x|^0x|^hex:/i, ""); })()}</span>
-                                            <span className="text-[6px] font-mono text-slate-700 tracking-tighter shrink-0">ID: {(job.job_id || job.id || "").slice(-6)}</span>
+                                            <span className="text-[10px] uppercase font-bold text-slate-600 tracking-tighter italic shrink-0">Status: {formatStatus(deriveHomeStatus(job))}</span>
+                                            <span className="text-[10px] font-mono text-purple-500/60 uppercase truncate">{(() => { const raw = job.identity_fingerprint || job.identity_id; if (!raw) return "PENDING_REGISTRATION"; return "0x" + String(raw).replace(/^hex:0x|^0x|^hex:/i, ""); })()}</span>
+                                            <span className="text-[10px] font-mono text-slate-700 tracking-tighter shrink-0">ID: {(job.job_id || job.id || "").slice(-6)}</span>
                                         </div>
                                     </div>
                                     <button
@@ -735,7 +735,7 @@ export default function DashboardPage() {
                                     </button>
                                 </div>
                             )) : (
-                                <div className="p-4 text-center border border-dashed border-white/5 text-[9px] uppercase font-black tracking-widest text-slate-600 italic">No completed tasks</div>
+                                <div className="p-4 text-center border border-dashed border-white/5 text-[10px] uppercase font-black tracking-widest text-slate-600 italic">No completed tasks</div>
                             )}
                         </div>
                     </HUDFrame>
@@ -788,7 +788,7 @@ export default function DashboardPage() {
                                     </div>
                                     <div className="flex flex-col min-w-0 flex-1">
                                         <div className="flex items-center justify-between gap-2 mb-0.5">
-                                            <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-cyan-400 truncate">{job.prompt}</span>
+                                            <span className="text-[10px] md:text-[11px] font-black uppercase tracking-widest text-slate-400 group-hover:text-cyan-400 truncate">{job.prompt}</span>
                                             {(() => {
                                                 const env = jobEnvelopeMap.get(job.job_id || job.id || "");
                                                 const chunks = env?.knowledge_context?.chunks_used || 0;
@@ -802,15 +802,15 @@ export default function DashboardPage() {
                                                                 style={{ width: `${Math.min((chunks / 10) * 100, 100)}%` }}
                                                             />
                                                         </div>
-                                                        <span className="text-[7px] font-black text-cyan-400/80 font-mono">KB:{chunks}</span>
+                                                        <span className="text-[10px] font-black text-cyan-400/80 font-mono">KB:{chunks}</span>
                                                     </div>
                                                 );
                                             })()}
                                         </div>
                                         <div className="flex items-center justify-between gap-2">
-                                            <span className="text-[7px] uppercase font-bold text-slate-600 tracking-tighter italic shrink-0">Status: {formatStatus(deriveHomeStatus(job))}</span>
-                                            <span className="text-[7px] font-mono text-purple-500/60 uppercase truncate">{(() => { const raw = job.identity_fingerprint || job.identity_id; if (!raw) return "PENDING_REGISTRATION"; return "0x" + String(raw).replace(/^hex:0x|^0x|^hex:/i, ""); })()}</span>
-                                            <span className="text-[6px] font-mono text-slate-700 tracking-tighter shrink-0">ID: {(job.job_id || job.id || "").slice(-6)}</span>
+                                            <span className="text-[10px] uppercase font-bold text-slate-600 tracking-tighter italic shrink-0">Status: {formatStatus(deriveHomeStatus(job))}</span>
+                                            <span className="text-[10px] font-mono text-purple-500/60 uppercase truncate">{(() => { const raw = job.identity_fingerprint || job.identity_id; if (!raw) return "PENDING_REGISTRATION"; return "0x" + String(raw).replace(/^hex:0x|^0x|^hex:/i, ""); })()}</span>
+                                            <span className="text-[10px] font-mono text-slate-700 tracking-tighter shrink-0">ID: {(job.job_id || job.id || "").slice(-6)}</span>
                                         </div>
                                     </div>
                                     <button
@@ -822,7 +822,7 @@ export default function DashboardPage() {
                                     </button>
                                 </div>
                             )) : (
-                                <div className="p-4 text-center border border-dashed border-white/5 text-[9px] uppercase font-black tracking-widest text-slate-600 italic">No active missions sync'd</div>
+                                <div className="p-4 text-center border border-dashed border-white/5 text-[10px] uppercase font-black tracking-widest text-slate-600 italic">No active missions sync'd</div>
                             )}
                         </div>
                     </HUDFrame>
@@ -859,7 +859,7 @@ export default function DashboardPage() {
                                         <h3 className="text-xs font-black text-white italic uppercase tracking-[0.2em] border-b border-white/10 pb-2 mb-3">{agent.name}</h3>
                                         <p className="text-[8px] uppercase text-slate-500 font-bold tracking-widest leading-relaxed">Capability: <br /><span className="text-cyan-300">{agent.capability}</span></p>
                                         <p className="text-[8px] uppercase text-slate-500 font-bold tracking-widest mt-1 leading-relaxed">Model Class: <br /><span className="text-amber-400/80">{agent.modelClass}</span></p>
-                                        <p className="text-[9px] uppercase text-slate-500 font-bold tracking-widest mt-2 leading-relaxed">Status: <br /><span className="text-emerald-400">AVAILABLE</span> — {agent.gate}</p>
+                                        <p className="text-[8px] uppercase text-slate-500 font-bold tracking-widest mt-2 leading-relaxed">Status: <br /><span className="text-emerald-400">AVAILABLE</span> — {agent.gate}</p>
                                         {/* Per-agent identity sub-panel */}
                                         <AgentIdentityMini agentId={agent.agentId} />
                                     </div>
@@ -986,7 +986,7 @@ export default function DashboardPage() {
                             <button
                                 onClick={refreshJobs}
                                 disabled={jobsRefreshing}
-                                className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-cyan-400 transition-colors mr-4 cursor-target"
+                                className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-cyan-400 transition-colors mr-4 cursor-target"
                             >
                                 <RotateCw className={cn("w-3 h-3", jobsRefreshing && "animate-spin")} />
                                 Refresh Terminal
@@ -997,15 +997,15 @@ export default function DashboardPage() {
                             <table className="w-full text-left border-collapse min-w-[500px]">
                                 <thead className="sticky top-0 bg-black/80 z-20">
                                     <tr className="border-b border-white/10">
-                                        <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500">Project ID</th>
-                                        <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500">Envelope ID</th>
-                                        <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500">Role</th>
-                                        <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500">Task</th>
-                                        <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500">Status</th>
-                                        <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500 text-cyan-500/80">Grader Score</th>
-                                        <th className="py-2 text-[9px] uppercase font-black tracking-widest text-purple-500/80">Agent Fingerprint</th>
-                                        <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500">Timestamp</th>
-                                        <th className="py-2 text-[9px] uppercase font-black tracking-widest text-slate-500 text-right pr-4">Actions</th>
+                                        {/* <th className="py-2 text-[10px] md:text-[11px] uppercase font-black tracking-widest text-slate-500">Project ID</th> */}
+                                        <th className="py-2 pr-10 text-[10px] md:text-[11px] uppercase font-black tracking-widest text-slate-500">Envelope ID</th>
+                                        {/* <th className="py-2 text-[10px] md:text-[11px] uppercase font-black tracking-widest text-slate-500">Role</th> */}
+                                        <th className="py-2 text-[10px] md:text-[11px] uppercase font-black tracking-widest text-slate-500">Task</th>
+                                        <th className="py-2 text-[10px] md:text-[11px] uppercase font-black tracking-widest text-slate-500">Status</th>
+                                        <th className="py-2 text-[10px] md:text-[11px] uppercase font-black tracking-widest text-slate-500 text-cyan-500/80">Grader Score</th>
+                                        <th className="py-2 text-[10px] md:text-[11px] uppercase font-black tracking-widest text-purple-500/80">Agent Fingerprint</th>
+                                        <th className="py-2 text-[10px] md:text-[11px] uppercase font-black tracking-widest text-slate-500">Timestamp</th>
+                                        <th className="py-2 text-[10px] md:text-[11px] uppercase font-black tracking-widest text-slate-500 text-right pr-4">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-white/5">
@@ -1033,21 +1033,21 @@ export default function DashboardPage() {
                                             }}
                                             className="group hover:bg-white/5 transition-colors cursor-pointer cursor-target"
                                         >
-                                            <td className="py-3 text-[10px] font-mono text-cyan-500/80 tracking-tighter">
+                                            {/* <td className="py-3 text-[10px] font-mono text-cyan-500/80 tracking-tighter">
                                                 {(job.job_id || job.id || "").slice(-6)}
-                                            </td>
-                                            <td className="py-3 text-[10px] font-mono text-purple-400/80 tracking-tighter">
+                                            </td> */}
+                                            <td className="py-3 pr-10 text-[10px] font-mono text-purple-400/80 tracking-tighter">
                                                 {job.execution_id || job.envelope_id || "--"}
                                             </td>
-                                            <td className="py-3 text-[10px] font-black text-slate-400 tracking-widest uppercase">
+                                            {/* <td className="py-3 text-[10px] font-black text-slate-400 tracking-widest uppercase">
                                                 {job.agent_role || job.job_type || "CORE"}
-                                            </td>
+                                            </td> */}
                                             <td className="py-3 text-[10px] font-bold text-slate-300 truncate max-w-[120px]">
                                                 {job.prompt}
                                             </td>
                                             <td className="py-3 text-nowrap">
                                                 <span className={cn(
-                                                    "px-2 py-0.5 text-[8px] font-black uppercase tracking-widest border",
+                                                    "px-2 py-0.5 text-[10px] font-black uppercase tracking-widest border",
                                                     statusColorMap[deriveHomeStatus(job)] || "text-cyan-500 border-cyan-500/30 bg-cyan-500/5"
                                                 )}>
                                                     {formatStatus(deriveHomeStatus(job))}
@@ -1100,15 +1100,15 @@ export default function DashboardPage() {
                                                             "text-[10px] font-black tracking-tighter",
                                                             score >= 70 ? "text-emerald-500" : score >= 50 ? "text-amber-500" : "text-rose-500"
                                                         )}>
-                                                            {Math.round(score)}/100 <span className="text-[8px] opacity-70">({gradeLabel})</span>
+                                                            {Math.round(score)}/100 <span className="text-[10px] opacity-70">({gradeLabel})</span>
                                                         </span>
                                                     );
                                                 })()}
                                             </td>
-                                            <td className="py-3 text-[9px] font-mono text-purple-400/70 tracking-tighter max-w-[100px] truncate" title={(() => { const raw = job.identity_fingerprint || job.identity_id; return raw ? "0x" + String(raw).replace(/^hex:0x|^0x|^hex:/i, '') : undefined; })()}>
+                                            <td className="py-3 text-[10px] font-mono text-purple-400/70 tracking-tighter max-w-[100px] truncate" title={(() => { const raw = job.identity_fingerprint || job.identity_id; return raw ? "0x" + String(raw).replace(/^hex:0x|^0x|^hex:/i, '') : undefined; })()}>
                                                 {(() => { const raw = job.identity_fingerprint || job.identity_id; if (!raw) return <span className="text-slate-700 italic">PENDING_REGISTRATION</span>; return "0x" + String(raw).replace(/^hex:0x|^0x|^hex:/i, ''); })()}
                                             </td>
-                                            <td className="py-3 text-[9px] font-mono text-slate-500 italic">
+                                            <td className="py-3 text-[10px] font-mono text-slate-500 italic">
                                                 {(() => {
                                                     const date = parseFirestoreDate(job.updated_at || job.created_at);
                                                     return date ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Recently";
@@ -1126,7 +1126,7 @@ export default function DashboardPage() {
                                         </tr>
                                     )) : (
                                         <tr key="empty-logs">
-                                            <td colSpan={8} className="py-12 text-center text-[9px] uppercase font-black tracking-[0.3em] text-slate-600 italic">
+                                            <td colSpan={8} className="py-12 text-center text-[10px] uppercase font-black tracking-[0.3em] text-slate-600 italic">
                                                 Trace logs empty. Initialize dimensionality.
                                             </td>
                                         </tr>
@@ -1214,7 +1214,7 @@ export default function DashboardPage() {
                                     </p>
                                 </div>
 
-                                <p className="mt-4 text-[8px] uppercase text-cyan-500/30 font-black tracking-[0.4em] mb-1 opacity-0 group-hover:opacity-100 transition-opacity">Tap Orb to Initialize</p>
+                                <p className="mt-4 text-[10px] uppercase text-cyan-500/30 font-black tracking-[0.4em] mb-1 opacity-0 group-hover:opacity-100 transition-opacity text-center">Tap Orb to Initialize</p>
                             </div>
                         </div>
                     </HUDFrame>
@@ -1223,7 +1223,7 @@ export default function DashboardPage() {
                     <HUDFrame title="System Monitor" className="flex-1 space-y-4 overflow-y-auto scrollbar-hide overflow-x-hidden">
                         <div className="space-y-4 pt-5">
                             <div className="flex justify-between items-end">
-                                <span className="text-[9px] uppercase font-black tracking-widest text-slate-500">Total Compute Node</span>
+                                <span className="text-[10px] uppercase font-black tracking-widest text-slate-500">Total Compute Node</span>
                                 <span className="text-sm font-black text-white italic">{isJobsSyncing ? "--" : realStats.totalRequests} <span className="text-slate-700">/ 100</span></span>
                             </div>
                             <div className="h-1 bg-white/5 border border-white/5 relative overflow-hidden">
@@ -1234,7 +1234,7 @@ export default function DashboardPage() {
                             </div>
 
                             <div className="flex justify-between items-end">
-                                <span className="text-[9px] uppercase font-black tracking-widest text-slate-500">Active Agents</span>
+                                <span className="text-[10px] uppercase font-black tracking-widest text-slate-500">Active Agents</span>
                                 <div className="flex gap-[1px] md:gap-[2px]">
                                     {Array.from({ length: 15 }).map((_, i) => (
                                         <div
@@ -1245,15 +1245,15 @@ export default function DashboardPage() {
                                             )}
                                         />
                                     ))}
-                                    <span className="text-[9px] md:text-[10px] font-black text-white ml-2 tracking-tighter self-center whitespace-nowrap">
+                                    <span className="text-[10px] md:text-[11px] font-black text-white ml-2 tracking-tighter self-center whitespace-nowrap">
                                         {isJobsSyncing ? "-- / --" : `${realStats.activeAgents} / ${realStats.totalRequests}`}
                                     </span>
                                 </div>
                             </div>
 
                             <div className="space-y-2">
-                                <span className="text-[9px] uppercase font-black tracking-widest text-slate-500">Gate Level Access</span>
-                                <div className="flex justify-between text-[9px] md:text-[10px] font-black text-slate-500 border border-white/5 p-2 bg-black/20">
+                                <span className="text-[10px] uppercase font-black tracking-widest text-slate-500">Gate Level Access</span>
+                                <div className="flex justify-between text-[10px] md:text-[11px] font-black text-slate-500 border border-white/5 p-2 bg-black/20">
                                     {Array.from({ length: 9 }).map((_, i) => (
                                         <span key={i} className={i < parseInt(realStats.tasksCompleted) ? "text-cyan-500 glow-text" : ""}>{i + 1}</span>
                                     ))}
@@ -1269,13 +1269,13 @@ export default function DashboardPage() {
                                 {realStats.continuityAlert ? (
                                     <>
                                         <AlertTriangle className="w-4 h-4 text-rose-500" />
-                                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-rose-500">Continuity Alerts</span>
+                                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-500">Continuity Alerts</span>
                                         <div className="ml-auto w-1.5 h-1.5 bg-rose-500 animate-ping rounded-full" />
                                     </>
                                 ) : (
                                     <>
                                         <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-500">Systems Nominal</span>
+                                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500">Systems Nominal</span>
                                     </>
                                 )}
                             </div>
@@ -1293,11 +1293,11 @@ export default function DashboardPage() {
                                 title="Copy Diagnostic Logs"
                             >
                                 <Clipboard className="w-3 h-3 text-slate-500 group-hover:text-cyan-500" />
-                                <span className="text-[7px] uppercase font-black text-slate-500 group-hover:text-cyan-500">Copy Logs</span>
+                                <span className="text-[10px] uppercase font-black text-slate-500 group-hover:text-cyan-500">Copy Logs</span>
                             </button>
                         }
                     >
-                        <div className="flex-1 overflow-y-auto scrollbar-hide font-mono text-[9px] p-2 space-y-1 bg-black/40 border border-white/5 scifi-clip-sm mt-4">
+                        <div className="flex-1 overflow-y-auto scrollbar-hide font-mono text-[10px] p-2 space-y-1 bg-black/40 border border-white/5 scifi-clip-sm mt-4">
                             {logs.length > 0 ? logs.map((log, i) => (
                                 <div key={i} className={cn(
                                     "border-l-2 pl-2 py-0.5 leading-relaxed break-all",
@@ -1333,7 +1333,7 @@ export default function DashboardPage() {
                                 <item.icon className={cn("w-4 h-4 md:w-5 md:h-5", item.color)} />
                             </div>
                             <div className="min-w-0">
-                                <p className="text-[7px] md:text-[8px] uppercase text-slate-500 font-bold tracking-widest truncate">{item.label}</p>
+                                <p className="text-[10px] uppercase text-slate-500 font-bold tracking-widest truncate">{item.label}</p>
                                 {isJobsSyncing || isStatsSyncing ? (
                                     <div className="mt-1.5 flex items-center">
                                         <div className="w-10 h-0.5 bg-cyan-900 overflow-hidden relative rounded-full">

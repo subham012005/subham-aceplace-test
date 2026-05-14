@@ -53,13 +53,13 @@ function MessageRow({ message }: MessageRowProps) {
         ) : (
           <ChevronRight className="w-3 h-3 text-slate-600 shrink-0" />
         )}
-        <span className={cn("text-[8px] font-black uppercase tracking-widest border px-2 py-0.5 shrink-0", verbColor)}>
+        <span className={cn("text-[10px] font-black uppercase tracking-widest border px-2 py-0.5 shrink-0", verbColor)}>
           {verb}
         </span>
-        <span className="text-[8px] font-mono text-slate-500 truncate flex-1">
+        <span className="text-[10px] font-mono text-slate-500 truncate flex-1">
           {senderId} → {targetId ?? "broadcast"}
         </span>
-        <span className="text-[7px] font-mono text-slate-700 shrink-0">
+        <span className="text-[10px] font-mono text-slate-700 shrink-0">
           {new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
         </span>
       </button>
@@ -68,26 +68,26 @@ function MessageRow({ message }: MessageRowProps) {
         <div className="px-7 pb-3 space-y-2">
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <span className="text-[7px] font-black uppercase tracking-widest text-slate-600">Message ID</span>
-              <p className="text-[8px] font-mono text-cyan-500">{message.message_id}</p>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">Message ID</span>
+              <p className="text-[10px] font-mono text-cyan-500">{message.message_id}</p>
             </div>
             <div>
-              <span className="text-[7px] font-black uppercase tracking-widest text-slate-600">Step Ref</span>
-              <p className="text-[8px] font-mono text-slate-400">{stepId || "—"}</p>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">Step Ref</span>
+              <p className="text-[10px] font-mono text-slate-400">{stepId || "—"}</p>
             </div>
           </div>
           {message.payload && (
             <div>
-              <span className="text-[7px] font-black uppercase tracking-widest text-slate-600 block mb-1">Payload</span>
-              <pre className="text-[8px] font-mono text-slate-400 bg-black/40 p-2 border border-white/5 overflow-x-auto whitespace-pre-wrap break-all">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 block mb-1">Payload</span>
+              <pre className="text-[10px] font-mono text-slate-400 bg-black/40 p-2 border border-white/5 overflow-x-auto whitespace-pre-wrap break-all">
                 {JSON.stringify(message.payload, null, 2)}
               </pre>
             </div>
           )}
           {(message.metadata && Object.keys(message.metadata).length > 0) && (
             <div>
-              <span className="text-[7px] font-black uppercase tracking-widest text-slate-600 block mb-1">Metadata</span>
-              <pre className="text-[8px] font-mono text-slate-300 bg-black/40 p-2 border border-white/5 overflow-x-auto whitespace-pre-wrap break-all">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 block mb-1">Metadata</span>
+              <pre className="text-[10px] font-mono text-slate-300 bg-black/40 p-2 border border-white/5 overflow-x-auto whitespace-pre-wrap break-all">
                 {JSON.stringify(message.metadata, null, 2)}
               </pre>
             </div>
@@ -108,7 +108,7 @@ export function ProtocolViewer({ executionId, messages = [], loading = false }: 
       headerAction={
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-slate-500 hover:text-cyan-400 transition-colors"
+          className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-cyan-400 transition-colors"
         >
           <Radio className="w-3 h-3" />
           {isOpen ? "Collapse" : "Expand"}
@@ -120,12 +120,12 @@ export function ProtocolViewer({ executionId, messages = [], loading = false }: 
           {loading ? (
             <div className="flex items-center gap-2 p-4 justify-center">
               <Terminal className="w-4 h-4 text-cyan-500 animate-pulse" />
-              <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
                 Reading Protocol Stream...
               </span>
             </div>
           ) : messages.length === 0 ? (
-            <div className="p-6 text-center text-[9px] uppercase font-black tracking-[0.3em] text-slate-600 italic border border-dashed border-white/5">
+            <div className="p-6 text-center text-[10px] uppercase font-black tracking-[0.3em] text-slate-600 italic border border-dashed border-white/5">
               {executionId ? "No messages for this execution." : "No execution selected."}
             </div>
           ) : (

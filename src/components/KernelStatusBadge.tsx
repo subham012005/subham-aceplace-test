@@ -38,7 +38,7 @@ export function KernelStatusBadge({ kernel, status, className, showIcon = true }
 
   return (
     <div className={cn(
-      "inline-flex items-center gap-2 px-2 py-0.5 border text-[7px] font-black uppercase tracking-[0.2em] scifi-clip",
+      "inline-flex items-center gap-2 px-2 py-0.5 border text-[10px] font-black uppercase tracking-[0.2em] scifi-clip",
       statusStyle,
       className
     )}>

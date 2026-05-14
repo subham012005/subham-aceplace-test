@@ -67,7 +67,7 @@ export function RuntimeStats() {
           <span className={cn("text-2xl font-black italic tracking-tighter tabular-nums", card.color)}>
             {loading ? "—" : card.value}
           </span>
-          <span className="text-[7px] font-black uppercase tracking-[0.2em] text-slate-500">
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
             {card.label}
           </span>
         </div>

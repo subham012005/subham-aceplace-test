@@ -173,13 +173,13 @@ function ProviderCard({
           )}
         </button>
 
-        <span className={cn("text-[9px] font-black uppercase tracking-widest flex-1", config.enabled ? provider.color : "text-slate-500")}>
+        <span className={cn("text-[10px] font-black uppercase tracking-widest flex-1", config.enabled ? provider.color : "text-slate-500")}>
           {provider.label}
         </span>
 
         {config.enabled && config.api_key && (
           <div className="flex items-center gap-1 shrink-0">
-            <span className="text-[7px] font-black text-emerald-500 uppercase tracking-tighter">Configured</span>
+            <span className="text-[10px] font-black text-emerald-500 uppercase tracking-tighter">Configured</span>
             <CheckCircle2 className="w-3 h-3 text-emerald-500" />
           </div>
         )}
@@ -200,7 +200,7 @@ function ProviderCard({
         <div className="px-3 pb-3 space-y-2 border-t border-white/5">
           {/* API Key */}
           <div className="pt-2">
-            <label className="text-[7px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1 mb-1">
+            <label className="text-[10px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1 mb-1">
               <Key className="w-2.5 h-2.5" /> API Key
             </label>
             <div className="flex gap-2">
@@ -210,11 +210,11 @@ function ProviderCard({
                   value={config.api_key}
                   onChange={(e) => onChange({ ...config, api_key: e.target.value })}
                   placeholder={provider.placeholder}
-                  className="w-full bg-black/60 border border-white/10 px-2 py-1.5 text-[9px] font-mono text-cyan-400 placeholder:text-slate-700 focus:outline-none focus:border-cyan-500/50 transition-all"
+                  className="w-full bg-black/60 border border-white/10 px-2 py-1.5 text-[10px] font-mono text-cyan-400 placeholder:text-slate-700 focus:outline-none focus:border-cyan-500/50 transition-all"
                 />
                 {!showKey && config.api_key && (
                   <div className="absolute right-2 top-1/2 -translate-y-1/2 px-1.5 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded-sm">
-                    <span className="text-[6px] font-black uppercase tracking-tighter text-emerald-400">
+                    <span className="text-[10px] font-black uppercase tracking-tighter text-emerald-400">
                       Stored in Secure Vault
                     </span>
                   </div>
@@ -232,19 +232,19 @@ function ProviderCard({
           {/* Model selection */}
           {(PROVIDER_MODELS[provider.key]?.length ?? 0) > 0 && (
             <div className="pt-2 border-t border-white/5">
-              <label className="text-[7px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1 mb-1">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1 mb-1">
                 <Zap className="w-2.5 h-2.5" /> Model Configuration
               </label>
               <select
                 value={config.model || PROVIDER_MODELS[provider.key]?.[0]?.value || ""}
                 onChange={(e) => onChange({ ...config, model: e.target.value })}
-                className="w-full bg-black/60 border border-white/10 text-[8px] font-mono text-cyan-400 px-2 py-1.5 focus:outline-none focus:border-cyan-500/50 transition-all cursor-pointer"
+                className="w-full bg-black/60 border border-white/10 text-[10px] font-mono text-cyan-400 px-2 py-1.5 focus:outline-none focus:border-cyan-500/50 transition-all cursor-pointer"
               >
                 {PROVIDER_MODELS[provider.key].map((m) => (
                   <option key={m.value} value={m.value}>{m.label}</option>
                 ))}
               </select>
-              <p className="text-[6px] text-slate-500 mt-1 uppercase tracking-tighter">
+              <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-tighter">
                 Ensure your API key has access to the selected model.
               </p>
             </div>
@@ -252,7 +252,7 @@ function ProviderCard({
 
           {/* Max Tokens selection */}
           <div className="pt-2 border-t border-white/5">
-            <label className="text-[7px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1 mb-1">
+            <label className="text-[10px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1 mb-1">
               <Zap className="w-2.5 h-2.5" /> Max Tokens (Optional)
             </label>
             <input
@@ -260,9 +260,9 @@ function ProviderCard({
               value={config.max_tokens || ""}
               onChange={(e) => onChange({ ...config, max_tokens: e.target.value ? parseInt(e.target.value) : undefined })}
               placeholder="e.g. 4096"
-              className="w-full bg-black/60 border border-white/10 px-2 py-1.5 text-[9px] font-mono text-cyan-400 placeholder:text-slate-700 focus:outline-none focus:border-cyan-500/50 transition-all"
+              className="w-full bg-black/60 border border-white/10 px-2 py-1.5 text-[10px] font-mono text-cyan-400 placeholder:text-slate-700 focus:outline-none focus:border-cyan-500/50 transition-all"
             />
-            <p className="text-[6px] text-slate-500 mt-1 uppercase tracking-tighter">
+            <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-tighter">
               Limits the maximum number of output tokens. Lower values reduce TPM rate-limit risk.
             </p>
           </div>
@@ -362,10 +362,10 @@ export function IntelligenceProviders() {
       <div className="flex items-start gap-2 p-3 border border-amber-500/30 bg-amber-500/5">
         <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
         <div className="space-y-0.5">
-          <p className="text-[9px] font-black uppercase tracking-widest text-amber-400">
+          <p className="text-[10px] font-black uppercase tracking-widest text-amber-400">
             BYO-LLM Required
           </p>
-          <p className="text-[9px] text-slate-400 leading-relaxed">
+          <p className="text-[10px] text-slate-400 leading-relaxed">
             Each licensee must supply their own API keys. No platform-level keys are used as
             fallback. Agents will not execute without a configured provider.
           </p>
@@ -373,14 +373,14 @@ export function IntelligenceProviders() {
       </div>
 
       {loadError && (
-        <p className="text-[8px] text-rose-400 font-mono">{loadError}</p>
+        <p className="text-[10px] text-rose-400 font-mono">{loadError}</p>
       )}
 
       {/* Missing key warning */}
       {missingKeyProviders.length > 0 && (
         <div className="flex items-center gap-2 p-2 border border-rose-500/20 bg-rose-500/5">
           <AlertTriangle className="w-3 h-3 text-rose-500 shrink-0" />
-          <p className="text-[8px] text-rose-400 font-bold">
+          <p className="text-[10px] text-rose-400 font-bold">
             {missingKeyProviders.map((p) => p.label).join(", ")} enabled but API key missing
           </p>
         </div>
@@ -406,17 +406,17 @@ export function IntelligenceProviders() {
           {AGENT_ROLES.map((role) => (
             <div key={role.key} className="flex items-center justify-between border border-white/5 bg-black/20 px-3 py-2">
               <div>
-                <p className="text-[9px] font-black uppercase tracking-widest text-slate-300">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-300">
                   {role.label}
                 </p>
-                <p className="text-[7px] text-slate-600 uppercase tracking-widest">
+                <p className="text-[10px] text-slate-600 uppercase tracking-widest">
                   CAPABILITY: {role.capability}
                 </p>
               </div>
               <select
                 value={config.agent_models[role.key]}
                 onChange={(e) => handleAgentModelChange(role.key, e.target.value as ProviderKey)}
-                className="bg-black/60 border border-white/10 text-[8px] font-black uppercase tracking-widest text-cyan-400 px-2 py-1 focus:outline-none focus:border-cyan-500/40 transition-all cursor-pointer"
+                className="bg-black/60 border border-white/10 text-[10px] font-black uppercase tracking-widest text-cyan-400 px-2 py-1 focus:outline-none focus:border-cyan-500/40 transition-all cursor-pointer"
               >
                 {PROVIDERS.map((p) => (
                   <option key={p.key} value={p.key}>
@@ -430,7 +430,7 @@ export function IntelligenceProviders() {
 
         <div className="mt-3 p-2 border border-white/5 bg-black/20 flex items-center gap-2">
           <Zap className="w-3 h-3 text-cyan-500/60 shrink-0" />
-          <p className="text-[7px] text-slate-600 font-bold">
+          <p className="text-[10px] text-slate-600 font-bold">
             Provider is resolved at runtime per org. Model class (high_reasoning / standard) determines which model within the provider is used.
           </p>
         </div>
@@ -441,7 +441,7 @@ export function IntelligenceProviders() {
         onClick={handleSave}
         disabled={saving || !userId}
         className={cn(
-          "w-full py-3 text-[9px] font-black uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-3",
+          "w-full py-3 text-[10px] font-black uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-3",
           saved && !saveError
             ? "bg-emerald-500 text-black shadow-[0_0_20px_rgba(16,185,129,0.3)]"
             : saveError
