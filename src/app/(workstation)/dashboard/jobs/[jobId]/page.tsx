@@ -1752,14 +1752,14 @@ export default function JobDetailsPage() {
 
                                                                     let md = `# Intelligence Report(PRO): ${job?.job_id || jobId}\n\n`;
                                                                     md += `## Audit Metadata\n\n`;
-                                                                    md += `* **Job ID:** ${job?.job_id || jobId}\n`;
-                                                                    md += `* **Envelope ID:** ${envelope?.envelope_id || job?.envelope_id || 'N/A'}\n`;
-                                                                    md += `* **Status:** ${derivedStatus?.toUpperCase() || 'UNKNOWN'}\n`;
-                                                                    // md += `* **Neural Provider:** ${resolvedProvider.toUpperCase()}\n`;
-                                                                    // md += `* **Compute Model:** ${resolvedModel}\n`;
-                                                                    md += `* **Compute Cost:** $${Number((typeof job?.token_usage === 'object' ? job?.token_usage?.cost : null) ?? job?.cost ?? 0).toFixed(6)}\n`;
-                                                                    md += `* **Token Usage:** ${Number(typeof job?.token_usage === 'object' ? job?.token_usage?.total_tokens ?? 0 : job?.token_usage ?? 0).toLocaleString()}\n`;
-                                                                    md += `* **Generated At:** ${new Date().toLocaleString()}\n\n`;
+                                                                    md += `* **Job ID** ${job?.job_id || jobId}\n`;
+                                                                    md += `* **Envelope ID** ${envelope?.envelope_id || job?.envelope_id || 'N/A'}\n`;
+                                                                    md += `* **Status** ${derivedStatus?.toUpperCase() || 'UNKNOWN'}\n`;
+                                                                    // md += `* **Neural Provider** ${resolvedProvider.toUpperCase()}\n`;
+                                                                    // md += `* **Compute Model** ${resolvedModel}\n`;
+                                                                    md += `* **Compute Cost** $${Number((typeof job?.token_usage === 'object' ? job?.token_usage?.cost : null) ?? job?.cost ?? 0).toFixed(6)}\n`;
+                                                                    md += `* **Token Usage** ${Number(typeof job?.token_usage === 'object' ? job?.token_usage?.total_tokens ?? 0 : job?.token_usage ?? 0).toLocaleString()}\n`;
+                                                                    md += `* **Generated At** ${new Date().toLocaleString()}\n\n`;
 
                                                                     if (job?.prompt) {
                                                                         md += `## Strategic Intent\n\n`;

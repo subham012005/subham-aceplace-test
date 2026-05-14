@@ -144,9 +144,18 @@ function drawCoverHeader(ctx: Ctx, title: string, subtitle: string, metadata: Re
         color: C.heading1Bg,
     });
 
-    // Title
-    const titleSize = 18;
-    drawText(ctx, sanitize(title).toUpperCase(), margin, ctx.y - 14, {
+    // Title with dynamic scaling
+    let titleSize = 18;
+    const sanitizedTitle = sanitize(title).toUpperCase();
+    let titleW = fonts.bold.widthOfTextAtSize(sanitizedTitle, titleSize);
+    
+    // Scale down if too wide, minimum size 12
+    if (titleW > contentW) {
+        titleSize = Math.max(12, 18 * (contentW / titleW));
+        titleW = fonts.bold.widthOfTextAtSize(sanitizedTitle, titleSize);
+    }
+
+    drawText(ctx, sanitizedTitle, margin, ctx.y - 14, {
         font: fonts.bold, size: titleSize, color: C.white,
     });
     // Subtitle
@@ -167,12 +176,14 @@ function drawCoverHeader(ctx: Ctx, title: string, subtitle: string, metadata: Re
     for (let i = 0; i < entries.length; i += 2) {
         ctx = ensureSpace(ctx, lineH + 4);
         const [k1, v1] = entries[i];
-        drawText(ctx, `${k1}:`, col1, ctx.y, { font: fonts.bold, size: metaSize, color: C.muted });
+        const label1 = k1.endsWith(':') ? k1 : `${k1}:`;
+        drawText(ctx, label1, col1, ctx.y, { font: fonts.bold, size: metaSize, color: C.muted });
         drawText(ctx, sanitize(v1), col1 + 90, ctx.y, { font: fonts.regular, size: metaSize });
 
         if (i + 1 < entries.length) {
             const [k2, v2] = entries[i + 1];
-            drawText(ctx, `${k2}:`, col2, ctx.y, { font: fonts.bold, size: metaSize, color: C.muted });
+            const label2 = k2.endsWith(':') ? k2 : `${k2}:`;
+            drawText(ctx, label2, col2, ctx.y, { font: fonts.bold, size: metaSize, color: C.muted });
             drawText(ctx, sanitize(v2), col2 + 90, ctx.y, { font: fonts.regular, size: metaSize });
         }
         ctx.y -= lineH;
