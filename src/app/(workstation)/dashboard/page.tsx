@@ -993,18 +993,18 @@ export default function DashboardPage() {
                             </button>
                         }
                     >
-                        <div className="w-full min-h-full pr-2 custom-scroll relative">
+                        <div className="w-full min-h-full pr-2 overflow-x-auto custom-scroll relative">
                             <table className="w-full text-left border-collapse min-w-[500px]">
                                 <thead className="sticky top-0 bg-black/80 z-20">
                                     <tr className="border-b border-white/10">
                                         {/* <th className="py-2 text-[10px] md:text-[11px] uppercase font-black tracking-widest text-slate-500">Project ID</th> */}
-                                        <th className="py-2 pr-10 text-[10px] md:text-[11px] uppercase font-black tracking-widest text-slate-500">Envelope ID</th>
+                                        <th className="py-2 pr-6 text-[10px] md:text-[11px] uppercase font-black tracking-widest text-slate-500">Envelope ID</th>
                                         {/* <th className="py-2 text-[10px] md:text-[11px] uppercase font-black tracking-widest text-slate-500">Role</th> */}
                                         <th className="py-2 text-[10px] md:text-[11px] uppercase font-black tracking-widest text-slate-500">Task</th>
                                         <th className="py-2 text-[10px] md:text-[11px] uppercase font-black tracking-widest text-slate-500">Status</th>
-                                        <th className="py-2 text-[10px] md:text-[11px] uppercase font-black tracking-widest text-slate-500 text-cyan-500/80">Grader Score</th>
-                                        <th className="py-2 text-[10px] md:text-[11px] uppercase font-black tracking-widest text-purple-500/80">Agent Fingerprint</th>
-                                        <th className="py-2 text-[10px] md:text-[11px] uppercase font-black tracking-widest text-slate-500">Timestamp</th>
+                                        <th className="py-2 pr-6 text-[10px] md:text-[11px] uppercase font-black tracking-widest text-slate-500 text-cyan-500/80">Grader Score</th>
+                                        <th className="py-2 pr-6 text-[10px] md:text-[11px] uppercase font-black tracking-widest text-purple-500/80">Agent Fingerprint</th>
+                                        <th className="py-2 pr-6 text-[10px] md:text-[11px] uppercase font-black tracking-widest text-slate-500">Timestamp</th>
                                         <th className="py-2 text-[10px] md:text-[11px] uppercase font-black tracking-widest text-slate-500 text-right pr-4">Actions</th>
                                     </tr>
                                 </thead>
@@ -1036,7 +1036,7 @@ export default function DashboardPage() {
                                             {/* <td className="py-3 text-[10px] font-mono text-cyan-500/80 tracking-tighter">
                                                 {(job.job_id || job.id || "").slice(-6)}
                                             </td> */}
-                                            <td className="py-3 pr-10 text-[10px] font-mono text-purple-400/80 tracking-tighter">
+                                            <td className="py-3 pr-6 text-[10px] font-mono text-purple-400/80 tracking-tighter">
                                                 {job.execution_id || job.envelope_id || "--"}
                                             </td>
                                             {/* <td className="py-3 text-[10px] font-black text-slate-400 tracking-widest uppercase">
@@ -1053,7 +1053,7 @@ export default function DashboardPage() {
                                                     {formatStatus(deriveHomeStatus(job))}
                                                 </span>
                                             </td>
-                                            <td className="py-3">
+                                            <td className="py-3 pr-6">
                                                 {(() => {
                                                     // Parse grading_result — may be object, stringified JSON, or nested
                                                     let gr = job?.grading_result;
@@ -1105,10 +1105,10 @@ export default function DashboardPage() {
                                                     );
                                                 })()}
                                             </td>
-                                            <td className="py-3 text-[10px] font-mono text-purple-400/70 tracking-tighter max-w-[100px] truncate" title={(() => { const raw = job.identity_fingerprint || job.identity_id; return raw ? "0x" + String(raw).replace(/^hex:0x|^0x|^hex:/i, '') : undefined; })()}>
+                                            <td className="py-3 pr-6 text-[10px] font-mono text-purple-400/70 tracking-tighter max-w-[100px] truncate" title={(() => { const raw = job.identity_fingerprint || job.identity_id; return raw ? "0x" + String(raw).replace(/^hex:0x|^0x|^hex:/i, '') : undefined; })()}>
                                                 {(() => { const raw = job.identity_fingerprint || job.identity_id; if (!raw) return <span className="text-slate-700 italic">PENDING_REGISTRATION</span>; return "0x" + String(raw).replace(/^hex:0x|^0x|^hex:/i, ''); })()}
                                             </td>
-                                            <td className="py-3 text-[10px] font-mono text-slate-500 italic">
+                                            <td className="py-3 pr-6 text-[10px] font-mono text-slate-500 italic">
                                                 {(() => {
                                                     const date = parseFirestoreDate(job.updated_at || job.created_at);
                                                     return date ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Recently";
