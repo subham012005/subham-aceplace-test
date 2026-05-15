@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { AlertTriangle, Radio } from "lucide-react";
+import { Radio } from "lucide-react";
 
 /**
  * SandboxBanner
@@ -47,11 +47,6 @@ export function SandboxBanner() {
           position: "relative",
         }}
       >
-        {/* Left icon */}
-        <AlertTriangle
-          size={12}
-          style={{ color: "rgba(234,179,8,0.7)", flexShrink: 0 }}
-        />
 
         {/* Main text */}
         <div style={{ textAlign: "center" }}>
@@ -103,12 +98,6 @@ export function SandboxBanner() {
             production deployment.
           </span>
         </div>
-
-        {/* Right icon */}
-        <AlertTriangle
-          size={12}
-          style={{ color: "rgba(234,179,8,0.7)", flexShrink: 0 }}
-        />
 
         {/* Sandbox Active chip — top-right absolute */}
         <SandboxStatusChip />
