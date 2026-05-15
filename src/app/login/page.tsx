@@ -225,6 +225,11 @@ export default function LoginPage() {
   };
 
   const handleGoogleSignIn = async () => {
+    if (!legalAccepted) {
+      setError("Please accept the Terms & Conditions before initializing your Nexus ID session.");
+      return;
+    }
+
     const provider = new GoogleAuthProvider();
     try {
       const userCred = await signInWithPopup(auth, provider);
@@ -310,7 +315,7 @@ export default function LoginPage() {
                 margin: 0,
               }}
             >
-              Command Center Authorization
+              Sandbox Access
             </p>
           </div>
 
@@ -397,26 +402,24 @@ export default function LoginPage() {
                   </div>
                 </div>
 
-                {/* Legal checkbox — only shown on signup */}
-                {!isLogin && (
-                  <LegalCheckbox
-                    checked={legalAccepted}
-                    onChange={setLegalAccepted}
-                  />
-                )}
+                {/* Legal checkbox — required for all auth methods in Sandbox */}
+                <LegalCheckbox
+                  checked={legalAccepted}
+                  onChange={setLegalAccepted}
+                />
 
                 {/* Submit button */}
                 <button
                   id={isLogin ? "btn-login-submit" : "btn-signup-submit"}
                   type="submit"
-                  disabled={loading || (!isLogin && !legalAccepted)}
+                  disabled={loading || !legalAccepted}
                   className={cn(
                     "w-full p-4 mt-2 border border-cyan-500/30 bg-cyan-500/5 hover:bg-cyan-500/10 transition-all font-black uppercase tracking-[0.2em] text-[11px] relative group overflow-hidden scifi-clip",
-                    (loading || (!isLogin && !legalAccepted)) && "opacity-40 cursor-not-allowed"
+                    (loading || !legalAccepted) && "opacity-40 cursor-not-allowed"
                   )}
                   style={{
                     borderColor:
-                      !isLogin && !legalAccepted
+                      !legalAccepted
                         ? "rgba(255,255,255,0.08)"
                         : undefined,
                   }}
@@ -453,11 +456,13 @@ export default function LoginPage() {
                 <div className="flex-1 h-[1px] bg-white/5" />
               </div>
 
-              {/* Google */}
               <button
                 id="btn-google-signin"
                 onClick={handleGoogleSignIn}
-                className="w-full p-3 border border-white/5 bg-white/5 hover:bg-white/10 transition-all font-bold text-[11px] uppercase tracking-widest flex items-center justify-center gap-3"
+                className={cn(
+                  "w-full p-3 border border-white/5 bg-white/5 hover:bg-white/10 transition-all font-bold text-[11px] uppercase tracking-widest flex items-center justify-center gap-3",
+                  !legalAccepted && "opacity-50 grayscale-[0.5]"
+                )}
               >
                 <img
                   src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"

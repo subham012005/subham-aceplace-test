@@ -43,7 +43,7 @@ export function SandboxBanner() {
           alignItems: "center",
           justifyContent: "center",
           gap: "12px",
-          padding: "7px 16px",
+          padding: "12px 16px",
           position: "relative",
         }}
       >
@@ -57,11 +57,11 @@ export function SandboxBanner() {
         <div style={{ textAlign: "center" }}>
           <span
             style={{
-              fontSize: "10px",
+              fontSize: "11px",
               fontWeight: 900,
               letterSpacing: "0.25em",
               textTransform: "uppercase",
-              color: "rgba(234,179,8,0.85)",
+              color: "rgba(234,179,8,1)",
               display: "inline",
             }}
           >
@@ -79,11 +79,11 @@ export function SandboxBanner() {
           </span>
           <span
             style={{
-              fontSize: "10px",
+              fontSize: "11px",
               fontWeight: 900,
               letterSpacing: "0.25em",
               textTransform: "uppercase",
-              color: "rgba(234,179,8,0.85)",
+              color: "rgba(234,179,8,1)",
               display: "inline",
             }}
           >
@@ -92,11 +92,11 @@ export function SandboxBanner() {
           <span
             style={{
               display: "block",
-              fontSize: "9px",
+              fontSize: "10px",
               fontWeight: 600,
-              color: "rgba(255,255,255,0.3)",
+              color: "rgba(255,255,255,0.45)",
               letterSpacing: "0.08em",
-              marginTop: "1px",
+              marginTop: "2px",
             }}
           >
             Sandbox environment for ACEPLACE runtime evaluation. Not a licensed

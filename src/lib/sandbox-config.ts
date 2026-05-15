@@ -76,7 +76,7 @@ export const FIRESTORE_CAPS = {
 export const SANDBOX_NOTICES = [
   "Public sandbox sessions may be rate limited, reset, or terminated without notice.",
   "Users are responsible for their own API provider credentials and usage costs.",
-  "Runtime inference is powered by user-provided API credentials. ACEPLACE does not store or access your keys beyond the session.",
+  "Runtime inference is powered by user-provided API credentials.",
 ] as const;
 
 // ─── Policy Links ─────────────────────────────────────────────────────────────
