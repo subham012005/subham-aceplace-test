@@ -31,17 +31,17 @@ export default function LandingPage() {
 
       <div className="max-w-4xl w-full space-y-12 text-center animate-in fade-in zoom-in duration-1000">
         <div className="space-y-4">
-          <div className="flex flex-col items-center gap-8 animate-in fade-in zoom-in duration-1000">
-            <img src="/ace-symbol.png" alt="ACEPLACE Symbol" className="w-32 h-32 object-contain drop-shadow-[0_0_30px_rgba(6,182,212,0.4)] transition-all duration-500 hover:scale-110 hover:drop-shadow-[0_0_40px_rgba(6,182,212,0.6)] cursor-target" />
+          <div className="flex flex-col items-center gap-6 animate-in fade-in zoom-in duration-1000">
+            <img src="/ace-symbol.png" alt="ACEPLACE Symbol" className="w-16 h-16 object-contain drop-shadow-[0_0_20px_rgba(6,182,212,0.3)] transition-all duration-500 hover:scale-110 hover:drop-shadow-[0_0_30px_rgba(6,182,212,0.5)] cursor-target" />
             <div className="flex flex-col items-center">
-              <h1 className="text-6xl md:text-8xl font-black text-white italic tracking-tighter text-center">
+              <h1 className="text-4xl md:text-5xl font-black text-white italic tracking-tighter text-center">
                 ACEPLACE <span className="text-cyan-500">WORKSTATION</span>
               </h1>
-              <p className="text-cyan-500/60 font-mono text-[11px] md:text-sm tracking-[0.4em] font-black uppercase mt-2">Dimensional Control Plane</p>
+              <p className="text-cyan-500/60 font-mono text-[9px] md:text-[10px] tracking-[0.4em] font-black uppercase mt-1">Dimensional Control Plane</p>
             </div>
           </div>
 
-          <h2 className="text-lg md:text-xl text-slate-400 font-bold max-w-2xl mx-auto leading-relaxed uppercase tracking-tight italic">
+          <h2 className="text-sm md:text-base text-slate-400 font-bold max-w-xl mx-auto leading-relaxed uppercase tracking-tight italic">
             Human governance for autonomous agents with <span className="text-white">deterministic identity</span> and <span className="text-cyan-500">high-fidelity orchestration</span>.
           </h2>
         </div>
