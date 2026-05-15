@@ -148,7 +148,7 @@ function drawCoverHeader(ctx: Ctx, title: string, subtitle: string, metadata: Re
     let titleSize = 18;
     const sanitizedTitle = sanitize(title).toUpperCase();
     let titleW = fonts.bold.widthOfTextAtSize(sanitizedTitle, titleSize);
-    
+
     // Scale down if too wide, minimum size 12
     if (titleW > contentW) {
         titleSize = Math.max(12, 18 * (contentW / titleW));
@@ -323,7 +323,7 @@ function stampFooters(doc: PDFDocument, fonts: any, totalPages: number, jobId: s
         const p = pages[i];
         const { width } = p.getSize();
         const footerY = 24;
-        const text = `ACEPLACE Intelligence Report -- job-${jobId}   Page ${i + 1} of ${totalPages}`;
+        const text = `ACEPLACE Intelligence Report -- ${jobId}   Page ${i + 1} of ${totalPages}`;
         const size = 10;
         const textW = fonts.regular.widthOfTextAtSize(text, size);
 
