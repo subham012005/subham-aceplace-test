@@ -1,4 +1,7 @@
+# starlette MUST be pinned to <0.42.0 — starlette 1.0.0 removed on_startup/on_shutdown
+# from Router.__init__ which breaks fastapi 0.115.x internals at startup.
 fastapi==0.115.12
+starlette>=0.40.0,<0.42.0
 uvicorn[standard]==0.34.2
 langchain>=0.3.0
 langchain-anthropic>=0.3.0
