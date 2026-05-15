@@ -1821,7 +1821,7 @@ export default function JobDetailsPage() {
                                                                         md += `\n`;
                                                                     }
 
-                                                                    exportToPDF(md, `job-${job?.job_id || jobId}-full-report.pdf`);
+                                                                    exportToPDF(md, `${job?.job_id || jobId}-full-report.pdf`);
                                                                 }}
                                                                 disabled={actionLoading || !['grading', 'graded', 'awaiting_approval', 'approved', 'completed'].includes(derivedStatus?.toLowerCase())}
                                                                 className="px-8 py-4 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 font-black uppercase tracking-[0.2em] text-xs hover:bg-cyan-500/20 hover:border-cyan-500 transition-all cursor-target flex items-center justify-center gap-3 group disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent shadow-[0_0_30px_rgba(6,182,212,0.1)] scifi-clip"
