@@ -978,7 +978,6 @@ export default function DashboardPage() {
                         </div>
                     </HUDFrame>
 
-                    {/* Agent Activity Log */}
                     <HUDFrame
                         title="Agent Activity Log"
                         className="flex-1 overflow-hidden min-h-[300px] lg:min-h-0"
@@ -993,7 +992,7 @@ export default function DashboardPage() {
                             </button>
                         }
                     >
-                        <div className="w-full min-h-full pr-2 overflow-x-auto custom-scroll relative">
+                        <div className="w-full min-h-full pr-2 overflow-x-auto md:overflow-x-visible scrollbar-hide md:scrollbar-default relative">
                             <table className="w-full text-left border-collapse min-w-[500px]">
                                 <thead className="sticky top-0 bg-black/80 z-20">
                                     <tr className="border-b border-white/10">

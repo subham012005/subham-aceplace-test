@@ -250,7 +250,7 @@ export default function LoginPage() {
       {/* Page — push content below fixed banner */}
       <div
         className="min-h-screen bg-slate-950 text-slate-300 flex items-center justify-center p-4 tech-grid scanline"
-        style={{ paddingTop: "72px" }}
+        style={{ paddingTop: "108px" }}
       >
         <div className="w-full max-w-md relative z-10">
 

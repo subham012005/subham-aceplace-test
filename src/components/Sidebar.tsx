@@ -9,16 +9,24 @@ import {
     PlusSquare,
     Database,
     X,
-    Settings
+    Settings,
+    Info,
+    Rocket,
+    Lightbulb,
+    LogOut,
+    Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useSettings } from "@/context/SettingsContext";
+import { useAuth } from "@/hooks/useAuth";
 
 const menuItems = [
-    { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
-    { icon: Database, label: "Knowledge Base", href: "/dashboard/knowledge" },
-    { icon: PlusSquare, label: "Task Composer", href: "/dashboard/composer" },
-    { icon: Settings, label: "System Config", href: "/system-config" },
+    { icon: LayoutDashboard, label: "Dashboard",         href: "/dashboard" },
+    { icon: Info,            label: "About ACEPLACE",    href: "/dashboard/about" },
+    { icon: Rocket,          label: "Quick Setup Guide", href: "/dashboard/setup" },
+    { icon: Lightbulb,       label: "Runtime Ideas",     href: "/dashboard/runtime-ideas" },
+    { icon: Settings,        label: "System Config",     href: "/system-config" },
+    { icon: Database,        label: "Knowledge Base",    href: "/dashboard/knowledge" },
+    { icon: PlusSquare,      label: "Task Composer",     href: "/dashboard/composer" },
 ];
 
 interface SidebarProps {
@@ -28,6 +36,7 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     const pathname = usePathname();
+    const { user, signOut } = useAuth();
 
     return (
         <>
@@ -41,13 +50,14 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             />
 
             <div className={cn(
-                "w-64 h-screen bg-black/20 backdrop-blur-3xl border-r border-white/10 flex flex-col !fixed lg:!relative left-0 top-0 z-50 tech-grid scanline transition-transform duration-300 transform lg:translate-x-0 overflow-hidden",
+                "w-64 h-screen bg-black/20 backdrop-blur-3xl border-r border-white/10 flex flex-col !fixed lg:!relative left-0 top-0 z-50 tech-grid scanline transition-transform duration-300 transform lg:translate-x-0",
                 isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
             )}>
                 {/* Sidebar Glow Overlay */}
                 <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/5 via-transparent to-purple-500/5 pointer-events-none" />
 
-                <div className="p-6 border-b border-white/10 flex items-center justify-between relative">
+                {/* Header */}
+                <div className="p-6 border-b border-white/10 flex items-center justify-between relative shrink-0">
                     <div className="flex items-center gap-3">
                         <Image src="/ace-symbol.png" alt="ACEPLACE Symbol" width={48} height={48} className="h-12 w-auto object-contain" />
                         <div className="flex flex-col">
@@ -55,7 +65,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                             <span className="text-[11px] font-mono text-cyan-500/60 tracking-[0.2em] font-bold">WORKSTATION</span>
                         </div>
                     </div>
-
                     {/* Close button for mobile */}
                     <button
                         onClick={onClose}
@@ -65,12 +74,14 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                     </button>
                 </div>
 
-                <nav className="flex-1 p-4 space-y-3 overflow-y-auto relative">
+                {/* Nav */}
+                <nav className="flex-1 p-4 space-y-1 overflow-y-auto relative custom-scroll min-h-0">
                     <div className="text-[11px] uppercase font-black text-slate-600 tracking-[0.2em] mb-4 ml-2">Main Interface</div>
                     {menuItems.map((item) => {
-                        const isActive = pathname === item.href || 
+                        const isActive =
+                            pathname === item.href ||
                             (item.href === "/dashboard" && pathname.startsWith("/dashboard/jobs")) ||
-                            (item.href === "/dashboard" && pathname === "/dashboard");
+                            (item.href !== "/dashboard" && item.href !== "/" && pathname.startsWith(item.href));
                         return (
                             <Link
                                 key={item.href}
@@ -96,6 +107,37 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                         );
                     })}
                 </nav>
+
+                {/* Footer: User info + Logout — always visible, especially on mobile */}
+                <div className="shrink-0 border-t border-white/10 p-4 relative space-y-2">
+                    {user && (
+                        <div className="px-3 py-2 border border-white/5 bg-white/2 flex items-center gap-2 min-w-0 overflow-hidden">
+                            <div className="w-6 h-6 rounded-none border border-cyan-500/30 bg-cyan-500/10 flex items-center justify-center shrink-0">
+                                <span className="text-[9px] font-black text-cyan-400">
+                                    {user.email?.[0]?.toUpperCase() || "U"}
+                                </span>
+                            </div>
+                            <div className="min-w-0 flex-1 overflow-hidden">
+                                <p className="text-[9px] font-black uppercase tracking-widest text-white truncate leading-none">
+                                    {user.email?.split("@")[0] || "OPERATOR"}
+                                </p>
+                                <p className="text-[8px] font-mono text-slate-600 truncate leading-none mt-0.5">
+                                    {user.email}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    <button
+                        onClick={() => signOut()}
+                        className="w-full flex items-center gap-3 px-4 py-3 border border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/10 hover:border-rose-500/40 transition-all duration-200 group"
+                    >
+                        <Lock className="w-4 h-4 text-rose-500/50 group-hover:text-rose-500 transition-colors shrink-0" />
+                        <span className="text-[11px] font-bold uppercase tracking-wider italic text-rose-500/50 group-hover:text-rose-500 transition-colors">
+                            Lock Terminal
+                        </span>
+                    </button>
+                </div>
             </div>
         </>
     );

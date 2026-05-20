@@ -404,8 +404,8 @@ export function IntelligenceProviders() {
       <HUDFrame title="Agent Provider Assignment" subtitle="Which provider handles each role" variant="dark">
         <div className="space-y-2 pt-1">
           {AGENT_ROLES.map((role) => (
-            <div key={role.key} className="flex items-center justify-between border border-white/5 bg-black/20 px-3 py-2">
-              <div>
+            <div key={role.key} className="flex flex-col sm:flex-row sm:items-center sm:justify-between border border-white/5 bg-black/20 px-3 py-2 gap-2">
+              <div className="min-w-0">
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-300">
                   {role.label}
                 </p>
@@ -416,7 +416,7 @@ export function IntelligenceProviders() {
               <select
                 value={config.agent_models[role.key]}
                 onChange={(e) => handleAgentModelChange(role.key, e.target.value as ProviderKey)}
-                className="bg-black/60 border border-white/10 text-[10px] font-black uppercase tracking-widest text-cyan-400 px-2 py-1 focus:outline-none focus:border-cyan-500/40 transition-all cursor-pointer"
+                className="w-full sm:w-auto bg-black/60 border border-white/10 text-[10px] font-black uppercase tracking-widest text-cyan-400 px-2 py-1.5 focus:outline-none focus:border-cyan-500/40 transition-all cursor-pointer shrink-0"
               >
                 {PROVIDERS.map((p) => (
                   <option key={p.key} value={p.key}>
