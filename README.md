@@ -1,6 +1,6 @@
 # ACEPLACE
 
-## Deterministic Multi-Agent Runtime Infrastructure
+## Phase 2 — Deterministic Multi-Agent Runtime Infrastructure
 
 ACEPLACE is a deterministic multi-agent runtime platform for governed autonomous execution across enterprise, telecom, sovereign, and distributed infrastructure environments.
 
@@ -42,6 +42,8 @@ ACEPLACE runtime systems operate under several core principles:
 
 - Execution Envelopes are the single runtime source of truth
 - Agents are stateless runtime workers
+- Agents do not control orchestration flow
+- Execution envelopes govern runtime progression
 - Runtime authority is lease-governed
 - Identity must be verified before execution
 - Invalid runtime states fail closed
@@ -69,7 +71,7 @@ This architecture enables:
 src/
 ```
 
-The root `src/` directory contains the ACEPLACE Next.js 16 Control Plane.
+The root `src/` directory contains the ACEPLACE Next.js Control Plane.
 
 ## Role
 
@@ -117,6 +119,8 @@ The Runtime Worker is the canonical deterministic execution tier.
 
 Lease acquisition, identity validation, runtime orchestration, and execution dispatch.
 
+Runtime Workers operate as isolated deterministic execution processors and do not persist orchestration authority outside active lease scope.
+
 ## Responsibilities
 
 - claiming execution envelopes
@@ -160,6 +164,8 @@ Canonical deterministic runtime specification.
 - runtime validation rules
 - trace schemas
 - orchestration sequencing
+
+Execution traces, artifacts, leases, lineage, and continuity checkpoints are persisted as governed runtime records.
 
 This package acts as the deterministic runtime truth layer.
 
@@ -530,6 +536,21 @@ Runtime visibility includes:
 - grading events
 - artifact provenance
 - continuity checkpoints
+
+Execution traces, artifacts, leases, lineage, and continuity checkpoints are persisted as governed runtime records.
+
+---
+
+# 🔭 Future Runtime Direction
+
+Future runtime deployments may support:
+
+- sovereign execution clusters
+- distributed edge orchestration
+- deterministic telecom runtime coordination
+- self-healing infrastructure agents
+- AI-RAN runtime governance
+- private infrastructure deployment
 
 ---
 
