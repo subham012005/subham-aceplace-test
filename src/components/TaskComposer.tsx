@@ -144,13 +144,13 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
                     className="overflow-hidden"
                 >
                     {/* HUD Header */}
-                    <div className="flex items-center justify-between px-4 py-2 border-b border-white/5 bg-cyan-500/5 mb-4 -mx-4 -mt-2">
+                    <div id="tour-composer-telemetry" className="flex items-center justify-between px-4 py-2 border-b border-white/5 bg-cyan-500/5 mb-4 -mx-4 -mt-2">
                         <div className="flex items-center gap-4">
                             <div className="flex items-center gap-2">
                                 <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse shadow-[0_0_8px_#06b6d4]" />
                                 <span className="text-[10px] font-black text-white tracking-widest uppercase italic">Link: Synced</span>
                             </div>
-                            <div className="h-3 w-[1px] bg-white/10" />
+                            <div className="h-px w-2 bg-white/10" />
                             <span className="text-[10px] font-bold text-slate-500 tracking-widest uppercase">Latency: 24ms</span>
                         </div>
                         <div className="flex items-center gap-4">
@@ -186,7 +186,7 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
                                 </div>
                             </div>
 
-                            <div className="relative group">
+                            <div id="tour-composer-input" className="relative group">
                                 <textarea
                                     required
                                     placeholder="Enter strategic instructions for the COO Agent..."
@@ -240,7 +240,7 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
                             </div>
                         )}
 
-                        <div className="flex items-start gap-4 p-4 bg-cyan-500/5 border border-white/5 scifi-clip relative overflow-hidden group">
+                        <div id="tour-composer-guidance" className="flex items-start gap-4 p-4 bg-cyan-500/5 border border-white/5 scifi-clip relative overflow-hidden group">
                             <div className="absolute inset-x-0 bottom-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
                             <Zap className="w-5 h-5 text-cyan-500 shrink-0 animate-pulse mt-0.5" />
                             <div>
@@ -252,6 +252,7 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
 
                         <div className="pt-2 px-1">
                             <button
+                                id="tour-composer-submit"
                                 disabled={isSubmitting || !task.trim()}
                                 className={cn(
                                     "w-full py-6 scifi-clip text-xs font-black uppercase tracking-[0.4em] transition-all flex items-center justify-center gap-4 active:scale-[0.98] cursor-target overflow-hidden relative group/btn",

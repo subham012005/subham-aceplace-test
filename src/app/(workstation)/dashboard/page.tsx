@@ -648,7 +648,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Main Stats Segment */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 md:gap-4 shrink-0">
+            <div id="tour-stats" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 md:gap-4 shrink-0">
                 {statsConfig.map(stat => (
                     <HUDFrame key={stat.label} showRefLines={false} className="min-w-0 bg-cyan-950/10 border-white/5 cursor-target">
                         <div className="flex items-center gap-3 md:gap-4 w-full h-full min-w-0 overflow-hidden">
@@ -685,6 +685,7 @@ export default function DashboardPage() {
             {/* Runtime Engine Section */}
             <ErrorBoundary title="Runtime Engine">
                 <HUDFrame
+                    id="tour-runtime"
                     title="Runtime Engine"
                     subtitle="Deterministic Execution Monitor"
                     className="shrink-0 bg-purple-950/10 border-purple-500/10"
@@ -701,6 +702,7 @@ export default function DashboardPage() {
                 {/* Left Sidebar: MISSION QUEUE */}
                 <div className="col-span-1 md:col-span-12 lg:col-span-2 flex flex-col h-auto lg:h-full lg:overflow-hidden order-2 lg:order-1 gap-4">
                     <HUDFrame
+                        id="tour-archive"
                         title="Mission Archive"
                         subtitle="Completed Tasks"
                         className="flex-1 overflow-y-auto scrollbar-hide overflow-x-hidden shrink-0"
@@ -740,6 +742,7 @@ export default function DashboardPage() {
                         </div>
                     </HUDFrame>
                     <HUDFrame
+                        id="tour-queue"
                         title="Mission Queue"
                         subtitle="Active Tasks"
                         className="flex-1 overflow-y-auto scrollbar-hide overflow-x-hidden shrink-0"
