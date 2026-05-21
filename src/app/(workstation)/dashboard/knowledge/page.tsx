@@ -84,8 +84,7 @@ export default function KnowledgePage() {
                         </div>
                     </div>
 
-                    {/* Quick Stats Grid */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 min-w-[320px]">
+                    <div id="tour-knowledge-stats" className="grid grid-cols-2 md:grid-cols-4 gap-4 min-w-[320px]">
                         {[
                             { label: "Collections", value: stats.totalCollections, icon: Layers, color: "text-cyan-400" },
                             { label: "Data Indexed Context Units", value: stats.totalChunks, icon: Cpu, color: "text-purple-400" },
@@ -128,7 +127,7 @@ export default function KnowledgePage() {
 
                                 </div>
 
-                                <div className="p-4 lg:p-8 pt-2">
+                                <div id="tour-knowledge-panel" className="p-4 lg:p-8 pt-2">
                                     <KnowledgeBasePanel className="max-w-none border-none bg-transparent" />
                                 </div>
                             </div>

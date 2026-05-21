@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import { Menu, Zap } from "lucide-react";
+import ProductTour from "@/components/ProductTour/ProductTour";
 
 export default function WorkstationLayout({
     children,
@@ -26,6 +27,7 @@ export default function WorkstationLayout({
 
     return (
         <div className="h-[100dvh] stardust-bg overflow-hidden flex flex-col lg:flex-row w-full">
+            <ProductTour />
             {/* Mobile Header */}
             <header className="lg:hidden h-16 border-b border-white/10 bg-black/20 backdrop-blur-xl flex items-center justify-between px-4 z-40 shrink-0">
                 <div className="flex items-center gap-3">

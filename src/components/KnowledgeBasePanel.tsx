@@ -383,7 +383,7 @@ export function KnowledgeBasePanel({ onContextChange, className }: KnowledgeBase
     <div className={cn("space-y-4", className)}>
       <div className="space-y-3">
         {/* ── Direct Text Knowledge Section ──────────────── */}
-        <div className="bg-white/[0.02] border border-white/5 rounded-xl overflow-hidden transition-all hover:border-white/10">
+        <div id="tour-kb-runtime" className="bg-white/[0.02] border border-white/5 rounded-xl overflow-hidden transition-all hover:border-white/10">
           <button
             type="button"
             onClick={() => setDirectTextExpanded(!directTextExpanded)}
@@ -448,8 +448,8 @@ Output: [What the final deliverable should look like]`}
                   )}
                   {directText.trim() && directText !== persistedDirectText && (
                     <button
+                      id="tour-kb-sync"
                       onClick={saveDirectKnowledge}
-                      disabled={savingDirectText}
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white text-[10px] font-black uppercase hover:bg-purple-500 transition-all active:scale-95 shadow-[0_0_15px_rgba(147,51,234,0.3)]"
                     >
                       {savingDirectText ? <Loader2 className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
@@ -522,7 +522,7 @@ Output: [What the final deliverable should look like]`}
 
         <div className="flex flex-col gap-4">
           {/* ── Knowledge Base Section ───────────────────────── */}
-          <div className="bg-white/[0.02] border border-white/5 rounded-xl overflow-hidden flex flex-col hover:border-white/10 transition-all">
+          <div id="tour-kb-repository" className="bg-white/[0.02] border border-white/5 rounded-xl overflow-hidden flex flex-col hover:border-white/10 transition-all">
             <button
               type="button"
               onClick={() => setKbExpanded(!kbExpanded)}
@@ -582,9 +582,9 @@ Output: [What the final deliverable should look like]`}
                       className="hidden"
                     />
                     <button
+                      id="tour-kb-upload"
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      disabled={uploading}
                       className={cn(
                         "w-full py-6 flex flex-col items-center justify-center gap-3 text-[11px] font-black uppercase tracking-widest transition-all rounded-lg border border-dashed",
                         uploading
@@ -695,7 +695,7 @@ Output: [What the final deliverable should look like]`}
           </div>
 
           {/* ── Instructions + Web Search Section ────────────── */}
-          <div className="bg-white/[0.02] border border-white/5 rounded-xl overflow-hidden flex flex-col hover:border-white/10 transition-all">
+          <div id="tour-kb-protocols" className="bg-white/[0.02] border border-white/5 rounded-xl overflow-hidden flex flex-col hover:border-white/10 transition-all">
             <button
               type="button"
               onClick={() => setInstrExpanded(!instrExpanded)}

@@ -25,6 +25,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "docx": "^9.6.1",
+    "driver.js": "^1.4.0",
     "firebase": "^12.9.0",
     "firebase-admin": "^13.7.0",
     "gsap": "^3.14.2",

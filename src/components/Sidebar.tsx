@@ -58,7 +58,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
                 {/* Header */}
                 <div className="p-6 border-b border-white/10 flex items-center justify-between relative shrink-0">
-                    <div className="flex items-center gap-3">
+                    <div id="tour-logo" className="flex items-center gap-3">
                         <Image src="/ace-symbol.png" alt="ACEPLACE Symbol" width={48} height={48} className="h-12 w-auto object-contain" />
                         <div className="flex flex-col">
                             <span className="font-black text-xl tracking-tighter text-white uppercase italic leading-none">ACEPLACE</span>
@@ -82,10 +82,15 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                             pathname === item.href ||
                             (item.href === "/dashboard" && pathname.startsWith("/dashboard/jobs")) ||
                             (item.href !== "/dashboard" && item.href !== "/" && pathname.startsWith(item.href));
+                        
+                        // ID for tour targeting
+                        const tourId = `tour-${item.label.toLowerCase().replace(/\s+/g, '-')}`;
+
                         return (
                             <Link
                                 key={item.href}
                                 href={item.href}
+                                id={tourId}
                                 onClick={() => {
                                     if (window.innerWidth < 1024) onClose();
                                 }}
