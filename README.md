@@ -1,6 +1,6 @@
 # ACEPLACE
 
-## Phase 2 — Deterministic Multi-Agent Runtime Infrastructure
+## Deterministic Multi-Agent Runtime Infrastructure
 
 ACEPLACE is a deterministic multi-agent runtime platform for governed autonomous execution across enterprise, telecom, sovereign, and distributed infrastructure environments.
 
