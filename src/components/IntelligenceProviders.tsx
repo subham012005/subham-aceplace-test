@@ -387,57 +387,62 @@ export function IntelligenceProviders() {
       )}
 
       {/* Provider configuration */}
-      <HUDFrame title="API Providers" subtitle="Configure your LLM credentials" variant="dark">
-        <div className="space-y-2 pt-1">
-          {PROVIDERS.map((provider) => (
-            <ProviderCard
-              key={provider.key}
-              provider={provider}
-              config={config.providers[provider.key]}
-              onChange={(updated) => handleProviderChange(provider.key, updated)}
-            />
-          ))}
-        </div>
-      </HUDFrame>
+      <div id="tour-api-providers">
+        <HUDFrame title="API Providers" subtitle="Configure your LLM credentials" variant="dark">
+          <div className="space-y-2 pt-1">
+            {PROVIDERS.map((provider) => (
+              <ProviderCard
+                key={provider.key}
+                provider={provider}
+                config={config.providers[provider.key]}
+                onChange={(updated) => handleProviderChange(provider.key, updated)}
+              />
+            ))}
+          </div>
+        </HUDFrame>
+      </div>
 
       {/* Per-agent provider assignment */}
-      <HUDFrame title="Agent Provider Assignment" subtitle="Which provider handles each role" variant="dark">
-        <div className="space-y-2 pt-1">
-          {AGENT_ROLES.map((role) => (
-            <div key={role.key} className="flex flex-col sm:flex-row sm:items-center sm:justify-between border border-white/5 bg-black/20 px-3 py-2 gap-2">
-              <div className="min-w-0">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-300">
-                  {role.label}
-                </p>
-                <p className="text-[10px] text-slate-600 uppercase tracking-widest">
-                  CAPABILITY: {role.capability}
-                </p>
+      <div id="tour-agent-assignment">
+        <HUDFrame title="Agent Provider Assignment" subtitle="Which provider handles each role" variant="dark">
+          <div className="space-y-2 pt-1">
+            {AGENT_ROLES.map((role) => (
+              <div key={role.key} className="flex flex-col sm:flex-row sm:items-center sm:justify-between border border-white/5 bg-black/20 px-3 py-2 gap-2">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-300">
+                    {role.label}
+                  </p>
+                  <p className="text-[10px] text-slate-600 uppercase tracking-widest">
+                    CAPABILITY: {role.capability}
+                  </p>
+                </div>
+                <select
+                  value={config.agent_models[role.key]}
+                  onChange={(e) => handleAgentModelChange(role.key, e.target.value as ProviderKey)}
+                  className="w-full sm:w-auto bg-black/60 border border-white/10 text-[10px] font-black uppercase tracking-widest text-cyan-400 px-2 py-1.5 focus:outline-none focus:border-cyan-500/40 transition-all cursor-pointer shrink-0"
+                >
+                  {PROVIDERS.map((p) => (
+                    <option key={p.key} value={p.key}>
+                      {p.label.toUpperCase()}
+                    </option>
+                  ))}
+                </select>
               </div>
-              <select
-                value={config.agent_models[role.key]}
-                onChange={(e) => handleAgentModelChange(role.key, e.target.value as ProviderKey)}
-                className="w-full sm:w-auto bg-black/60 border border-white/10 text-[10px] font-black uppercase tracking-widest text-cyan-400 px-2 py-1.5 focus:outline-none focus:border-cyan-500/40 transition-all cursor-pointer shrink-0"
-              >
-                {PROVIDERS.map((p) => (
-                  <option key={p.key} value={p.key}>
-                    {p.label.toUpperCase()}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
 
-        <div className="mt-3 p-2 border border-white/5 bg-black/20 flex items-center gap-2">
-          <Zap className="w-3 h-3 text-cyan-500/60 shrink-0" />
-          <p className="text-[10px] text-slate-600 font-bold">
-            Provider is resolved at runtime per org. Model class (high_reasoning / standard) determines which model within the provider is used.
-          </p>
-        </div>
-      </HUDFrame>
+          <div className="mt-3 p-2 border border-white/5 bg-black/20 flex items-center gap-2">
+            <Zap className="w-3 h-3 text-cyan-500/60 shrink-0" />
+            <p className="text-[10px] text-slate-600 font-bold">
+              Provider is resolved at runtime per org. Model class (high_reasoning / standard) determines which model within the provider is used.
+            </p>
+          </div>
+        </HUDFrame>
+      </div>
 
       {/* Save button */}
       <button
+        id="tour-save-config"
         onClick={handleSave}
         disabled={saving || !userId}
         className={cn(

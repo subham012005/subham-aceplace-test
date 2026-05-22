@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { CheckCircle, ChevronDown, ChevronRight, Terminal, AlertTriangle, Zap, ArrowRight, BookOpen } from "lucide-react";
+import { CheckCircle, ChevronDown, ChevronRight, Terminal, AlertTriangle, Zap, ArrowRight, BookOpen, Rocket } from "lucide-react";
+import { useProductTour } from "@/hooks/useProductTour";
 
 function SectionHeader({ label, title }: { label: string; title: string }) {
   return (
@@ -67,6 +68,7 @@ const checklist = [
 
 export default function SetupPage() {
   const [checks, setChecks] = useState<boolean[]>(new Array(checklist.length).fill(false));
+  const { restartTour } = useProductTour();
   const toggle = (i: number) => setChecks(c => { const n = [...c]; n[i] = !n[i]; return n; });
   const done = checks.filter(Boolean).length;
 
@@ -92,6 +94,25 @@ export default function SetupPage() {
       </div>
 
       <div className="max-w-5xl mx-auto px-8 py-10 space-y-14">
+
+        <div className="p-6 border border-white/8 bg-white/[0.02] flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-cyan-500/30 transition-all group relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="flex items-start gap-3 relative z-10">
+            <Rocket className="w-4 h-4 text-cyan-500/60 mt-0.5 shrink-0" />
+            <div className="space-y-1">
+              <span className="text-[11px] font-black uppercase tracking-wider text-slate-500">Interactive Tour</span>
+              <p className="text-sm font-bold text-white italic">Guided Platform Overview</p>
+              <p className="text-[10px] text-slate-500 leading-tight max-w-xl">Restart the interactive walkthrough of the ACEPLACE workstation.</p>
+            </div>
+          </div>
+          <button
+            id="tour-get-to-know-the-platform"
+            onClick={restartTour}
+            className="relative z-10 px-6 py-3 shrink-0 border border-cyan-500/20 bg-cyan-500/5 hover:bg-cyan-500/20 hover:border-cyan-500/50 text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400 transition-all active:scale-95"
+          >
+            Restart Tour
+          </button>
+        </div>
 
         {/* Quick Flow */}
         <section>
