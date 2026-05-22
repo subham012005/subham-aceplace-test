@@ -13,13 +13,19 @@ import {
     Info,
     Rocket,
     Lightbulb,
-    LogOut,
+    Gauge,
     Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 
-const menuItems = [
+type MenuItem = {
+    icon: React.ComponentType<{ className?: string }>;
+    label: string;
+    href: string;
+};
+
+const menuItems: MenuItem[] = [
     { icon: LayoutDashboard, label: "Dashboard",         href: "/dashboard" },
     { icon: Info,            label: "About ACEPLACE",    href: "/dashboard/about" },
     { icon: Rocket,          label: "Quick Setup Guide", href: "/dashboard/setup" },
@@ -29,9 +35,56 @@ const menuItems = [
     { icon: PlusSquare,      label: "Task Composer",     href: "/dashboard/composer" },
 ];
 
+const runtimeUsageItem: MenuItem = {
+    icon: Gauge,
+    label: "Runtime Usage",
+    href: "/dashboard/runtime-usage",
+};
+
 interface SidebarProps {
     isOpen: boolean;
     onClose: () => void;
+}
+
+function NavLink({
+    item,
+    pathname,
+    onClose,
+}: {
+    item: MenuItem;
+    pathname: string;
+    onClose: () => void;
+}) {
+    const isActive =
+        pathname === item.href ||
+        (item.href === "/dashboard" && pathname.startsWith("/dashboard/jobs")) ||
+        (item.href !== "/dashboard" && item.href !== "/" && pathname.startsWith(item.href));
+
+    const tourId = `tour-${item.label.toLowerCase().replace(/\s+/g, "-")}`;
+
+    return (
+        <Link
+            href={item.href}
+            id={tourId}
+            onClick={() => {
+                if (window.innerWidth < 1024) onClose();
+            }}
+            className={cn(
+                "group flex items-center justify-between px-4 py-3 transition-all duration-300 relative scifi-clip border cursor-target",
+                isActive
+                    ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/30 shadow-[inset_0_0_20px_rgba(6,182,212,0.05)]"
+                    : "text-slate-500 border-transparent hover:bg-white/5 hover:text-slate-200"
+            )}
+        >
+            <div className="flex items-center gap-3 relative z-10">
+                <item.icon className={cn("w-4 h-4", isActive ? "text-cyan-400" : "group-hover:text-cyan-400")} />
+                <span className="text-[11px] font-bold uppercase tracking-wider italic">{item.label}</span>
+            </div>
+            {isActive && (
+                <div className="absolute inset-y-0 left-0 w-[2px] bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.8)]" />
+            )}
+        </Link>
+    );
 }
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
@@ -75,42 +128,16 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 </div>
 
                 {/* Nav */}
-                <nav className="flex-1 p-4 space-y-1 overflow-y-auto relative custom-scroll min-h-0">
-                    <div className="text-[11px] uppercase font-black text-slate-600 tracking-[0.2em] mb-4 ml-2">Main Interface</div>
-                    {menuItems.map((item) => {
-                        const isActive =
-                            pathname === item.href ||
-                            (item.href === "/dashboard" && pathname.startsWith("/dashboard/jobs")) ||
-                            (item.href !== "/dashboard" && item.href !== "/" && pathname.startsWith(item.href));
-                        
-                        // ID for tour targeting
-                        const tourId = `tour-${item.label.toLowerCase().replace(/\s+/g, '-')}`;
-
-                        return (
-                            <Link
-                                key={item.href}
-                                href={item.href}
-                                id={tourId}
-                                onClick={() => {
-                                    if (window.innerWidth < 1024) onClose();
-                                }}
-                                className={cn(
-                                    "group flex items-center justify-between px-4 py-3 transition-all duration-300 relative scifi-clip border cursor-target",
-                                    isActive
-                                        ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/30 shadow-[inset_0_0_20px_rgba(6,182,212,0.05)]"
-                                        : "text-slate-500 border-transparent hover:bg-white/5 hover:text-slate-200"
-                                )}
-                            >
-                                <div className="flex items-center gap-3 relative z-10">
-                                    <item.icon className={cn("w-4 h-4", isActive ? "text-cyan-400" : "group-hover:text-cyan-400")} />
-                                    <span className="text-[11px] font-bold uppercase tracking-wider italic">{item.label}</span>
-                                </div>
-                                {isActive && (
-                                    <div className="absolute inset-y-0 left-0 w-[2px] bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.8)]" />
-                                )}
-                            </Link>
-                        );
-                    })}
+                <nav className="flex-1 flex flex-col min-h-0 p-4 relative">
+                    <div className="flex-1 overflow-y-auto custom-scroll space-y-1 min-h-0">
+                        <div className="text-[11px] uppercase font-black text-slate-600 tracking-[0.2em] mb-4 ml-2">Main Interface</div>
+                        {menuItems.map((item) => (
+                            <NavLink key={item.href} item={item} pathname={pathname} onClose={onClose} />
+                        ))}
+                    </div>
+                    <div className="shrink-0 pt-3 mt-auto border-t border-white/5">
+                        <NavLink item={runtimeUsageItem} pathname={pathname} onClose={onClose} />
+                    </div>
                 </nav>
 
                 {/* Footer: User info + Logout — always visible, especially on mobile */}

@@ -1212,11 +1212,11 @@ export default function DashboardPage() {
                                         "absolute inset-y-0 flex items-center justify-center text-[10px] font-bold tracking-[0.15em] transition-all duration-500 uppercase",
                                         isSpeaking ? "text-cyan-400 opacity-0 -translate-y-4" : "text-slate-500 opacity-80 translate-y-0"
                                     )}>
-                                        Ready for voice routing
+                                        Comming Soon
                                     </p>
                                 </div>
 
-                                <p className="mt-4 text-[10px] uppercase text-cyan-500/30 font-black tracking-[0.4em] mb-1 opacity-0 group-hover:opacity-100 transition-opacity text-center">Tap Orb to Initialize</p>
+                                {/* <p className="mt-4 text-[10px] uppercase text-cyan-500/30 font-black tracking-[0.4em] mb-1 opacity-0 group-hover:opacity-100 transition-opacity text-center">Comming Soon</p> */}
                             </div>
                         </div>
                     </HUDFrame>

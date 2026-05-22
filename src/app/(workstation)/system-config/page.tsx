@@ -3,16 +3,13 @@
 import React from 'react';
 import Image from "next/image";
 import { Switch } from "@/components/ui/switch";
-import { Shield, Copy, Check, Cpu, Globe, Rocket, Settings as SettingsIcon } from "lucide-react";
+import { Shield, Copy, Check, Cpu, Globe, Settings as SettingsIcon } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import { cn } from "@/lib/utils";
 import { IntelligenceProviders } from "@/components/IntelligenceProviders";
-import { useProductTour } from "@/hooks/useProductTour";
-
 export default function SystemConfigPage() {
     const [activeTab, setActiveTab] = React.useState<"ui" | "providers">("ui");
     const [copied, setCopied] = React.useState(false);
-    const { restartTour } = useProductTour();
     const userId = auth.currentUser?.uid || "Not Authenticated";
 
     const copyToClipboard = () => {
@@ -109,28 +106,6 @@ export default function SystemConfigPage() {
                                                         className="relative z-10 p-3 rounded-lg border border-white/10 bg-white/5 hover:bg-cyan-500/20 hover:border-cyan-500/50 transition-all active:scale-95"
                                                     >
                                                         {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 text-cyan-500" />}
-                                                    </button>
-                                                </div>
-                                            </div>
-
-                                            {/* User Onboarding Section */}
-                                            <div className="space-y-4">
-                                                <div className="flex items-center gap-2 text-[11px] uppercase font-black text-cyan-500/60 tracking-[0.2em] mb-2">
-                                                    <Rocket className="w-3.5 h-3.5" /> User Onboarding
-                                                </div>
-                                                <div className="p-6 border border-white/5 bg-white/[0.02] rounded-xl flex items-center justify-between hover:border-cyan-500/30 transition-all group relative overflow-hidden">
-                                                    <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                                                    <div className="space-y-1 relative z-10">
-                                                        <span className="text-[11px] font-black uppercase tracking-wider text-slate-500">Interactive Tour</span>
-                                                        <p className="text-sm font-bold text-white italic">Guided Platform Overview</p>
-                                                        <p className="text-[10px] text-slate-500 leading-tight">Restart the interactive walkthrough of the ACEPLACE workstation.</p>
-                                                    </div>
-                                                    <button
-                                                        id="tour-get-to-know-the-platform"
-                                                        onClick={restartTour}
-                                                        className="relative z-10 px-6 py-3 rounded-lg border border-cyan-500/20 bg-cyan-500/5 hover:bg-cyan-500/20 hover:border-cyan-500/50 text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400 transition-all active:scale-95"
-                                                    >
-                                                        Restart Tour
                                                     </button>
                                                 </div>
                                             </div>
