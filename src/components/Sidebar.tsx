@@ -23,16 +23,20 @@ type MenuItem = {
     icon: React.ComponentType<{ className?: string }>;
     label: string;
     href: string;
+    accent?: "neon-green";
 };
 
-const menuItems: MenuItem[] = [
-    { icon: LayoutDashboard, label: "Dashboard",         href: "/dashboard" },
-    { icon: Info,            label: "About ACEPLACE",    href: "/dashboard/about" },
-    { icon: Rocket,          label: "Quick Setup Guide", href: "/dashboard/setup" },
-    { icon: Lightbulb,       label: "Runtime Ideas",     href: "/dashboard/runtime-ideas" },
-    { icon: Settings,        label: "System Config",     href: "/system-config" },
-    { icon: Database,        label: "Knowledge Base",    href: "/dashboard/knowledge" },
-    { icon: PlusSquare,      label: "Task Composer",     href: "/dashboard/composer" },
+const primaryMenuItems: MenuItem[] = [
+    { icon: LayoutDashboard, label: "Dashboard",      href: "/dashboard" },
+    { icon: Settings,        label: "System Config",  href: "/system-config" },
+    { icon: Database,        label: "Knowledge Base", href: "/dashboard/knowledge" },
+    { icon: PlusSquare,      label: "Task Composer",  href: "/dashboard/composer", accent: "neon-green" },
+];
+
+const secondaryMenuItems: MenuItem[] = [
+    { icon: Info,      label: "About ACEPLACE",    href: "/dashboard/about" },
+    { icon: Rocket,    label: "Quick Setup Guide", href: "/dashboard/setup" },
+    { icon: Lightbulb, label: "Runtime Ideas",     href: "/dashboard/runtime-ideas" },
 ];
 
 const runtimeUsageItem: MenuItem = {
@@ -61,6 +65,7 @@ function NavLink({
         (item.href !== "/dashboard" && item.href !== "/" && pathname.startsWith(item.href));
 
     const tourId = `tour-${item.label.toLowerCase().replace(/\s+/g, "-")}`;
+    const isNeonGreen = item.accent === "neon-green";
 
     return (
         <Link
@@ -71,17 +76,49 @@ function NavLink({
             }}
             className={cn(
                 "group flex items-center justify-between px-4 py-3 transition-all duration-300 relative scifi-clip border cursor-target",
-                isActive
-                    ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/30 shadow-[inset_0_0_20px_rgba(6,182,212,0.05)]"
-                    : "text-slate-500 border-transparent hover:bg-white/5 hover:text-slate-200"
+                isNeonGreen
+                    ? isActive
+                        ? "bg-[#39FF14]/10 text-[#39FF14]/85 border-[#39FF14]/30 shadow-[inset_0_0_20px_rgba(57,255,20,0.06)]"
+                        : "text-[#39FF14]/25 border-transparent hover:bg-[#39FF14]/5"
+                    : isActive
+                        ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/30 shadow-[inset_0_0_20px_rgba(6,182,212,0.05)]"
+                        : "text-slate-500 border-transparent hover:bg-white/5 hover:text-slate-200"
             )}
         >
             <div className="flex items-center gap-3 relative z-10">
-                <item.icon className={cn("w-4 h-4", isActive ? "text-cyan-400" : "group-hover:text-cyan-400")} />
-                <span className="text-[11px] font-bold uppercase tracking-wider italic">{item.label}</span>
+                <item.icon
+                    className={cn(
+                        "w-4 h-4 transition-all duration-300",
+                        isNeonGreen
+                            ? isActive
+                                ? "text-[#39FF14]/85 drop-shadow-[0_0_5px_rgba(57,255,20,0.35)]"
+                                : "text-[#39FF14]/25 group-hover:text-[#39FF14]/70 group-hover:drop-shadow-[0_0_8px_rgba(57,255,20,0.45)]"
+                            : isActive
+                                ? "text-cyan-400"
+                                : "group-hover:text-cyan-400"
+                    )}
+                />
+                <span
+                    className={cn(
+                        "text-[11px] font-bold uppercase tracking-wider italic transition-all duration-300",
+                        isNeonGreen &&
+                            (isActive
+                                ? "text-[#39FF14]/85 drop-shadow-[0_0_4px_rgba(57,255,20,0.3)]"
+                                : "text-[#39FF14]/25 group-hover:text-[#39FF14]/70 group-hover:drop-shadow-[0_0_6px_rgba(57,255,20,0.4)]")
+                    )}
+                >
+                    {item.label}
+                </span>
             </div>
             {isActive && (
-                <div className="absolute inset-y-0 left-0 w-[2px] bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.8)]" />
+                <div
+                    className={cn(
+                        "absolute inset-y-0 left-0 w-[2px] shadow-[0_0_10px]",
+                        isNeonGreen
+                            ? "bg-[#39FF14]/70 shadow-[0_0_8px_rgba(57,255,20,0.5)]"
+                            : "bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.8)]"
+                    )}
+                />
             )}
         </Link>
     );
@@ -131,11 +168,14 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 <nav className="flex-1 flex flex-col min-h-0 p-4 relative">
                     <div className="flex-1 overflow-y-auto custom-scroll space-y-1 min-h-0">
                         <div className="text-[11px] uppercase font-black text-slate-600 tracking-[0.2em] mb-4 ml-2">Main Interface</div>
-                        {menuItems.map((item) => (
+                        {primaryMenuItems.map((item) => (
                             <NavLink key={item.href} item={item} pathname={pathname} onClose={onClose} />
                         ))}
                     </div>
-                    <div className="shrink-0 pt-3 mt-auto border-t border-white/5">
+                    <div className="shrink-0 pt-3 mt-auto border-t border-white/5 space-y-1">
+                        {secondaryMenuItems.map((item) => (
+                            <NavLink key={item.href} item={item} pathname={pathname} onClose={onClose} />
+                        ))}
                         <NavLink item={runtimeUsageItem} pathname={pathname} onClose={onClose} />
                     </div>
                 </nav>
