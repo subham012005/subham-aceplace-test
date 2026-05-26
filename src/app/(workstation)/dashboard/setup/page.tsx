@@ -60,7 +60,7 @@ const checklist = [
   "System Config → Intelligence Providers — API key connected",
   "Agent Provider Assignment — all 4 agents assigned",
   "Task Composer — instructions entered",
-  "Launch Tactical Agent — clicked",
+  "LAUNCH ACEAGENT EXECUTION — clicked",
   "Step Graph — execution in progress",
   "Grader Score — evaluated",
   "Artifact approved or denied",
@@ -221,8 +221,8 @@ Constraints:  Executive-level formatting, board-ready artifact
 Output:       PDF-ready report with grader score target 9.5+`}</CodeBlock>
             </Step>
 
-            <Step num={10} title="Launch Tactical Agent">
-              <p className="text-slate-400 text-xs font-mono pt-3 leading-relaxed">Click <span className="text-cyan-400 font-black">LAUNCH TACTICAL AGENT</span>. ACEPLACE then:</p>
+            <Step num={10} title="LAUNCH ACEAGENT EXECUTION">
+              <p className="text-slate-400 text-xs font-mono pt-3 leading-relaxed">Click <span className="text-cyan-400 font-black">LAUNCH ACEAGENT EXECUTION</span>. ACEPLACE then:</p>
               <div className="mt-3 space-y-1">
                 {[
                   "Initializes execution envelope",
@@ -334,7 +334,7 @@ Human Approval Requirement: Approve or Deny`}</CodeBlock>
               { issue: "Agents not executing", fix: "Verify API key connected in Intelligence Providers. Agents require a valid provider before dispatch." },
               { issue: "Grounding context not armed", fix: "Ensure document status is READY in Document Repository. Check Active Grounding Context panel." },
               { issue: "Lease expiry errors", fix: "Lease expiry is intentional runtime governance. The runtime will re-issue a new lease for the next valid state transition." },
-              { issue: "Same agents after refresh", fix: "Expected behavior. Deterministic agent identities persist across sessions via Firestore. The runtime restores the same agents." },
+              { issue: "Same agents after refresh", fix: "Expected behavior. Canonical deterministic agent identities persist across runtime sessions through ACELOGIC™ continuity infrastructure. ACEPLACE restores the same governed agents after refresh, reconnect, failover, or runtime recovery." },
               { issue: "High token usage", fix: "Multi-agent execution (COO + Researcher + Worker + Grader) each consume model inference. Review provider dashboard for token breakdown." },
             ].map(({ issue, fix }) => (
               <div key={issue} className="border border-white/8 p-4 flex gap-4">

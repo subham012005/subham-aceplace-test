@@ -98,7 +98,7 @@ export default function SystemConfigPage() {
                                                 <div className="p-6 border border-white/5 bg-white/[0.02] rounded-xl flex items-center justify-between hover:border-cyan-500/30 transition-all group group relative overflow-hidden">
                                                     <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                                                     <div className="space-y-1 min-w-0 flex-1 mr-4 relative z-10">
-                                                        <span className="text-[11px] font-black uppercase tracking-wider text-slate-500">Local UID Signature</span>
+                                                        <span className="text-[11px] font-black uppercase tracking-wider text-slate-500">Canonical Runtime Signature</span>
                                                         <p className="text-sm font-mono text-cyan-400 truncate">{userId}</p>
                                                     </div>
                                                     <button
@@ -147,6 +147,14 @@ export default function SystemConfigPage() {
                             </div>
                         </div>
                         <div className="flex items-center gap-6">
+                            <div className="flex items-center gap-2">
+                                <div className="w-1.5 h-1.5 rounded-full bg-cyan-500" />
+                                <span className="text-[10px] font-black text-white uppercase">Identity Hashing: SHA-256</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-1.5 h-1.5 rounded-full bg-cyan-500" />
+                                <span className="text-[10px] font-black text-white uppercase">Purpose Hashing: SHA3-256</span>
+                            </div>
                             <div className="flex items-center gap-2">
                                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                                 <span className="text-[10px] font-black text-white uppercase">Encryption: AES-256</span>

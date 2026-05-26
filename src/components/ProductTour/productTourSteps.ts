@@ -202,7 +202,7 @@ export const productTourSteps: InteractiveDriveStep[] = [
         element: '#tour-composer-telemetry',
         popover: {
             title: 'Mission Telemetry',
-            description: 'Monitor real-time link status, encryption strength (RSA 4096), and connection latency before dispatching.',
+            description: 'Monitor real-time link status, identity hashing, purpose hashing, encryption, and connection latency before dispatching.',
             side: "bottom",
             align: 'center'
         }

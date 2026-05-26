@@ -139,7 +139,7 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
         <div className={cn("space-y-3", className)}>
             <form onSubmit={handleSubmit} className="space-y-3">
                 <SciFiFrame
-                    title="Tactical Command Orchestrator"
+                    title="Runtime Operations Console"
                     variant="glass"
                     className="overflow-hidden"
                 >
@@ -154,9 +154,11 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
                             <span className="text-[10px] font-bold text-slate-500 tracking-widest uppercase">Latency: 24ms</span>
                         </div>
                         <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-bold text-cyan-500/60 tracking-widest uppercase">Encryption:</span>
-                                <span className="text-[10px] font-black text-cyan-400 tracking-tighter">RSA_OMEGA_4096</span>
+                            <div className="flex items-center gap-3 flex-wrap">
+                                <span className="text-[10px] font-black text-cyan-400 tracking-tighter">IDENTITY HASHING: SHA-256</span>
+                                <span className="text-[10px] font-black text-cyan-400 tracking-tighter">PURPOSE HASHING: SHA3-256</span>
+                                <span className="text-[10px] font-black text-cyan-400 tracking-tighter">ENCRYPTION: AES-256</span>
+                                <span className="text-[10px] font-black text-cyan-400 tracking-tighter">GLOBAL NODE: ACTIVE</span>
                             </div>
                             <div className="h-3 w-[1px] bg-white/10" />
                             <span className="text-[10px] font-bold tracking-widest uppercase text-amber-400">
@@ -216,7 +218,7 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
                                     </span>
                                 </span>
                                 <span className="text-slate-400 font-mono">
-                                    🌐 Web Search
+                                    Web Search Active
                                     {phase3Ctx.direct_text?.trim() && ` · ⚡ Direct Knowledge`}
                                     {phase3Ctx.knowledge_collections.length > 0 && ` · 📚 ${phase3Ctx.knowledge_collections.length} Document${phase3Ctx.knowledge_collections.length > 1 ? "s" : ""}`}
                                     {phase3Ctx.instruction_profiles.length > 0 && ` · 📋 ${phase3Ctx.instruction_profiles.length} Instruction Profile${phase3Ctx.instruction_profiles.length > 1 ? "s" : ""}`}
@@ -274,12 +276,12 @@ export function TaskComposer({ onSuccess, className }: TaskComposerProps) {
                                 ) : success ? (
                                     <>
                                         <CheckCircle2 className="w-5 h-5" />
-                                        <span>Agent Dispatched</span>
+                                        <span>DETERMINISTIC EXECUTION DISPATCH</span>
                                     </>
                                 ) : (
                                     <>
                                         <Send className="w-4 h-4 group-hover/btn:translate-x-1 group-hover/btn:-translate-y-1 transition-transform" />
-                                        <span className="glitch-text">Launch Tactical Agent</span>
+                                        <span className="glitch-text">LAUNCH ACEAGENT EXECUTION</span>
                                     </>
                                 )}
                             </button>
