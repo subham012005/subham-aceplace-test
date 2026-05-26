@@ -321,7 +321,7 @@ export default function AboutContent() {
               />
               <FlowStep
                 step="04"
-                label="Agent Dispatch"
+                label="Deterministic Execution Dispatch"
                 desc="Runtime-worker dispatches the appropriate stateless agent engine. Agent reads envelope state, executes, writes result back."
               />
             </div>

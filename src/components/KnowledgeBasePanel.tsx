@@ -717,9 +717,9 @@ Output: [What the final deliverable should look like]`}
                 <div className="flex items-center gap-3 p-3 bg-emerald-500/8 border border-emerald-500/25">
                   <Globe className="w-4 h-4 text-emerald-400 shrink-0" />
                   <div className="flex-1">
-                    <p className="text-[10px] font-black text-emerald-400 uppercase tracking-wider">Web Search — Always Active</p>
+                    <p className="text-[10px] font-black text-emerald-400 uppercase tracking-wider">Web Search Active</p>
                     <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">
-                      DuckDuckGo research runs for every task. Sources are cited in traces.
+                      External research is enabled for every task. Sources are cited in traces.
                     </p>
                   </div>
                   <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
