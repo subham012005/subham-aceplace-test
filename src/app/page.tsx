@@ -28,7 +28,7 @@ export default function LandingPage() {
     <div className="min-h-screen bg-transparent text-white tech-grid scanline" suppressHydrationWarning>
       <a
         href="#learn-more"
-        className="fixed top-8 left-8 z-20 px-5 py-2.5 border border-cyan-500/30 bg-cyan-500/5 hover:bg-cyan-500/15 hover:border-cyan-500/50 text-cyan-400 font-black text-[11px] uppercase tracking-[0.25em] transition-all scifi-clip cursor-target"
+        className="fixed top-4 left-4 md:top-8 md:left-8 z-20 px-3 py-1.5 md:px-5 md:py-2.5 border border-cyan-500/30 bg-cyan-500/5 hover:bg-cyan-500/15 hover:border-cyan-500/50 text-cyan-400 font-black text-[9px] md:text-[11px] uppercase tracking-[0.25em] transition-all scifi-clip cursor-target"
       >
         LEARN MORE
       </a>
