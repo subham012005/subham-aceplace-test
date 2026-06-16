@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Users,
   Cpu,
@@ -230,8 +230,45 @@ export default function DashboardPage() {
   const maxRetries = 10;
   const initialFetchRef = React.useRef(false);
   const fetchingJobIdsRef = React.useRef<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+
+  type WhitelistData = {
+    whitelisted: boolean;
+  };
+
+  const [whitelistData, setWhitelistData] = useState<WhitelistData | null>(
+    null,
+  );
+
+  console.log("whitelist data here -->", whitelistData);
 
   const { openWhitelistModal } = useWhitelistModal();
+
+  useEffect(() => {
+    if (!user?.email) return;
+
+    const fetchWhitelistData = async () => {
+      try {
+        setLoading(true);
+
+        const res = await fetch(
+          `/api/Aceplace_Whitelist_Access/whitelist_user?email=${encodeURIComponent(
+            user.email || "",
+          )}`,
+        );
+
+        const data = await res.json();
+
+        setWhitelistData(data);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchWhitelistData();
+  }, [user?.email]);
 
   const addLog = React.useCallback((message: string) => {
     const timestamp = new Date().toLocaleTimeString([], {
@@ -2049,35 +2086,57 @@ export default function DashboardPage() {
       </HUDFrame>
 
       <div className="flex items-center justify-center">
-        <button
-          onClick={openWhitelistModal}
-          className="group relative inline-flex items-center justify-center overflow-hidden rounded-none border px-6 py-4 font-black border-cyan-400/70 bg-black/70 py-2 text-base uppercase tracking-[0.28em] text-cyan-200 shadow-[0_0_28px_rgba(6,182,212,0.35)] transition-all duration-300 hover:border-cyan-300 hover:text-white hover:shadow-[0_0_45px_rgba(6,182,212,0.75)] cursor-pointer"
-        >
-          <span className="pointer-events-none absolute inset-0 overflow-hidden">
-            <span className="shine absolute -left-1/2 top-0 h-full w-1/3 bg-linear-to-r from-transparent via-cyan-300/40 to-transparent skew-x-[-20deg]" />
-          </span>
+        {!whitelistData?.whitelisted && (
+          <div>
+            {loading ? (
+              <button className="group w-full relative inline-flex items-center justify-center overflow-hidden rounded-none border border-cyan-400/70 bg-black/70 py-2 text-[10px] uppercase tracking-[0.28em] text-cyan-200 shadow-[0_0_28px_rgba(6,182,212,0.35)] transition-all duration-300 hover:border-cyan-300 hover:text-white hover:shadow-[0_0_45px_rgba(6,182,212,0.75)] mt-6 cursor-pointer">
+                <span className="pointer-events-none absolute inset-0 overflow-hidden">
+                  <span className="shine absolute -left-1/2 top-0 h-full w-1/3 bg-linear-to-r from-transparent via-cyan-300/40 to-transparent skew-x-[-20deg]" />
+                </span>
 
-          <span className="absolute inset-0 bg-linear-to-r from-cyan-500/10 via-blue-500/20 to-cyan-500/10 opacity-70 blur-xl transition-opacity duration-300 group-hover:opacity-100" />
-          <span className="absolute inset-px border border-cyan-300/20 bg-[linear-gradient(90deg,rgba(6,182,212,0.08)_1px,transparent_1px),linear-gradient(rgba(6,182,212,0.08)_1px,transparent_1px)] bg-size-[14px_14px]" />
-          <span className="absolute left-0 top-0 h-0.5 w-full bg-linear-to-r from-transparent via-cyan-300 to-transparent opacity-80" />
+                <span className="absolute inset-0 bg-linear-to-r from-cyan-500/10 via-blue-500/20 to-cyan-500/10 opacity-70 blur-xl transition-opacity duration-300 group-hover:opacity-100" />
+                <span className="absolute inset-px border border-cyan-300/20 bg-[linear-gradient(90deg,rgba(6,182,212,0.08)_1px,transparent_1px),linear-gradient(rgba(6,182,212,0.08)_1px,transparent_1px)] bg-size-[14px_14px]" />
+                <span className="absolute left-0 top-0 h-0.5 w-full bg-linear-to-r from-transparent via-cyan-300 to-transparent opacity-80" />
 
-          <span className="relative z-10">CREATE YOUR FIRST 10 ACEAGENTS</span>
-        </button>
+                <span className="relative z-10">Loading...</span>
+              </button>
+            ) : (
+              <div>
+                <button
+                  onClick={openWhitelistModal}
+                  className="group relative inline-flex items-center justify-center overflow-hidden rounded-none border px-6 py-4 font-black border-cyan-400/70 bg-black/70 py-2 text-base uppercase tracking-[0.28em] text-cyan-200 shadow-[0_0_28px_rgba(6,182,212,0.35)] transition-all duration-300 hover:border-cyan-300 hover:text-white hover:shadow-[0_0_45px_rgba(6,182,212,0.75)] cursor-pointer"
+                >
+                  <span className="pointer-events-none absolute inset-0 overflow-hidden">
+                    <span className="shine absolute -left-1/2 top-0 h-full w-1/3 bg-linear-to-r from-transparent via-cyan-300/40 to-transparent skew-x-[-20deg]" />
+                  </span>
 
-        <style jsx>{`
-          .shine {
-            animation: shine 2.5s linear infinite;
-          }
+                  <span className="absolute inset-0 bg-linear-to-r from-cyan-500/10 via-blue-500/20 to-cyan-500/10 opacity-70 blur-xl transition-opacity duration-300 group-hover:opacity-100" />
+                  <span className="absolute inset-px border border-cyan-300/20 bg-[linear-gradient(90deg,rgba(6,182,212,0.08)_1px,transparent_1px),linear-gradient(rgba(6,182,212,0.08)_1px,transparent_1px)] bg-size-[14px_14px]" />
+                  <span className="absolute left-0 top-0 h-0.5 w-full bg-linear-to-r from-transparent via-cyan-300 to-transparent opacity-80" />
 
-          @keyframes shine {
-            0% {
-              transform: translateX(-200%) skewX(-20deg);
-            }
-            100% {
-              transform: translateX(500%) skewX(-20deg);
-            }
-          }
-        `}</style>
+                  <span className="relative z-10">
+                    CREATE YOUR FIRST 10 ACEAGENTS
+                  </span>
+                </button>
+
+                <style jsx>{`
+                  .shine {
+                    animation: shine 2.5s linear infinite;
+                  }
+
+                  @keyframes shine {
+                    0% {
+                      transform: translateX(-200%) skewX(-20deg);
+                    }
+                    100% {
+                      transform: translateX(500%) skewX(-20deg);
+                    }
+                  }
+                `}</style>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Task Composer Modal */}

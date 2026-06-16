@@ -154,6 +154,7 @@ export default function AceplaceWhitelistModal({ open, onClose }: Props) {
   const handleClose = () => {
     resetForm();
     onClose();
+    window.location.reload();
   };
 
   const updateField = (key: string, value: string) => {
