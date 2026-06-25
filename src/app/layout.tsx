@@ -14,7 +14,7 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
-const BASE_URL = "https://aceplace.app";
+const BASE_URL = "https://aceplace.ai";
 
 export const viewport: Viewport = {
   themeColor: [
