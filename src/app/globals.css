@@ -345,6 +345,17 @@
     background: rgba(6, 182, 212, 0.4);
   }
 
+  @media (max-width: 1023px) {
+    .custom-scroll {
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .custom-scroll::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
   .scrollbar-hide {
     -ms-overflow-style: none !important;
     /* IE and Edge */
