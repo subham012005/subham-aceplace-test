@@ -1,0 +1,51 @@
+{
+  "name": "ACEPLACE Workstation",
+  "short_name": "ACEPLACE",
+  "description": "Governed AI Agent Runtime Platform — Deploy ACEAGENTS™ with deterministic identity and full execution accountability.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#05070a",
+  "theme_color": "#06b6d4",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "en",
+  "categories": ["business", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/ace-favicon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/ace-symbol.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/ace-symbol.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "label": "ACEPLACE Workstation Dashboard"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Open Workstation",
+      "short_name": "Workstation",
+      "description": "Go directly to the ACEPLACE Dashboard",
+      "url": "/dashboard",
+      "icons": [{ "src": "/ace-favicon.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Learn More",
+      "short_name": "About",
+      "description": "Learn about ACEPLACE Workstation",
+      "url": "/learn-more",
+      "icons": [{ "src": "/ace-favicon.png", "sizes": "192x192" }]
+    }
+  ]
+}

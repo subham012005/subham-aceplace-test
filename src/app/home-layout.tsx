@@ -1,42 +1,12 @@
-import type { Metadata, Viewport } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
-import "./globals.css";
-
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  variable: "--font-mono",
-  subsets: ["latin"],
-  display: "swap",
-});
+import type { Metadata } from "next";
+import Script from "next/script";
 
 const BASE_URL = "https://aceplace.app";
 
-export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#06b6d4" },
-    { media: "(prefers-color-scheme: light)", color: "#06b6d4" },
-  ],
-  colorScheme: "dark",
-  width: "device-width",
-  initialScale: 1,
-};
-
 export const metadata: Metadata = {
-  metadataBase: new URL(BASE_URL),
-
-  title: {
-    default: "ACEPLACE Workstation — Governed AI Agent Runtime Platform",
-    template: "%s | ACEPLACE Workstation",
-  },
-
+  title: "ACEPLACE Workstation — Governed AI Agent Runtime Platform",
   description:
     "ACEPLACE Workstation is the world's first deterministic multi-agent runtime platform. Deploy ACEAGENTS™ with persistent identity, full governance, real-time telemetry, and accountable AI execution.",
-
   keywords: [
     "AI agent platform",
     "multi-agent runtime",
@@ -53,24 +23,13 @@ export const metadata: Metadata = {
     "AI audit trail",
     "accountable AI",
     "bring your own LLM",
-    "OpenAI GPT-4o enterprise",
-    "Claude enterprise AI",
-    "AI execution telemetry",
-    "autonomous agent governance",
-    "AI agent lifecycle management",
   ],
-
-  authors: [{ name: "ACEPLACE", url: BASE_URL }],
-  creator: "ACEPLACE",
-  publisher: "ACEPLACE",
-
-  category: "technology",
-
+  alternates: {
+    canonical: BASE_URL,
+  },
   openGraph: {
     type: "website",
-    locale: "en_US",
     url: BASE_URL,
-    siteName: "ACEPLACE Workstation",
     title: "ACEPLACE Workstation — Governed AI Agent Runtime Platform",
     description:
       "Deploy ACEAGENTS™ with deterministic identity, full governance, and accountable autonomous execution. The enterprise-grade multi-agent runtime platform.",
@@ -80,60 +39,10 @@ export const metadata: Metadata = {
         width: 1200,
         height: 630,
         alt: "ACEPLACE Workstation — AI Agent Governance Platform",
-        type: "image/png",
       },
     ],
   },
-
-  twitter: {
-    card: "summary_large_image",
-    site: "@aceplace_ai",
-    creator: "@aceplace_ai",
-    title: "ACEPLACE Workstation — Governed AI Agent Runtime Platform",
-    description:
-      "Deploy ACEAGENTS™ with deterministic identity, full governance, and accountable autonomous execution.",
-    images: ["/ace-symbol.png"],
-  },
-
-  icons: {
-    icon: [
-      { url: "/ace-favicon.png", type: "image/png" },
-      { url: "/ace-favicon1.png", type: "image/png", sizes: "32x32" },
-    ],
-    apple: [{ url: "/ace-favicon.png", sizes: "180x180" }],
-    shortcut: "/ace-favicon.png",
-  },
-
-  manifest: "/manifest.json",
-
-  robots: {
-    index: true,
-    follow: true,
-    nocache: false,
-    googleBot: {
-      index: true,
-      follow: true,
-      noimageindex: false,
-      "max-video-preview": -1,
-      "max-image-preview": "large",
-      "max-snippet": -1,
-    },
-  },
-
-  alternates: {
-    canonical: BASE_URL,
-  },
-
-  // Uncomment and fill these after verifying your site in Search Console / Bing Webmaster
-  // verification: {
-  //   google: "YOUR_GOOGLE_SITE_VERIFICATION_TOKEN",
-  //   yandex: "YOUR_YANDEX_TOKEN",
-  //   bing: "YOUR_BING_TOKEN",
-  // },
 };
-
-import { AuthProvider } from "@/context/AuthContext";
-import { SettingsProvider } from "@/context/SettingsContext";
 
 const jsonLd = {
   "@context": "https://schema.org",
@@ -145,7 +54,19 @@ const jsonLd = {
       name: "ACEPLACE Workstation",
       description:
         "The world's first deterministic multi-agent runtime platform with full governance and accountable AI execution.",
-      publisher: { "@id": `${BASE_URL}/#organization` },
+      publisher: {
+        "@id": `${BASE_URL}/#organization`,
+      },
+      potentialAction: [
+        {
+          "@type": "SearchAction",
+          target: {
+            "@type": "EntryPoint",
+            urlTemplate: `${BASE_URL}/?q={search_term_string}`,
+          },
+          "query-input": "required name=search_term_string",
+        },
+      ],
     },
     {
       "@type": "Organization",
@@ -162,6 +83,8 @@ const jsonLd = {
         "https://twitter.com/aceplace_ai",
         "https://linkedin.com/company/aceplace",
       ],
+      description:
+        "ACEPLACE builds deterministic AI agent governance infrastructure for enterprises.",
     },
     {
       "@type": "SoftwareApplication",
@@ -172,6 +95,12 @@ const jsonLd = {
       url: BASE_URL,
       description:
         "A governed multi-agent runtime platform enabling deterministic AI agent identity, execution governance, real-time telemetry, and full accountability.",
+      offers: {
+        "@type": "Offer",
+        price: "0",
+        priceCurrency: "USD",
+        description: "Access the workstation — contact for enterprise pricing.",
+      },
       featureList: [
         "Deterministic Agent Identity (ACELOGIC™)",
         "Governed Autonomous Execution (ACEPLACE™)",
@@ -183,7 +112,38 @@ const jsonLd = {
         "Cross-session identity continuity",
         "Human oversight and accountability layer",
       ],
-      creator: { "@id": `${BASE_URL}/#organization` },
+      creator: {
+        "@id": `${BASE_URL}/#organization`,
+      },
+    },
+    {
+      "@type": "WebPage",
+      "@id": `${BASE_URL}/#webpage`,
+      url: BASE_URL,
+      name: "ACEPLACE Workstation — Governed AI Agent Runtime Platform",
+      isPartOf: {
+        "@id": `${BASE_URL}/#website`,
+      },
+      about: {
+        "@id": `${BASE_URL}/#product`,
+      },
+      description:
+        "ACEPLACE Workstation is the world's first deterministic multi-agent runtime platform. Deploy ACEAGENTS™ with persistent identity, full governance, real-time telemetry, and accountable AI execution.",
+      breadcrumb: {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: "Home",
+            item: BASE_URL,
+          },
+        ],
+      },
+      speakable: {
+        "@type": "SpeakableSpecification",
+        cssSelector: ["h1", "h2", "p"],
+      },
     },
     {
       "@type": "FAQPage",
@@ -225,29 +185,20 @@ const jsonLd = {
   ],
 };
 
-export default function RootLayout({
+export default function HomeLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
-      </head>
-      <body
-        className={`${inter.variable} ${jetbrainsMono.variable} antialiased`}
-        suppressHydrationWarning
-      >
-        <AuthProvider>
-          <SettingsProvider>
-            {children}
-          </SettingsProvider>
-        </AuthProvider>
-      </body>
-    </html>
+    <>
+      <Script
+        id="aceplace-jsonld"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        strategy="afterInteractive"
+      />
+      {children}
+    </>
   );
 }
