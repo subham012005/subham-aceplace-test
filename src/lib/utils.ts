@@ -32,14 +32,7 @@ export const formatOutputToMarkdown = (raw: any): string => {
 
     let md = "";
     
-    // 1. Handle Executive Summary / Summary
-    const summary = raw.deliverable_summary || raw.summary || raw.executive_summary || raw.overview;
-    if (summary && typeof summary === 'string') {
-        md += `# Executive Summary\n\n${summary}\n\n`;
-    }
-
-    // 2. Handle Sections (Main body)
-    // Priority: sections > content.sections > report.sections > deliverable.sections > content (if array)
+    // Determine sections first to check for duplicate summary
     const sections = raw.sections || 
                      raw.content?.sections || 
                      raw.report?.sections || 
@@ -47,6 +40,17 @@ export const formatOutputToMarkdown = (raw: any): string => {
                      (Array.isArray(raw.content) ? raw.content : null) ||
                      (Array.isArray(raw.report) ? raw.report : null);
 
+    const hasSummarySection = Array.isArray(sections) && sections.some((s: any) =>
+        String(s.title || s.header || s.name || s.section_title || "").toLowerCase().includes('summary')
+    );
+
+    // 1. Handle Executive Summary / Summary
+    const summary = raw.deliverable_summary || raw.summary || raw.executive_summary || raw.overview;
+    if (summary && typeof summary === 'string' && !hasSummarySection) {
+        md += `# Executive Summary\n\n${summary}\n\n`;
+    }
+
+    // 2. Handle Sections (Main body)
     if (sections && Array.isArray(sections)) {
         md += sections.map((s: any, i: number) => {
             if (typeof s === 'string') return s;

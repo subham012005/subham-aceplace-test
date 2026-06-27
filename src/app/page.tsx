@@ -501,7 +501,7 @@ export default function LandingPage() {
                 <React.Fragment key={step.label}>
                   <RevealSection delay={i * 100} className="flex flex-col items-center">
                     <div
-                      className="relative group cursor-target scifi-clip px-6 py-5 text-center transition-all duration-300 min-w-[150px]"
+                      className="relative group cursor-target scifi-clip px-6 py-5 text-center transition-all duration-300 w-[280px] md:w-[180px] lg:w-[200px] h-full min-h-[140px] flex flex-col items-center justify-center"
                       style={{
                         background: c.bg,
                         border: `1px solid ${c.border}`,
@@ -576,18 +576,19 @@ export default function LandingPage() {
       <section className="py-12 px-6 border-t border-white/[0.04]">
         <div className="max-w-3xl mx-auto">
           <RevealSection>
-            <div className="grid grid-cols-3 gap-px overflow-hidden scifi-clip" style={{ border: "1px solid rgba(255,255,255,0.05)" }}>
+            <div className="grid grid-cols-1 md:grid-cols-3 overflow-hidden scifi-clip" style={{ border: "1px solid rgba(255,255,255,0.05)" }}>
             {STATS.map((stat, i) => (
               <div
                 key={stat.label}
-                className="text-center py-8 px-4 glass"
-                style={{ borderRight: i < 2 ? "1px solid rgba(255,255,255,0.04)" : "none" }}
+                className={`text-center py-6 md:py-8 px-4 glass ${
+                  i < 2 ? "border-b md:border-b-0 md:border-r border-white/[0.04]" : ""
+                }`}
               >
                 <p className="text-3xl md:text-4xl font-black text-cyan-400 tabular-nums"
                   style={{ textShadow: "0 0 20px rgba(6,182,212,0.3)" }}>
                   <AnimatedCounter target={stat.value} suffix={stat.suffix} />
                 </p>
-                <p className="text-[10px] font-mono uppercase tracking-[0.3em] text-slate-600 mt-1">
+                <p className="text-[10px] font-mono uppercase tracking-[0.2em] md:tracking-[0.3em] text-slate-600 mt-1 break-words">
                   {stat.label}
                 </p>
               </div>

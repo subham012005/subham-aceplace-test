@@ -168,9 +168,20 @@ export default function AboutContent() {
                 ACELOGIC™ + ACEAGENTS™ + ACEPLACE™
               </p>
               <p className="text-slate-400 text-sm leading-relaxed mt-4 max-w-3xl font-mono">
-                Deterministic Agent Identity to Governed Autonomous Execution.
+                <strong className="text-white">Deterministic Agent Identity to Governed Autonomous Execution</strong>
+              </p>
+              <p className="text-slate-400 text-sm leading-relaxed mt-4 max-w-3xl font-mono">
                 Every agent you create has a persistent identity. Every action
                 is governed. Every outcome remains accountable.
+              </p>
+              <p className="text-slate-400 text-sm leading-relaxed mt-4 max-w-3xl font-mono">
+                <span className="text-cyan-400 font-black">ACELOGIC™</span> creates deterministic agent identities.
+              </p>
+              <p className="text-slate-400 text-sm leading-relaxed mt-4 max-w-3xl font-mono">
+                Those identities become <span className="text-white font-black">ACEAGENTS™</span> — canonical digital workers with persistent identity, continuity, accountability, and governance throughout their operational lifecycle.
+              </p>
+              <p className="text-slate-400 text-sm leading-relaxed mt-4 max-w-3xl font-mono">
+                <span className="text-cyan-400 font-black">ACEPLACE™</span> governs how those identities perform autonomous work through deterministic execution, authority-controlled orchestration, traceable operations, grounded knowledge, and human oversight.
               </p>
             </div>
           </div>

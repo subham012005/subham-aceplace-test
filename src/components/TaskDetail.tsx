@@ -277,16 +277,22 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
         if (typeof raw !== 'object') return String(raw);
 
         let md = "";
+        const sections = raw.sections || (Array.isArray(raw.content) ? raw.content : raw.content?.sections);
+        
+        const hasSummarySection = Array.isArray(sections) && sections.some((s: any) =>
+            String(s.title || s.header || "").toLowerCase().includes('summary')
+        );
+
         const summary = raw.deliverable_summary || raw.summary;
-        if (summary) md += `# Executive Summary\n\n${summary}\n\n`;
+        if (summary && !hasSummarySection) md += `# Executive Summary\n\n${summary}\n\n`;
 
         // executive_summary field (richer narrative)
-        if (raw.executive_summary && raw.executive_summary !== summary) {
+        if (raw.executive_summary && raw.executive_summary !== summary && !hasSummarySection) {
+            if (!summary) md += `# Executive Summary\n\n`;
             md += `${raw.executive_summary}\n\n`;
         }
 
         // sections array
-        const sections = raw.sections || (Array.isArray(raw.content) ? raw.content : raw.content?.sections);
         if (sections && Array.isArray(sections)) {
             md += sections.map((s: any) => {
                 const title = s.title || s.header || "Section";

@@ -473,9 +473,9 @@ export default function DashboardPage() {
     const avgPass =
       gradedJobs.length > 0
         ? Math.round(
-            gradedJobs.reduce((acc, j) => acc + (j.grade_score || 0), 0) /
-              gradedJobs.length,
-          )
+          gradedJobs.reduce((acc, j) => acc + (j.grade_score || 0), 0) /
+          gradedJobs.length,
+        )
         : 100;
 
     const completedCount = jobs.filter((j) =>
@@ -691,7 +691,7 @@ export default function DashboardPage() {
               if (typeof parsed.runtime_context === "string") {
                 try {
                   parsed.runtime_context = JSON.parse(parsed.runtime_context);
-                } catch (e) {}
+                } catch (e) { }
               }
               updateJobInList(parsed as Job);
               setViewedJobIds((prev) => new Set(prev).add(id));
@@ -1050,7 +1050,7 @@ export default function DashboardPage() {
                       "group border border-white/5 p-2 md:p-3 flex items-center gap-3 md:gap-4 bg-white/5 hover:bg-white/10 transition-all cursor-pointer relative overflow-hidden cursor-target",
                       (job.status === "in_progress" ||
                         job.status === "executing") &&
-                        "animate-breathing",
+                      "animate-breathing",
                     )}
                   >
                     <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-cyan-500 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -1143,331 +1143,331 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 h-full py-1">
               {isStatsSyncing
                 ? Array.from({ length: 4 }).map((_, i) => (
-                    <div
-                      key={i}
-                      className="border border-cyan-500/20 bg-cyan-950/10 h-full min-h-[200px] flex flex-col items-center justify-center p-4"
-                    >
-                      <RotateCw className="w-10 h-10 text-cyan-500/30 animate-spin mb-4" />
-                      <div className="h-2 w-16 bg-cyan-500/20 rounded animate-pulse" />
-                    </div>
-                  ))
+                  <div
+                    key={i}
+                    className="border border-cyan-500/20 bg-cyan-950/10 h-full min-h-[200px] flex flex-col items-center justify-center p-4"
+                  >
+                    <RotateCw className="w-10 h-10 text-cyan-500/30 animate-spin mb-4" />
+                    <div className="h-2 w-16 bg-cyan-500/20 rounded animate-pulse" />
+                  </div>
+                ))
                 : [
-                    {
-                      name: "COO",
-                      agentId: "agent_coo",
-                      capability: "planning",
-                      modelClass: "high_reasoning",
-                      gate: "Omega-V",
+                  {
+                    name: "COO",
+                    agentId: "agent_coo",
+                    capability: "planning",
+                    modelClass: "high_reasoning",
+                    gate: "Omega-V",
+                  },
+                  {
+                    name: "Researcher",
+                    agentId: "agent_researcher",
+                    capability: "research",
+                    modelClass: "high_reasoning",
+                    gate: "Sigma-II",
+                  },
+                  {
+                    name: "Worker",
+                    agentId: "agent_worker",
+                    capability: "execution",
+                    modelClass: "standard",
+                    gate: "Alpha-X",
+                  },
+                  {
+                    name: "Grader",
+                    agentId: "agent_grader",
+                    capability: "evaluation",
+                    modelClass: "standard",
+                    gate: "Delta-VII",
+                  },
+                ].map(
+                  (
+                    agent: {
+                      name: string;
+                      agentId: string;
+                      capability: string;
+                      modelClass: string;
+                      gate: string;
                     },
-                    {
-                      name: "Researcher",
-                      agentId: "agent_researcher",
-                      capability: "research",
-                      modelClass: "high_reasoning",
-                      gate: "Sigma-II",
-                    },
-                    {
-                      name: "Worker",
-                      agentId: "agent_worker",
-                      capability: "execution",
-                      modelClass: "standard",
-                      gate: "Alpha-X",
-                    },
-                    {
-                      name: "Grader",
-                      agentId: "agent_grader",
-                      capability: "evaluation",
-                      modelClass: "standard",
-                      gate: "Delta-VII",
-                    },
-                  ].map(
-                    (
-                      agent: {
-                        name: string;
-                        agentId: string;
-                        capability: string;
-                        modelClass: string;
-                        gate: string;
-                      },
-                      i,
-                    ) => (
-                      <div
-                        key={agent.name}
-                        className="relative group border border-white/10 bg-black/60 overflow-hidden flex flex-col p-[1px] hover:border-cyan-500/40 transition-colors h-full min-h-[200px] lg:min-h-0 animate-in fade-in zoom-in-[0.5] slide-in-from-bottom-12 duration-1000"
-                        style={{
-                          animationFillMode: "backwards",
-                          animationDelay: `${i * 150}ms`,
-                        }}
-                        onMouseEnter={() => setHoveredAgent(agent.name)}
-                        onMouseLeave={() => setHoveredAgent(null)}
-                      >
-                        <div className="p-4 flex-1 space-y-1 z-10">
-                          <h3 className="text-xs font-black text-white italic uppercase tracking-[0.2em] border-b border-white/10 pb-2 mb-3">
-                            {agent.name}
-                          </h3>
-                          <p className="text-[8px] uppercase text-slate-500 font-bold tracking-widest leading-relaxed">
-                            Capability: <br />
-                            <span className="text-cyan-300">
-                              {agent.capability}
-                            </span>
-                          </p>
-                          <p className="text-[8px] uppercase text-slate-500 font-bold tracking-widest mt-1 leading-relaxed">
-                            Model Class: <br />
-                            <span className="text-amber-400/80">
-                              {agent.modelClass}
-                            </span>
-                          </p>
-                          <p className="text-[8px] uppercase text-slate-500 font-bold tracking-widest mt-2 leading-relaxed">
-                            Status: <br />
-                            <span className="text-emerald-400">
-                              AVAILABLE
-                            </span>{" "}
-                            — {agent.gate}
-                          </p>
-                          {/* Per-agent identity sub-panel */}
-                          <AgentIdentityMini agentId={agent.agentId} />
-                        </div>
+                    i,
+                  ) => (
+                    <div
+                      key={agent.name}
+                      className="relative group border border-white/10 bg-black/60 overflow-hidden flex flex-col p-[1px] hover:border-cyan-500/40 transition-colors h-full min-h-[200px] lg:min-h-0 animate-in fade-in zoom-in-[0.5] slide-in-from-bottom-12 duration-1000"
+                      style={{
+                        animationFillMode: "backwards",
+                        animationDelay: `${i * 150}ms`,
+                      }}
+                      onMouseEnter={() => setHoveredAgent(agent.name)}
+                      onMouseLeave={() => setHoveredAgent(null)}
+                    >
+                      <div className="p-4 flex-1 space-y-1 z-10">
+                        <h3 className="text-xs font-black text-white italic uppercase tracking-[0.2em] border-b border-white/10 pb-2 mb-3">
+                          {agent.name}
+                        </h3>
+                        <p className="text-[8px] uppercase text-slate-500 font-bold tracking-widest leading-relaxed">
+                          Capability: <br />
+                          <span className="text-cyan-300">
+                            {agent.capability}
+                          </span>
+                        </p>
+                        <p className="text-[8px] uppercase text-slate-500 font-bold tracking-widest mt-1 leading-relaxed">
+                          Model Class: <br />
+                          <span className="text-amber-400/80">
+                            {agent.modelClass}
+                          </span>
+                        </p>
+                        <p className="text-[8px] uppercase text-slate-500 font-bold tracking-widest mt-2 leading-relaxed">
+                          Status: <br />
+                          <span className="text-emerald-400">
+                            AVAILABLE
+                          </span>{" "}
+                          — {agent.gate}
+                        </p>
+                        {/* Per-agent identity sub-panel */}
+                        <AgentIdentityMini agentId={agent.agentId} />
+                      </div>
 
-                        {/* High-Tech Node Core */}
-                        <div className="mt-auto p-4 flex flex-col items-center relative z-10 cursor-target">
-                          <div
-                            className={cn(
-                              "w-16 h-16 md:w-20 md:h-20 relative flex items-center justify-center transition-transform duration-700",
-                              hoveredAgent === agent.name && "scale-110",
-                            )}
-                          >
-                            {agent.name === "COO" &&
-                              (() => {
-                                const isHovered = hoveredAgent === "COO";
-                                return (
-                                  <>
-                                    {/* COO: Command Center Shape */}
+                      {/* High-Tech Node Core */}
+                      <div className="mt-auto p-4 flex flex-col items-center relative z-10 cursor-target">
+                        <div
+                          className={cn(
+                            "w-16 h-16 md:w-20 md:h-20 relative flex items-center justify-center transition-transform duration-700",
+                            hoveredAgent === agent.name && "scale-110",
+                          )}
+                        >
+                          {agent.name === "COO" &&
+                            (() => {
+                              const isHovered = hoveredAgent === "COO";
+                              return (
+                                <>
+                                  {/* COO: Command Center Shape */}
+                                  <div
+                                    className={cn(
+                                      "absolute inset-0 blur-xl transition-opacity animate-breathing bg-blue-500",
+                                      isHovered ? "opacity-60" : "opacity-20",
+                                    )}
+                                  />
+                                  <div
+                                    className="absolute inset-0 border-2 border-blue-500/30 shadow-[0_0_15px_#3b82f6] animate-spin transition-colors duration-1000"
+                                    style={{
+                                      animationDuration: isHovered
+                                        ? "4s"
+                                        : "10s",
+                                      borderColor: isHovered
+                                        ? "rgb(96,165,250)"
+                                        : undefined,
+                                    }}
+                                  />
+                                  <div
+                                    className="absolute inset-2 border border-dashed border-cyan-400/50 animate-spin transition-colors duration-1000"
+                                    style={{
+                                      animationDuration: isHovered
+                                        ? "5s"
+                                        : "15s",
+                                      animationDirection: "reverse",
+                                      borderColor: isHovered
+                                        ? "rgb(103,232,249)"
+                                        : undefined,
+                                    }}
+                                  />
+                                  <div
+                                    className="absolute inset-0 flex items-center justify-center animate-spin"
+                                    style={{
+                                      animationDuration: isHovered
+                                        ? "3s"
+                                        : "12s",
+                                    }}
+                                  >
                                     <div
                                       className={cn(
-                                        "absolute inset-0 blur-xl transition-opacity animate-breathing bg-blue-500",
-                                        isHovered ? "opacity-60" : "opacity-20",
-                                      )}
-                                    />
-                                    <div
-                                      className="absolute inset-0 border-2 border-blue-500/30 shadow-[0_0_15px_#3b82f6] animate-spin transition-colors duration-1000"
-                                      style={{
-                                        animationDuration: isHovered
-                                          ? "4s"
-                                          : "10s",
-                                        borderColor: isHovered
-                                          ? "rgb(96,165,250)"
-                                          : undefined,
-                                      }}
-                                    />
-                                    <div
-                                      className="absolute inset-2 border border-dashed border-cyan-400/50 animate-spin transition-colors duration-1000"
-                                      style={{
-                                        animationDuration: isHovered
-                                          ? "5s"
-                                          : "15s",
-                                        animationDirection: "reverse",
-                                        borderColor: isHovered
-                                          ? "rgb(103,232,249)"
-                                          : undefined,
-                                      }}
-                                    />
-                                    <div
-                                      className="absolute inset-0 flex items-center justify-center animate-spin"
-                                      style={{
-                                        animationDuration: isHovered
-                                          ? "3s"
-                                          : "12s",
-                                      }}
-                                    >
-                                      <div
-                                        className={cn(
-                                          "w-4 h-4 shadow-[0_0_15px_#3b82f6] rotate-45 transition-colors duration-500 animate-breathing",
-                                          isHovered
-                                            ? "bg-cyan-300 scale-150"
-                                            : "bg-blue-400",
-                                        )}
-                                      />
-                                    </div>
-                                  </>
-                                );
-                              })()}
-                            {agent.name === "Researcher" &&
-                              (() => {
-                                const isHovered = hoveredAgent === "Researcher";
-                                return (
-                                  <>
-                                    {/* Researcher: Radar / Scanner Shape */}
-                                    <div
-                                      className={cn(
-                                        "absolute inset-0 blur-xl transition-opacity animate-breathing bg-purple-500",
-                                        isHovered ? "opacity-60" : "opacity-20",
-                                      )}
-                                    />
-                                    <div className="absolute inset-0 rounded-full border border-purple-500/50 shadow-[0_0_15px_#a855f7] animate-breathing" />
-                                    <div
-                                      className="absolute inset-0 rounded-full border-t-2 border-r-2 animate-spin transition-opacity duration-1000"
-                                      style={{
-                                        animationDuration: isHovered
-                                          ? "2s"
-                                          : "8s",
-                                        borderColor: isHovered
-                                          ? "rgb(216,180,254)"
-                                          : "rgb(196,181,253,0.5)",
-                                        opacity: isHovered ? 1 : 0.3,
-                                      }}
-                                    />
-                                    <div
-                                      className="absolute inset-2 rounded-full border border-dotted animate-spin transition-colors duration-700"
-                                      style={{
-                                        animationDuration: isHovered
-                                          ? "3s"
-                                          : "12s",
-                                        animationDirection: "reverse",
-                                        borderColor: isHovered
-                                          ? "rgb(240,171,252)"
-                                          : "rgb(232,121,249,0.4)",
-                                        opacity: isHovered ? 1 : 0.5,
-                                      }}
-                                    />
-                                    <div
-                                      className={cn(
-                                        "relative w-3 h-3 rounded-full shadow-[0_0_15px_#a855f7] transition-all duration-500 animate-breathing",
+                                        "w-4 h-4 shadow-[0_0_15px_#3b82f6] rotate-45 transition-colors duration-500 animate-breathing",
                                         isHovered
-                                          ? "bg-fuchsia-300 scale-150"
-                                          : "bg-purple-400",
+                                          ? "bg-cyan-300 scale-150"
+                                          : "bg-blue-400",
                                       )}
                                     />
-                                  </>
-                                );
-                              })()}
-                            {agent.name === "Worker" &&
-                              (() => {
-                                const isHovered = hoveredAgent === "Worker";
-                                return (
-                                  <>
-                                    {/* Worker: Industrial / Gear / Block Shape */}
-                                    <div
-                                      className={cn(
-                                        "absolute inset-0 blur-xl transition-opacity animate-breathing bg-amber-500",
-                                        isHovered ? "opacity-60" : "opacity-20",
-                                      )}
-                                    />
-                                    <div
-                                      className="absolute inset-1 rounded-sm border-2 border-amber-500/40 shadow-[0_0_15px_#f59e0b] animate-spin transition-colors duration-700"
-                                      style={{
-                                        animationDuration: isHovered
-                                          ? "5s"
-                                          : "20s",
-                                        borderColor: isHovered
-                                          ? "rgb(251,191,36)"
-                                          : undefined,
-                                        opacity: isHovered ? 1 : 0.6,
-                                      }}
-                                    />
-                                    <div
-                                      className="absolute inset-1 rounded-sm border-2 border-orange-500/40 animate-spin transition-colors duration-700"
-                                      style={{
-                                        animationDuration: isHovered
-                                          ? "5s"
-                                          : "20s",
-                                        animationDirection: "reverse",
-                                        borderColor: isHovered
-                                          ? "rgb(249,115,22)"
-                                          : undefined,
-                                        opacity: isHovered ? 1 : 0.6,
-                                      }}
-                                    />
-                                    <div
-                                      className="absolute inset-0 flex items-center justify-center w-5 h-5 m-auto animate-spin transition-all duration-500"
-                                      style={{
-                                        animationDuration: isHovered
-                                          ? "2s"
-                                          : "10s",
-                                      }}
-                                    >
-                                      <div className="absolute inset-0 border-2 border-amber-300" />
-                                      <div className="w-1.5 h-1.5 bg-amber-200 shadow-[0_0_10px_#fcd34d] animate-breathing" />
-                                    </div>
-                                  </>
-                                );
-                              })()}
-                            {agent.name === "Grader" &&
-                              (() => {
-                                const isHovered = hoveredAgent === "Grader";
-                                return (
-                                  <>
-                                    {/* Grader: Evaluator / Precise Crosshair */}
-                                    <div
-                                      className={cn(
-                                        "absolute inset-0 blur-xl transition-opacity animate-breathing bg-emerald-500",
-                                        isHovered ? "opacity-60" : "opacity-20",
-                                      )}
-                                    />
-                                    <div className="absolute inset-0 rounded-full border border-emerald-500/40 shadow-[0_0_15px_#10b981] animate-breathing" />
-                                    <div
-                                      className="absolute inset-0 flex items-center justify-center animate-spin transition-opacity duration-500"
-                                      style={{
-                                        animationDuration: isHovered
-                                          ? "3s"
-                                          : "15s",
-                                        opacity: isHovered ? 1 : 0.4,
-                                      }}
-                                    >
-                                      <div className="w-full h-[1px] bg-emerald-400 absolute" />
-                                      <div className="h-full w-[1px] bg-emerald-400 absolute" />
-                                    </div>
-                                    <div
-                                      className="absolute inset-3 border border-emerald-300/60 animate-spin transition-colors duration-700"
-                                      style={{
-                                        animationDuration: isHovered
-                                          ? "2s"
-                                          : "10s",
-                                        animationDirection: "reverse",
-                                        opacity: isHovered ? 1 : 0.7,
-                                      }}
-                                    />
-                                    <div
-                                      className={cn(
-                                        "relative w-2 h-2 bg-emerald-300 shadow-[0_0_10px_#6ee7b7] transition-all duration-500 animate-[pulse_2s_infinite]",
-                                        isHovered && "scale-[2.5]",
-                                      )}
-                                    />
-                                  </>
-                                );
-                              })()}
-                          </div>
+                                  </div>
+                                </>
+                              );
+                            })()}
+                          {agent.name === "Researcher" &&
+                            (() => {
+                              const isHovered = hoveredAgent === "Researcher";
+                              return (
+                                <>
+                                  {/* Researcher: Radar / Scanner Shape */}
+                                  <div
+                                    className={cn(
+                                      "absolute inset-0 blur-xl transition-opacity animate-breathing bg-purple-500",
+                                      isHovered ? "opacity-60" : "opacity-20",
+                                    )}
+                                  />
+                                  <div className="absolute inset-0 rounded-full border border-purple-500/50 shadow-[0_0_15px_#a855f7] animate-breathing" />
+                                  <div
+                                    className="absolute inset-0 rounded-full border-t-2 border-r-2 animate-spin transition-opacity duration-1000"
+                                    style={{
+                                      animationDuration: isHovered
+                                        ? "2s"
+                                        : "8s",
+                                      borderColor: isHovered
+                                        ? "rgb(216,180,254)"
+                                        : "rgb(196,181,253,0.5)",
+                                      opacity: isHovered ? 1 : 0.3,
+                                    }}
+                                  />
+                                  <div
+                                    className="absolute inset-2 rounded-full border border-dotted animate-spin transition-colors duration-700"
+                                    style={{
+                                      animationDuration: isHovered
+                                        ? "3s"
+                                        : "12s",
+                                      animationDirection: "reverse",
+                                      borderColor: isHovered
+                                        ? "rgb(240,171,252)"
+                                        : "rgb(232,121,249,0.4)",
+                                      opacity: isHovered ? 1 : 0.5,
+                                    }}
+                                  />
+                                  <div
+                                    className={cn(
+                                      "relative w-3 h-3 rounded-full shadow-[0_0_15px_#a855f7] transition-all duration-500 animate-breathing",
+                                      isHovered
+                                        ? "bg-fuchsia-300 scale-150"
+                                        : "bg-purple-400",
+                                    )}
+                                  />
+                                </>
+                              );
+                            })()}
+                          {agent.name === "Worker" &&
+                            (() => {
+                              const isHovered = hoveredAgent === "Worker";
+                              return (
+                                <>
+                                  {/* Worker: Industrial / Gear / Block Shape */}
+                                  <div
+                                    className={cn(
+                                      "absolute inset-0 blur-xl transition-opacity animate-breathing bg-amber-500",
+                                      isHovered ? "opacity-60" : "opacity-20",
+                                    )}
+                                  />
+                                  <div
+                                    className="absolute inset-1 rounded-sm border-2 border-amber-500/40 shadow-[0_0_15px_#f59e0b] animate-spin transition-colors duration-700"
+                                    style={{
+                                      animationDuration: isHovered
+                                        ? "5s"
+                                        : "20s",
+                                      borderColor: isHovered
+                                        ? "rgb(251,191,36)"
+                                        : undefined,
+                                      opacity: isHovered ? 1 : 0.6,
+                                    }}
+                                  />
+                                  <div
+                                    className="absolute inset-1 rounded-sm border-2 border-orange-500/40 animate-spin transition-colors duration-700"
+                                    style={{
+                                      animationDuration: isHovered
+                                        ? "5s"
+                                        : "20s",
+                                      animationDirection: "reverse",
+                                      borderColor: isHovered
+                                        ? "rgb(249,115,22)"
+                                        : undefined,
+                                      opacity: isHovered ? 1 : 0.6,
+                                    }}
+                                  />
+                                  <div
+                                    className="absolute inset-0 flex items-center justify-center w-5 h-5 m-auto animate-spin transition-all duration-500"
+                                    style={{
+                                      animationDuration: isHovered
+                                        ? "2s"
+                                        : "10s",
+                                    }}
+                                  >
+                                    <div className="absolute inset-0 border-2 border-amber-300" />
+                                    <div className="w-1.5 h-1.5 bg-amber-200 shadow-[0_0_10px_#fcd34d] animate-breathing" />
+                                  </div>
+                                </>
+                              );
+                            })()}
+                          {agent.name === "Grader" &&
+                            (() => {
+                              const isHovered = hoveredAgent === "Grader";
+                              return (
+                                <>
+                                  {/* Grader: Evaluator / Precise Crosshair */}
+                                  <div
+                                    className={cn(
+                                      "absolute inset-0 blur-xl transition-opacity animate-breathing bg-emerald-500",
+                                      isHovered ? "opacity-60" : "opacity-20",
+                                    )}
+                                  />
+                                  <div className="absolute inset-0 rounded-full border border-emerald-500/40 shadow-[0_0_15px_#10b981] animate-breathing" />
+                                  <div
+                                    className="absolute inset-0 flex items-center justify-center animate-spin transition-opacity duration-500"
+                                    style={{
+                                      animationDuration: isHovered
+                                        ? "3s"
+                                        : "15s",
+                                      opacity: isHovered ? 1 : 0.4,
+                                    }}
+                                  >
+                                    <div className="w-full h-[1px] bg-emerald-400 absolute" />
+                                    <div className="h-full w-[1px] bg-emerald-400 absolute" />
+                                  </div>
+                                  <div
+                                    className="absolute inset-3 border border-emerald-300/60 animate-spin transition-colors duration-700"
+                                    style={{
+                                      animationDuration: isHovered
+                                        ? "2s"
+                                        : "10s",
+                                      animationDirection: "reverse",
+                                      opacity: isHovered ? 1 : 0.7,
+                                    }}
+                                  />
+                                  <div
+                                    className={cn(
+                                      "relative w-2 h-2 bg-emerald-300 shadow-[0_0_10px_#6ee7b7] transition-all duration-500 animate-[pulse_2s_infinite]",
+                                      isHovered && "scale-[2.5]",
+                                    )}
+                                  />
+                                </>
+                              );
+                            })()}
+                        </div>
+                        <div
+                          className={cn(
+                            "h-[1.5px] mt-4 transition-all duration-700 relative",
+                            hoveredAgent === agent.name
+                              ? "w-full opacity-100"
+                              : "w-[80px] opacity-40",
+                            agent.name === "COO"
+                              ? "bg-gradient-to-r from-transparent via-blue-500 to-transparent"
+                              : agent.name === "Researcher"
+                                ? "bg-gradient-to-r from-transparent via-purple-500 to-transparent"
+                                : agent.name === "Worker"
+                                  ? "bg-gradient-to-r from-transparent via-amber-500 to-transparent"
+                                  : "bg-gradient-to-r from-transparent via-emerald-500 to-transparent",
+                          )}
+                        >
                           <div
                             className={cn(
-                              "h-[1.5px] mt-4 transition-all duration-700 relative",
-                              hoveredAgent === agent.name
-                                ? "w-full opacity-100"
-                                : "w-[80px] opacity-40",
+                              "absolute inset-0 blur-[3px] animate-breathing",
                               agent.name === "COO"
-                                ? "bg-gradient-to-r from-transparent via-blue-500 to-transparent"
+                                ? "bg-blue-500"
                                 : agent.name === "Researcher"
-                                  ? "bg-gradient-to-r from-transparent via-purple-500 to-transparent"
+                                  ? "bg-purple-500"
                                   : agent.name === "Worker"
-                                    ? "bg-gradient-to-r from-transparent via-amber-500 to-transparent"
-                                    : "bg-gradient-to-r from-transparent via-emerald-500 to-transparent",
+                                    ? "bg-amber-500"
+                                    : "bg-emerald-500",
                             )}
-                          >
-                            <div
-                              className={cn(
-                                "absolute inset-0 blur-[3px] animate-breathing",
-                                agent.name === "COO"
-                                  ? "bg-blue-500"
-                                  : agent.name === "Researcher"
-                                    ? "bg-purple-500"
-                                    : agent.name === "Worker"
-                                      ? "bg-amber-500"
-                                      : "bg-emerald-500",
-                              )}
-                            />
-                          </div>
+                          />
                         </div>
                       </div>
-                    ),
-                  )}
+                    </div>
+                  ),
+                )}
             </div>
           </HUDFrame>
 
@@ -1564,7 +1564,7 @@ export default function DashboardPage() {
                             className={cn(
                               "px-2 py-0.5 text-[10px] font-black uppercase tracking-widest border",
                               statusColorMap[deriveHomeStatus(job)] ||
-                                "text-cyan-500 border-cyan-500/30 bg-cyan-500/5",
+                              "text-cyan-500 border-cyan-500/30 bg-cyan-500/5",
                             )}
                           >
                             {formatStatus(deriveHomeStatus(job))}
@@ -1606,12 +1606,12 @@ export default function DashboardPage() {
                               stepGr =
                                 typeof graderStep.result === "string"
                                   ? (() => {
-                                      try {
-                                        return JSON.parse(graderStep.result);
-                                      } catch {
-                                        return null;
-                                      }
-                                    })()
+                                    try {
+                                      return JSON.parse(graderStep.result);
+                                    } catch {
+                                      return null;
+                                    }
+                                  })()
                                   : graderStep.result;
                             }
 
@@ -1686,7 +1686,7 @@ export default function DashboardPage() {
                               job.identity_fingerprint || job.identity_id;
                             return raw
                               ? "0x" +
-                                  String(raw).replace(/^hex:0x|^0x|^hex:/i, "")
+                              String(raw).replace(/^hex:0x|^0x|^hex:/i, "")
                               : undefined;
                           })()}
                         >
@@ -1712,9 +1712,9 @@ export default function DashboardPage() {
                             );
                             return date
                               ? date.toLocaleTimeString([], {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
                               : "Recently";
                           })()}
                         </td>
@@ -1768,7 +1768,7 @@ export default function DashboardPage() {
 
           {/* ACEPLACE COMMAND */}
           <HUDFrame
-            title="NOVA ACE COMMAND"
+            title="ACENOVA COMMAND"
             className="min-h-[300px] lg:min-h-[350px] flex-none shrink-0 flex flex-col relative overflow-hidden group"
           >
             {/* Background subtle glow */}
@@ -1890,9 +1890,9 @@ export default function DashboardPage() {
                         "w-[4px] md:w-[6px] h-3 transition-colors duration-500",
                         !isJobsSyncing &&
                           i <
-                            (realStats.activeAgents /
-                              Math.max(1, realStats.totalRequests)) *
-                              15
+                          (realStats.activeAgents /
+                            Math.max(1, realStats.totalRequests)) *
+                          15
                           ? i < 10
                             ? "bg-cyan-500 shadow-[0_0_5px_#06b6d2]"
                             : "bg-emerald-500 shadow-[0_0_5px_#10b981]"
