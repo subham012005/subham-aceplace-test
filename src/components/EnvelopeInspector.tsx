@@ -27,10 +27,12 @@ import { ENVELOPE_STATUS_DISPLAY } from "@aceplace/runtime-core/shared";
 import { useEnvelope } from "@/hooks/useEnvelope";
 import { useRouter } from "next/navigation";
 import { useSettings } from "@/context/SettingsContext";
+import { splitStepsByVersion } from "@/hooks/useArtifactVersions";
 
 interface EnvelopeInspectorProps {
   executionId: string;
   hideFailureBanner?: boolean;
+  activeVersionLabel?: number;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -65,7 +67,7 @@ function CopyableId({ value }: { value: string }) {
   );
 }
 
-export function EnvelopeInspector({ executionId, hideFailureBanner = false }: EnvelopeInspectorProps) {
+export function EnvelopeInspector({ executionId, hideFailureBanner = false, activeVersionLabel }: EnvelopeInspectorProps) {
   const { envelope, steps, loading, error } = useEnvelope(executionId);
   const router = useRouter();
 
@@ -86,28 +88,46 @@ export function EnvelopeInspector({ executionId, hideFailureBanner = false }: En
     );
   }
 
-  const statusConfig = ENVELOPE_STATUS_DISPLAY[envelope.status];
-  const statusDisplay = statusConfig?.label ?? envelope.status?.toUpperCase();
+  // Version filtering
+  const stepsByVersion = splitStepsByVersion(steps);
+  const maxVersion = Array.from(stepsByVersion.keys()).reduce((max, v) => Math.max(max, v), 1);
+  const activeLabel = activeVersionLabel ?? maxVersion;
+  const displaySteps = stepsByVersion.get(activeLabel) || [];
+
+  // Determine display status (older versions are considered completed)
+  const isHistorical = activeLabel < maxVersion;
+  const displayStatus = isHistorical ? "completed" : envelope.status;
+
+  const statusConfig = ENVELOPE_STATUS_DISPLAY[displayStatus];
+  const statusDisplay = statusConfig?.label ?? displayStatus?.toUpperCase();
   const statusColor = statusConfig 
     ? cn(statusConfig.color, statusConfig.borderColor, statusConfig.bgColor)
-    : (STATUS_COLORS[envelope.status] ?? "text-slate-400 border-slate-500/30 bg-slate-500/10");
-  const completedCount = envelope.steps.filter((s) => s.status === "completed").length;
-  const totalCount = envelope.steps.length;
+    : (STATUS_COLORS[displayStatus] ?? "text-slate-400 border-slate-500/30 bg-slate-500/10");
+
+  const completedCount = displaySteps.filter((s) => s.status === "completed").length;
+  const totalCount = displaySteps.length;
   const progress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-  const currentStep = envelope.steps.find((s) => s.status === "executing");
+  const currentStep = displaySteps.find((s) => s.status === "executing");
   const traceCount = (envelope as any).trace_count ?? 0;
 
   const identityContexts = (envelope as any).identity_contexts || {};
   const authorityLeases = (envelope as any).authority_leases || {};
-  const agents = Object.keys(identityContexts);
+
+  // Only show active agent identities relevant to the steps of the active version
+  const activeAgentIds = new Set(displaySteps.map(s => s.assigned_agent_id).filter(Boolean));
+  const agents = Object.keys(identityContexts).filter(aid => activeAgentIds.has(aid));
 
   const failureReason = (envelope as any).failure_reason;
   const isMissingConfig = failureReason?.includes("MISSING_INTELLIGENCE_CONFIG");
 
+  // Failure and fallback banners are only shown for the active/latest version
+  const showFailure = !hideFailureBanner && envelope.status === "failed" && failureReason && !isHistorical;
+  const showFallback = envelope.fallback_suggested && !isHistorical;
+
   return (
     <div className="space-y-4">
       {/* Failure Banner */}
-      {!hideFailureBanner && envelope.status === "failed" && failureReason && (
+      {showFailure && (
         <div className="border border-rose-500/30 bg-rose-500/10 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-500">
           <div className="flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
@@ -132,7 +152,7 @@ export function EnvelopeInspector({ executionId, hideFailureBanner = false }: En
       )}
 
       {/* Fallback Suggested Banner */}
-      {envelope.fallback_suggested && (
+      {showFallback && (
         <div className="border border-orange-500/30 bg-orange-500/10 p-4 space-y-2 animate-in fade-in slide-in-from-top-2 duration-500">
           <div className="flex items-start gap-3">
             <Activity className="w-4 h-4 text-orange-500 shrink-0 mt-0.5 animate-spin-slow" />
@@ -245,7 +265,7 @@ export function EnvelopeInspector({ executionId, hideFailureBanner = false }: En
       {/* Step Graph Timeline */}
       <HUDFrame title="EXECUTION STEP GRAPH" variant="dark">
         <div className="p-4">
-          <StepGraph steps={steps} currentStepId={currentStep?.step_id ?? null} />
+          <StepGraph steps={displaySteps} currentStepId={currentStep?.step_id ?? null} />
         </div>
       </HUDFrame>
     </div>

@@ -45,7 +45,7 @@ export const formatOutputToMarkdown = (raw: any): string => {
     );
 
     // 1. Handle Executive Summary / Summary
-    const summary = raw.deliverable_summary || raw.summary || raw.executive_summary || raw.overview;
+    const summary = raw.deliverable_summary || raw.summary || raw.executive_summary || raw.overview || raw.plan_summary;
     if (summary && typeof summary === 'string' && !hasSummarySection) {
         md += `# Executive Summary\n\n${summary}\n\n`;
     }
@@ -63,21 +63,21 @@ export const formatOutputToMarkdown = (raw: any): string => {
 
     // 3. Handle key-value structures (Findings, Results, Steps)
     const title = raw.title || raw.header || raw.report_title;
-    const details = raw.details || raw.description || raw.body;
-    const findings = raw.findings || raw.results || raw.steps || raw.items || raw.conclusions;
+    const details = raw.details || raw.description || raw.body || raw.strategic_objective || raw.objective;
+    const findings = raw.findings || raw.results || raw.steps || raw.items || raw.conclusions || raw.assignments || raw.tasks;
 
     if (title || details || findings) {
         if (title && typeof title === 'string') md = `# ${title}\n\n` + md;
         if (details && typeof details === 'string') md += `${details}\n\n`;
         
         if (findings && Array.isArray(findings)) {
-            const label = raw.findings ? "Key Findings" : (raw.results ? "Results" : (raw.steps ? "Execution Steps" : "Details"));
+            const label = raw.findings ? "Key Findings" : (raw.results ? "Results" : (raw.steps ? "Execution Steps" : (raw.assignments ? "Assignments" : (raw.tasks ? "Tasks" : "Details"))));
             md += `### ${label}\n\n`;
             md += findings.map((item: any) => {
                 if (typeof item === 'string') return `* ${item}`;
                 if (typeof item === 'object') {
-                    const itemTitle = item.title || item.label || item.name || item.heading;
-                    const itemValue = item.body || item.content || item.value || item.description || item.text;
+                    const itemTitle = item.title || item.label || item.name || item.heading || item.role;
+                    const itemValue = item.body || item.content || item.value || item.description || item.text || item.task;
                     if (itemTitle && itemValue) return `* **${itemTitle}:** ${itemValue}`;
                     if (itemTitle) return `* **${itemTitle}**`;
                     if (itemValue) return `* ${itemValue}`;
@@ -90,13 +90,16 @@ export const formatOutputToMarkdown = (raw: any): string => {
     }
 
     // 4. Handle "content" as a direct string field (Common in many agent outputs)
-    if (raw.content && typeof raw.content === 'string') {
-        const contentVal = raw.content.trim();
+    const contentVal = raw.content || raw.report || raw.text || raw.body || raw.markdown || raw.artifact_content;
+    if (contentVal && typeof contentVal === 'string') {
+        const trimmedContent = contentVal.trim();
         // Check if content itself is JSON
-        if (contentVal.startsWith('{') || contentVal.startsWith('[')) {
-            return formatOutputToMarkdown(contentVal);
+        if (trimmedContent.startsWith('{') || trimmedContent.startsWith('[')) {
+            return formatOutputToMarkdown(trimmedContent);
         }
-        return raw.content;
+        if (md && !md.endsWith('\n\n')) md += md.endsWith('\n') ? '\n' : '\n\n';
+        md += trimmedContent;
+        return md.trim();
     }
 
     // 5. Last resort: JSON block

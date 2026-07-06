@@ -6,9 +6,10 @@ import Link from "next/link";
 import {
     useJob,
     useJobTraces,
-    useJobArtifacts
+    useJobArtifacts,
+    Artifact
 } from "@/hooks/useJobs";
-import { useArtifactVersions } from "@/hooks/useArtifactVersions";
+import { useArtifactVersions, splitStepsByVersion } from "@/hooks/useArtifactVersions";
 import { useAuth } from "@/hooks/useAuth";
 import { useEnvelope } from "@/hooks/useEnvelope";
 import { useAgentLogs } from "@/hooks/useAgentLogs";
@@ -117,7 +118,28 @@ const formatTime = (dateValue?: any) => {
     }).format(date) + "." + date.getMilliseconds().toString().padStart(3, '0');
 };
 
-
+const filterArtifactsByVersion = (artifactsList: Artifact[], targetVersionLabel: number): Artifact[] => {
+    const groups: Record<string, Artifact[]> = {};
+    for (const a of artifactsList) {
+        const type = a.artifact_type || 'unknown';
+        if (!groups[type]) groups[type] = [];
+        groups[type].push(a);
+    }
+    
+    for (const type in groups) {
+        groups[type].sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime());
+    }
+    
+    const filtered: Artifact[] = [];
+    for (const type in groups) {
+        const idx = targetVersionLabel - 1;
+        if (groups[type][idx]) {
+            filtered.push(groups[type][idx]);
+        }
+    }
+    
+    return filtered.sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime());
+};
 
 export default function JobDetailsPage() {
     const params = useParams();
@@ -172,6 +194,8 @@ export default function JobDetailsPage() {
     const isReportReady = !!rawDeliverable;
 
     const [selectedVersion, setSelectedVersion] = useState<number | 'live'>('live');
+    const totalVersions = ((job as any)?.continuation_count || 0) + 1;
+    const activeVersionLabel = selectedVersion === 'live' ? totalVersions : selectedVersion;
     const getArtifactForVersion = (types: string[]) => {
         const valid = [...artifacts]
             .filter(a => types.includes(a.artifact_type || '') && a.artifact_content)
@@ -993,25 +1017,30 @@ export default function JobDetailsPage() {
                                     })()}
                                 </div>
 
-                                {steps && steps.length > 0 && (
-                                    <>
-                                        <div className="h-px bg-gradient-to-r from-transparent via-white/5 to-transparent pt-4" />
-                                        <div className="space-y-3">
-                                            <label className="text-[10px] uppercase font-black text-slate-600 tracking-[0.3em] flex items-center gap-2">
-                                                <Layers className="w-3 h-3 text-cyan-500" /> Pipeline Operations
-                                            </label>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                                {steps.map((step) => (
-                                                    <EnvelopeStepCard
-                                                        key={"step-" + step.step_id}
-                                                        step={step as any}
-                                                        artifacts={artifacts}
-                                                    />
-                                                ))}
+                                {(() => {
+                                    const stepsByVersion = splitStepsByVersion(steps);
+                                    const displaySteps = stepsByVersion.get(activeVersionLabel) || [];
+                                    if (displaySteps.length === 0) return null;
+                                    return (
+                                        <>
+                                            <div className="h-px bg-gradient-to-r from-transparent via-white/5 to-transparent pt-4" />
+                                            <div className="space-y-3">
+                                                <label className="text-[10px] uppercase font-black text-slate-600 tracking-[0.3em] flex items-center gap-2">
+                                                    <Layers className="w-3 h-3 text-cyan-500" /> Pipeline Operations
+                                                </label>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                    {displaySteps.map((step) => (
+                                                        <EnvelopeStepCard
+                                                            key={"step-" + step.step_id}
+                                                            step={step as any}
+                                                            artifacts={artifacts}
+                                                        />
+                                                    ))}
+                                                </div>
                                             </div>
-                                        </div>
-                                    </>
-                                )}
+                                        </>
+                                    );
+                                })()}
                             </div>
                         </HUDFrame>
                     </div>
@@ -1265,7 +1294,13 @@ export default function JobDetailsPage() {
                             );
                         })()}
 
-                        {envelopeId && <EnvelopeInspector executionId={envelopeId} hideFailureBanner={true} />}
+                        {envelopeId && (
+                            <EnvelopeInspector 
+                                executionId={envelopeId} 
+                                hideFailureBanner={true} 
+                                activeVersionLabel={activeVersionLabel}
+                            />
+                        )}
 
                         <HUDFrame
                             title={(() => {
@@ -1931,33 +1966,197 @@ export default function JobDetailsPage() {
                                                         <div className="flex justify-center pt-8">
                                                             <button
                                                                 onClick={() => {
-                                                                    const artifact = artifacts.find(a => ['deliverable', 'artifact_produce', 'produce_artifact', 'report', 'final', 'worker_result', 'worker'].includes(a.artifact_type || ''));
-                                                                    const result = job?.runtime_context?.worker_result || job?.runtime_context?.final_result || job?.artifact || extractOutputData(job);
-                                                                    const rawContent = artifact?.artifact_content || result;
+                                                                    const isHistorical = selectedVersion !== 'live' && (selectedVersion as number) < totalVersions;
+                                                                    const pdfStatus = isHistorical ? 'completed' : derivedStatus;
+                                                                    const costRaw = (typeof job?.token_usage === 'object' ? job?.token_usage?.cost : null) ?? job?.cost ?? 0;
+                                                                    const pdfCost = isHistorical ? (Number(costRaw) / totalVersions) : Number(costRaw);
+                                                                    const tokensRaw = typeof job?.token_usage === 'object' ? job?.token_usage?.total_tokens ?? 0 : job?.token_usage ?? 0;
+                                                                    const pdfTokens = isHistorical ? Math.round(Number(tokensRaw) / totalVersions) : Number(tokensRaw);
+                                                                    const versionSuffix = selectedVersion === 'live' ? `v${totalVersions}` : `v${selectedVersion}`;
+
+                                                                    const workerArtifact = getArtifactForVersion(['final_result', 'artifact_produce', 'report', 'final', 'worker_result', 'worker', 'deliverable']);
+                                                                    const liveResult = job?.runtime_context?.worker_result || job?.runtime_context?.final_result || job?.artifact || extractOutputData(job);
+                                                                    const pdfRawContent = workerArtifact?.artifact_content || liveResult;
+
+                                                                    let pdfWorkerData: any = (typeof liveResult === 'object' && liveResult !== null && selectedVersion === 'live') ? liveResult : pdfRawContent;
+                                                                    if (typeof pdfWorkerData === 'string') {
+                                                                        let clean = (pdfWorkerData as string).replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/i, '').trim();
+                                                                        if (clean.includes('---')) {
+                                                                            const blocks = clean.split('---').map(b => b.trim()).filter(b => b);
+                                                                            clean = blocks[blocks.length - 1];
+                                                                        }
+                                                                        try {
+                                                                            pdfWorkerData = JSON.parse(clean);
+                                                                        } catch (e) {
+                                                                            pdfWorkerData = { content: pdfWorkerData };
+                                                                        }
+                                                                    }
+
+                                                                    // Ensure pdfWorkerData has any missing metadata from the liveResult object
+                                                                    if (!pdfWorkerData.grounding_report && liveResult?.grounding_report) {
+                                                                        pdfWorkerData.grounding_report = liveResult.grounding_report;
+                                                                    }
+                                                                    if (!pdfWorkerData.key_conclusions && liveResult?.key_conclusions) {
+                                                                        pdfWorkerData.key_conclusions = liveResult.key_conclusions;
+                                                                    }
+                                                                    if (!pdfWorkerData.source_references && liveResult?.source_references) {
+                                                                        pdfWorkerData.source_references = liveResult.source_references;
+                                                                    }
+
+                                                                    // Robust UI-aligned deliverable markdown formatter
+                                                                    const pdfFormatToMarkdown = (raw: any): string => {
+                                                                        if (!raw) return "";
+                                                                        if (typeof raw === 'string') {
+                                                                            const trimmed = raw.trim();
+                                                                            if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+                                                                                try { return pdfFormatToMarkdown(JSON.parse(trimmed)); } catch { return raw; }
+                                                                            }
+                                                                            return raw;
+                                                                        }
+                                                                        if (typeof raw !== 'object') return String(raw);
+
+                                                                        let mdStr = "";
+                                                                        let sections: any[] = [];
+                                                                        
+                                                                        let content = raw.content || raw.report || raw.text || raw.deliverable || raw.artifact || '';
+                                                                        if (typeof content === 'string' && content.trim().startsWith('{')) {
+                                                                            try {
+                                                                                const cleanContent = content.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/i, '').trim();
+                                                                                const parsed = JSON.parse(cleanContent);
+                                                                                if (parsed.sections && Array.isArray(parsed.sections)) {
+                                                                                    sections = parsed.sections;
+                                                                                }
+                                                                                content = parsed.content || parsed.report || parsed.text || parsed.body || parsed.markdown || (parsed.sections ? '' : content);
+                                                                            } catch (e) {}
+                                                                        }
+
+                                                                        if (typeof content === 'object' && content !== null) {
+                                                                            if ((content as any).sections && Array.isArray((content as any).sections)) {
+                                                                                sections = (content as any).sections;
+                                                                            }
+                                                                            content = (content as any).text || (content as any).body || (content as any).markdown || (content as any).content || (sections.length > 0 ? '' : JSON.stringify(content, null, 2));
+                                                                        }
+
+                                                                        const sectionsList = sections.length > 0 ? sections : (raw.sections || raw.content?.sections || (Array.isArray(raw.content) ? raw.content : null));
+                                                                        const summary = raw.deliverable_summary || raw.summary || raw.executive_summary;
+                                                                        const hasSummarySection = Array.isArray(sectionsList) && sectionsList.some((s: any) =>
+                                                                            String(s.title || s.header || "").toLowerCase().includes('summary')
+                                                                        );
+
+                                                                        if (summary && typeof summary === 'string' && !summary.toLowerCase().includes('worker output') && !hasSummarySection) {
+                                                                            const cleanSummary = summary.trim();
+                                                                            if (cleanSummary && cleanSummary.length > 10) {
+                                                                                mdStr += `# Executive Summary\n\n${cleanSummary}\n\n`;
+                                                                            }
+                                                                        }
+
+                                                                        if (sectionsList && Array.isArray(sectionsList)) {
+                                                                            mdStr += sectionsList.map((s: any, i: number) => {
+                                                                                if (typeof s === 'string') return s;
+                                                                                const title = s.title || s.header || s.name || `Section ${i + 1}`;
+                                                                                const body = s.body || s.content || s.text || "";
+                                                                                return `## ${title}\n\n${body}\n\n`;
+                                                                            }).join("\n");
+                                                                            return mdStr.trim();
+                                                                        }
+
+                                                                        if (raw.title || raw.findings || content) {
+                                                                            if (raw.title && typeof raw.title === 'string' && !mdStr.includes(raw.title)) {
+                                                                                mdStr = `# ${raw.title}\n\n` + mdStr;
+                                                                            }
+                                                                            if (content && typeof content === 'string') {
+                                                                                const cleanContent = content.trim();
+                                                                                if (cleanContent && !mdStr.includes(cleanContent.substring(0, 50))) {
+                                                                                    if (mdStr && !mdStr.endsWith('\n\n')) mdStr += mdStr.endsWith('\n') ? '\n' : '\n\n';
+                                                                                    mdStr += cleanContent + "\n\n";
+                                                                                }
+                                                                            }
+
+                                                                            const listItems = raw.findings || raw.steps || raw.items || raw.results;
+                                                                            if (Array.isArray(listItems)) {
+                                                                                if (raw.findings && !mdStr.includes('Key Findings')) mdStr += `### Key Findings\n\n`;
+                                                                                mdStr += listItems.map((item: any) => {
+                                                                                    if (typeof item === 'object') {
+                                                                                        const label = item.title || item.label || item.name;
+                                                                                        const val = item.body || item.content || item.value || item.description || JSON.stringify(item);
+                                                                                        return label ? `* **${label}:** ${val}` : `* ${val}`;
+                                                                                    }
+                                                                                    return `* ${item}`;
+                                                                                }).join("\n");
+                                                                            }
+                                                                            if (mdStr) return mdStr.trim();
+                                                                        }
+
+                                                                        return "```json\n" + JSON.stringify(raw, null, 2) + "\n```";
+                                                                    };
 
                                                                     // Resolve provider/model with broad fallback chain
                                                                     const resolvedProvider = (job as any)?.neural_provider || (job as any)?.model_provider || (job as any)?.provider || (envelope as any)?.neural_provider || (envelope as any)?.provider || 'N/A';
                                                                     const resolvedModel = (job as any)?.model_used || (job as any)?.model || (job as any)?.llm_model || (envelope as any)?.model_used || (envelope as any)?.model || 'N/A';
 
-                                                                    let md = `# Intelligence Report(PRO): ${job?.job_id || jobId}\n\n`;
+                                                                    let md = `# Intelligence Report(PRO): ${job?.job_id || jobId} (${versionSuffix.toUpperCase()})\n\n`;
                                                                     md += `## Audit Metadata\n\n`;
                                                                     md += `* **Job ID** ${job?.job_id || jobId}\n`;
                                                                     md += `* **Envelope ID** ${envelope?.envelope_id || job?.envelope_id || 'N/A'}\n`;
-                                                                    md += `* **Status** ${derivedStatus?.toUpperCase() || 'UNKNOWN'}\n`;
+                                                                    md += `* **Status** ${pdfStatus?.toUpperCase() || 'UNKNOWN'}\n`;
                                                                     // md += `* **Neural Provider** ${resolvedProvider.toUpperCase()}\n`;
                                                                     // md += `* **Compute Model** ${resolvedModel}\n`;
-                                                                    md += `* **Compute Cost** $${Number((typeof job?.token_usage === 'object' ? job?.token_usage?.cost : null) ?? job?.cost ?? 0).toFixed(6)}\n`;
-                                                                    md += `* **Token Usage** ${Number(typeof job?.token_usage === 'object' ? job?.token_usage?.total_tokens ?? 0 : job?.token_usage ?? 0).toLocaleString()}\n`;
+                                                                    md += `* **Compute Cost** $${pdfCost.toFixed(6)}\n`;
+                                                                    md += `* **Token Usage** ${pdfTokens.toLocaleString()}\n`;
                                                                     md += `* **Generated At** ${new Date().toLocaleString()}\n\n`;
 
                                                                     if (job?.prompt) {
                                                                         md += `## Strategic Intent\n\n`;
-                                                                        md += `> ${job.prompt}\n\n`;
+                                                                        const promptStr = String(job?.prompt || "");
+                                                                        let originalPrompt = promptStr;
+                                                                        const isContinuation = promptStr.includes("[CONTINUATION TASK");
+
+                                                                        if (isContinuation) {
+                                                                            const omMatch = promptStr.match(/ORIGINAL MISSION:\s*\n([\s\S]*?)(?=\n\n(?:PRIOR DELIVERABLE|OPERATOR CONTINUATION INSTRUCTIONS|CONTINUITY DIRECTIVE)|$)/);
+                                                                            if (omMatch) {
+                                                                                originalPrompt = omMatch[1].trim();
+                                                                            }
+                                                                        }
+                                                                        
+                                                                        md += `### Original Mission Directive\n\n`;
+                                                                        md += `> ${originalPrompt.split('\n').join('\n> ')}\n\n`;
+
+                                                                        // Show continuation instructions up to the active version
+                                                                        const instructionsList: { version: number; instruction: string }[] = [];
+                                                                        artifactVersions.forEach((av) => {
+                                                                            if (av.version > 0 && av.continuation_instruction) {
+                                                                                instructionsList.push({
+                                                                                    version: av.version + 1,
+                                                                                    instruction: av.continuation_instruction
+                                                                                });
+                                                                            }
+                                                                        });
+                                                                        const currentVersionNum = ((job as any)?.continuation_count || 0) + 1;
+                                                                        const hasCurrentInList = instructionsList.some(item => item.version === currentVersionNum);
+                                                                        if (currentVersionNum > 1 && !hasCurrentInList && (job as any)?.continuation_reason) {
+                                                                            instructionsList.push({
+                                                                                version: currentVersionNum,
+                                                                                instruction: (job as any).continuation_reason
+                                                                            });
+                                                                        }
+
+                                                                        const activeLabelNum = selectedVersion === 'live' ? totalVersions : (selectedVersion as number);
+                                                                        const filteredInstructions = instructionsList.filter(item => item.version <= activeLabelNum);
+
+                                                                        if (filteredInstructions.length > 0) {
+                                                                            md += `### Continuation Cycles\n\n`;
+                                                                            filteredInstructions.forEach((item) => {
+                                                                                md += `* **Version ${item.version} Edit Instructions:** *${item.instruction}*\n`;
+                                                                            });
+                                                                            md += `\n`;
+                                                                        }
                                                                     }
 
-                                                                    if (job?.runtime_context?.plan) {
+                                                                    const planArtifact = getArtifactForVersion(['plan', 'task_plan']);
+                                                                    const rawPlan = planArtifact?.artifact_content || job?.runtime_context?.plan || (job as any)?.plan;
+                                                                    if (rawPlan) {
                                                                         md += `## Strategic Plan\n\n`;
-                                                                        md += `${typeof job.runtime_context.plan === 'string' ? job.runtime_context.plan : JSON.stringify(job.runtime_context.plan, null, 2)}\n\n`;
+                                                                        md += `${formatOutputToMarkdown(rawPlan)}\n\n`;
                                                                     }
 
                                                                     if (governanceScore > 0 || evaluationContent) {
@@ -1973,27 +2172,22 @@ export default function JobDetailsPage() {
                                                                         md += `\n`;
                                                                     }
 
-                                                                    let workerData: any = rawContent;
-                                                                    if (typeof rawContent === 'string' && rawContent.trim().startsWith('{')) {
-                                                                        try { workerData = JSON.parse(rawContent.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/i, '').trim()); } catch (e) { }
-                                                                    }
-
-                                                                    if (workerData?.grounding_report) {
-                                                                        const gr = workerData.grounding_report;
+                                                                    if (pdfWorkerData?.grounding_report) {
+                                                                        const gr = pdfWorkerData.grounding_report;
                                                                         md += `## Grounding & Verification\n\n`;
                                                                         md += `* **Fabrication Check:** ${gr.fabrication_check || 'UNKNOWN'}\n`;
-                                                                        md += `* **Knowledge Density:** ${gr.kb_chunks_cited || workerData._grounding_meta?.kb_chunks_used || 0} Indexed Context Units\n`;
-                                                                        md += `* **Web Intelligence:** ${workerData._grounding_meta?.web_results_used || gr.web_sources_cited || 0} Web Sources\n\n`;
+                                                                        md += `* **Knowledge Density:** ${gr.kb_chunks_cited || pdfWorkerData._grounding_meta?.kb_chunks_used || 0} Indexed Context Units\n`;
+                                                                        md += `* **Web Intelligence:** ${pdfWorkerData._grounding_meta?.web_results_used || gr.web_sources_cited || 0} Web Sources\n\n`;
                                                                     }
 
                                                                     md += `## Final Deliverable Content\n\n`;
-                                                                    const formattedContent = formatOutputToMarkdown(rawContent);
+                                                                    const formattedContent = pdfFormatToMarkdown(pdfWorkerData);
                                                                     md += formattedContent ? formattedContent : "*No deliverable content was generated for this job.*";
                                                                     md += `\n\n`;
 
-                                                                    if (workerData?.key_conclusions && Array.isArray(workerData.key_conclusions) && workerData.key_conclusions.length > 0) {
+                                                                    if (pdfWorkerData?.key_conclusions && Array.isArray(pdfWorkerData.key_conclusions) && pdfWorkerData.key_conclusions.length > 0) {
                                                                         md += `## Strategic Findings\n\n`;
-                                                                        workerData.key_conclusions.forEach((c: any, i: number) => {
+                                                                        pdfWorkerData.key_conclusions.forEach((c: any, i: number) => {
                                                                             const conclusion = c.conclusion || (typeof c === 'string' ? c : '');
                                                                             md += `### Finding ${i + 1}: ${conclusion}\n\n`;
                                                                             if (c.evidence) md += `* **Evidence:** ${c.evidence}\n`;
@@ -2002,15 +2196,15 @@ export default function JobDetailsPage() {
                                                                         });
                                                                     }
 
-                                                                    if (workerData?.source_references && Array.isArray(workerData.source_references) && workerData.source_references.length > 0) {
+                                                                    if (pdfWorkerData?.source_references && Array.isArray(pdfWorkerData.source_references) && pdfWorkerData.source_references.length > 0) {
                                                                         md += `## Source Provenance\n\n`;
-                                                                        workerData.source_references.forEach((ref: any) => {
+                                                                        pdfWorkerData.source_references.forEach((ref: any) => {
                                                                             md += `* **[${ref.ref_id}] ${ref.title}** - ${ref.usage}\n`;
                                                                         });
                                                                         md += `\n`;
                                                                     }
 
-                                                                    exportToPDF(md, `${job?.job_id || jobId}-full-report.pdf`);
+                                                                    exportToPDF(md, `${job?.job_id || jobId}-${versionSuffix}-report.pdf`);
                                                                 }}
                                                                 disabled={actionLoading || !['grading', 'graded', 'awaiting_approval', 'approved', 'completed'].includes(derivedStatus?.toLowerCase())}
                                                                 className="px-8 py-4 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 font-black uppercase tracking-[0.2em] text-xs hover:bg-cyan-500/20 hover:border-cyan-500 transition-all cursor-target flex items-center justify-center gap-3 group disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent shadow-[0_0_30px_rgba(6,182,212,0.1)] scifi-clip"
@@ -2336,49 +2530,67 @@ export default function JobDetailsPage() {
                     <div className="lg:col-span-4 space-y-8">
                         <HUDFrame title="OPERATIONAL LOGS" className="max-h-[600px] flex flex-col">
                             <div className="p-4 flex-1 overflow-hidden flex flex-col">
-                                <div className="flex items-center justify-between mb-4">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
-                                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Live Agent Stream</span>
-                                    </div>
-                                    <span className="text-[10px] font-mono text-slate-700">{agentLogs.length} EVENTS</span>
-                                </div>
-                                <div className="flex-1 overflow-auto custom-scroll pr-2">
-                                    <AgentLogPanel
-                                        logs={agentLogs}
-                                        loading={agentLogsLoading && agentLogs.length === 0}
-                                        jobId={job?.job_id || jobId}
-                                        envelopeId={envelopeId}
-                                        agentId={envelope?.identity_context?.identity_fingerprint || job?.identity_fingerprint || job?.agent_id || job?.requested_agent_id}
-                                    />
-                                </div>
+                                {(() => {
+                                    const stepsByVersion = splitStepsByVersion(steps);
+                                    const displaySteps = stepsByVersion.get(activeVersionLabel) || [];
+                                    const filteredLogs = agentLogs.filter(log => {
+                                        if (log.step_id) {
+                                            return displaySteps.some(s => s.step_id === log.step_id);
+                                        }
+                                        return true;
+                                    });
+
+                                    return (
+                                        <>
+                                            <div className="flex items-center justify-between mb-4">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
+                                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Live Agent Stream</span>
+                                                </div>
+                                                <span className="text-[10px] font-mono text-slate-700">{filteredLogs.length} EVENTS</span>
+                                            </div>
+                                            <div className="flex-1 overflow-auto custom-scroll pr-2">
+                                                <AgentLogPanel
+                                                    logs={filteredLogs}
+                                                    loading={agentLogsLoading && agentLogs.length === 0}
+                                                    jobId={job?.job_id || jobId}
+                                                    envelopeId={envelopeId}
+                                                    agentId={envelope?.identity_context?.identity_fingerprint || job?.identity_fingerprint || job?.agent_id || job?.requested_agent_id}
+                                                />
+                                            </div>
+                                        </>
+                                    );
+                                })()}
                             </div>
                         </HUDFrame>
 
                         <HUDFrame title="DATA ARTIFACTS">
                             <div className="p-4 space-y-3">
-                                {artifacts.length > 0 ? artifacts.map((artifact, i) => (
-                                    <div
-                                        key={artifact.id || i}
-                                        className="p-3 bg-white/[0.03] border border-white/5 flex items-center gap-3 hover:bg-white/[0.05] transition-colors cursor-pointer group"
-                                        onClick={() => setViewingArtifact({ title: artifact.title || artifact.artifact_type, content: artifact.artifact_content })}
-                                    >
-                                        <div className="w-8 h-8 flex items-center justify-center border border-emerald-500/30 bg-emerald-500/5 text-emerald-400 scifi-clip-sm">
-                                            <FileText className="w-4 h-4" />
+                                {(() => {
+                                    const filteredArtifacts = filterArtifactsByVersion(artifacts, activeVersionLabel);
+                                    return filteredArtifacts.length > 0 ? filteredArtifacts.map((artifact, i) => (
+                                        <div
+                                            key={artifact.id || i}
+                                            className="p-3 bg-white/[0.03] border border-white/5 flex items-center gap-3 hover:bg-white/[0.05] transition-colors cursor-pointer group"
+                                            onClick={() => setViewingArtifact({ title: artifact.title || artifact.artifact_type, content: artifact.artifact_content })}
+                                        >
+                                            <div className="w-8 h-8 flex items-center justify-center border border-emerald-500/30 bg-emerald-500/5 text-emerald-400 scifi-clip-sm">
+                                                <FileText className="w-4 h-4" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-[10px] font-black text-white uppercase truncate group-hover:text-cyan-400 transition-colors">
+                                                    {artifact.title || (artifact.artifact_type ? artifact.artifact_type.replace(/_/g, ' ') : 'DATA_MANIFEST')}
+                                                </p>
+                                                <p className="text-[10px] font-mono text-slate-600 uppercase tracking-tighter">
+                                                    {artifact.produced_by_agent || 'SYSTEM'} / {new Date(artifact.created_at).toLocaleTimeString()}
+                                                </p>
+                                            </div>
+                                            <ChevronDown className="w-3 h-3 text-slate-700 -rotate-90 group-hover:text-cyan-500 transition-colors" />
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-[10px] font-black text-white uppercase truncate group-hover:text-cyan-400 transition-colors">
-                                                {artifact.title || (artifact.artifact_type ? artifact.artifact_type.replace(/_/g, ' ') : 'DATA_MANIFEST')}
-                                            </p>
-                                            <p className="text-[10px] font-mono text-slate-600 uppercase tracking-tighter">
-                                                {artifact.produced_by_agent || 'SYSTEM'} / {new Date(artifact.created_at).toLocaleTimeString()}
-                                            </p>
-                                        </div>
-                                        <ChevronDown className="w-3 h-3 text-slate-700 -rotate-90 group-hover:text-cyan-500 transition-colors" />
-                                    </div>
-                                )) : (
-                                    <div className="text-center py-6 opacity-20 italic text-[10px] uppercase tracking-widest">Zero artifacts produced</div>
-                                )}
+                                    )) : (
+                                        <div className="text-center py-6 opacity-20 italic text-[10px] uppercase tracking-widest">Zero artifacts produced</div>
+                                    );
+                                })()}
                             </div>
                         </HUDFrame>
 

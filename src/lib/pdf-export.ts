@@ -21,16 +21,25 @@ const C = {
 
 /** Strip characters outside WinAnsi (pdf-lib Helvetica range). */
 function sanitize(s: string): string {
-    return s.replace(/[^\x20-\xFF]/g, (ch) => {
-        // Preserve common typographic replacements for standard PDF font compatibility
-        const map: Record<string, string> = {
-            '\u2014': '--', '\u2013': '-', '\u2018': "'", '\u2019': "'",
-            '\u201C': '"', '\u201D': '"', '\u2026': '...', '\u2022': '*',
-            '\u00B7': '-', '\u2212': '-', '\u00A0': ' ',
-            '\u2122': '™',
-        };
-        return map[ch] ?? '?';
-    });
+    const map: Record<string, string> = {
+        '\u2014': '--', '\u2013': '-', '\u2018': "'", '\u2019': "'",
+        '\u201C': '"', '\u201D': '"', '\u2026': '...', '\u2022': '*',
+        '\u00B7': '-', '\u2212': '-', '\u00A0': ' ',
+        '\u2122': '™',
+    };
+    
+    let result = '';
+    for (let i = 0; i < s.length; i++) {
+        const ch = s[i];
+        if (map[ch] !== undefined) {
+            result += map[ch];
+        } else if (ch.charCodeAt(0) >= 32 && ch.charCodeAt(0) <= 255) {
+            result += ch;
+        } else {
+            result += ' ';
+        }
+    }
+    return result.replace(/\s+/g, ' ');
 }
 
 /** Wrap a string into lines that fit within maxWidth at fontSize. */

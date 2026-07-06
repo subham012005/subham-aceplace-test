@@ -78,7 +78,7 @@ export function splitStepsByVersion(steps: any[]): Map<number, any[]> {
             // _cont_1_ means it was created for version 2 (continuation_count = 1 → nextVersion = 1+1 = 2? 
             // Actually nextVersion = currentContinuationCount + 1 and step ids use nextVersion directly)
             // e.g., step_plan_cont_2_<ts> → belongs to Version 2
-            const v = parseInt(match[1], 10);
+            const v = parseInt(match[1], 10) + 1;
             if (!map.has(v)) map.set(v, []);
             map.get(v)!.push(step);
         } else {
