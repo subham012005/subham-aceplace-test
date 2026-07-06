@@ -69,16 +69,6 @@ export function getDb(): admin.firestore.Firestore {
        return dbInstance;
     }
 
-    if (process.env.VITEST) {
-      try {
-        const { memoryDb } = require("./__tests__/memory-db");
-        if (memoryDb) {
-           dbInstance = memoryDb;
-           return dbInstance;
-        }
-      } catch (e: any) { }
-    }
-
     dbInstance = initializeRuntimeDb();
     return dbInstance;
 }

@@ -22,6 +22,7 @@ const acelogic_guard_1 = require("./acelogic-guard");
 const batch_execution_guard_1 = require("./batch-execution-guard");
 const lease_heartbeat_1 = require("./lease-heartbeat");
 const emitRuntimeMetric_1 = require("./telemetry/emitRuntimeMetric");
+const debug_dumper_1 = require("./debug-dumper");
 async function emitSafe(p) {
     try {
         await (0, emitRuntimeMetric_1.emitRuntimeMetric)(p);
@@ -363,6 +364,7 @@ async function runEnvelopeParallel(params) {
     if (!boot.exists)
         throw new Error("ENVELOPE_NOT_FOUND");
     const first = boot.data();
+    await (0, debug_dumper_1.triggerJobDebugDump)(envelope_id).catch(() => undefined);
     // Hard guard: envelope must have steps before we attempt execution.
     (0, guards_1.assertEnvelopeHasSteps)(first);
     // Hard guard: assert that this instance actually owns the queue claim
@@ -639,6 +641,7 @@ async function runEnvelopeParallel(params) {
                 throw err;
             }
         }
+        await (0, debug_dumper_1.triggerJobDebugDump)(envelope_id).catch(() => undefined);
     }
 }
 //# sourceMappingURL=parallel-runner.js.map

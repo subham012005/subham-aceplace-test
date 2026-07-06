@@ -14,6 +14,13 @@ export interface LLMUsage {
     provider: "anthropic" | "openai";
     cost: number;
 }
+export interface ParsedContinuation {
+    originalMission: string;
+    priorDeliverableStr: string;
+    continuationInstructions: string;
+    version: number;
+}
+export declare function parseContinuationPrompt(prompt: string): ParsedContinuation | null;
 export declare function executeFallbackStep(params: {
     envelope_id: string;
     step_id: string;

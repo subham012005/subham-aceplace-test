@@ -32,6 +32,12 @@ export interface ResurrectJobInput {
     reason?: string;
 }
 
+export interface ContinueJobInput {
+    job_id: string;
+    user_id?: string;
+    instruction: string;
+}
+
 export interface ForkSimulateInput {
     job_id: string;
     identity_id: string;
@@ -473,12 +479,22 @@ export const workflowEngine = {
                     //                 agent-engine was down, LLM timeout, etc.)
                     // Completed steps are always preserved — never re-run them.
                     const steps: any[] = envData.steps || [];
+                    let hasReady = false;
                     const resetSteps = steps.map((s: any) => {
-                        if (s.status === "executing" || s.status === "failed") {
+                        if (s.status === "executing" || s.status === "failed" || s.status === "ready") {
+                            hasReady = true;
                             return { ...s, status: "ready" };
                         }
                         return s;
                     });
+
+                    // If no steps are ready/executing/failed (e.g. all pending), reset the first step to ready to kickstart the job
+                    if (!hasReady) {
+                        const firstNonCompleted = resetSteps.find((s: any) => s.status !== "completed");
+                        if (firstNonCompleted) {
+                            firstNonCompleted.status = "ready";
+                        }
+                    }
 
                     const envResurrectionCount = Number(envData.resurrection_count || 0);
                     
@@ -1053,5 +1069,346 @@ export const workflowEngine = {
 
         await batch.commit();
         return { success: true };
-    }
+    },
+
+    // ─── Continue Job (Edit / Continue) ──────
+    async continueJob(input: ContinueJobInput) {
+        const db = ensureDb();
+        const now = new Date().toISOString();
+
+        if (!input.job_id) throw new Error("missing_job_id");
+        if (!input.instruction?.trim()) throw new Error("missing_instruction");
+
+        const instruction = input.instruction.trim();
+
+        // ── Fetch the job ──────────────────────────────────────────────────
+        let jobRef = db.collection("jobs").doc(input.job_id);
+        let jobDoc = await jobRef.get();
+
+        if (!jobDoc.exists) {
+            const snap = await db.collection("jobs").where("job_id", "==", input.job_id).limit(1).get();
+            if (snap.empty) throw new Error("JOB_NOT_FOUND");
+            jobRef = snap.docs[0].ref;
+            jobDoc = snap.docs[0] as any;
+        }
+
+        const jobData = jobDoc.data()!;
+        const envelopeId: string | null =
+            (jobData.execution_id as string | undefined) ||
+            (jobData.envelope_id as string | undefined) ||
+            null;
+
+
+        // ── Ownership check ────────────────────────────────────────────────
+        if (input.user_id && jobData.user_id !== input.user_id) {
+            throw new Error("UNAUTHORIZED");
+        }
+
+        // ── State validation — only allow continuation of "finished" work ──
+        const CONTINUABLE_STATES = ["approved", "graded", "awaiting_approval", "completed", "awaiting_human", "executing", "in_progress", "grading"];
+        const currentStatus = String(jobData.status || "").toLowerCase();
+        if (!CONTINUABLE_STATES.includes(currentStatus)) {
+            throw new Error(
+                `INVALID_STATE: Edit/Continue not allowed in state '${jobData.status}'. ` +
+                `Requires: ${CONTINUABLE_STATES.join(", ")}.`
+            );
+        }
+
+        const currentContinuationCount = Number(jobData.continuation_count || 0);
+        const nextVersion = currentContinuationCount + 1;
+
+        // ── Snapshot current artifact to artifact_versions sub-collection ──
+        // This preserves full artifact lineage before agents overwrite it.
+        try {
+            let currentArtifact =
+                jobData.runtime_context?.final_result ||
+                jobData.runtime_context?.worker_result ||
+                jobData.artifact ||
+                null;
+
+            if (!currentArtifact && envelopeId) {
+                const envDoc = await db.collection("execution_envelopes").doc(envelopeId).get();
+                if (envDoc.exists) {
+                    const envData = envDoc.data()!;
+                    const workerSteps = (envData.steps || []).filter(
+                        (s: any) =>
+                            s.role === "Worker" &&
+                            (s.step_type === "produce_artifact" || s.step_type === "artifact_produce") &&
+                            s.status === "completed"
+                    );
+                    const lastWorkerStep = workerSteps[workerSteps.length - 1];
+                    const artId = lastWorkerStep?.output_ref?.artifact_id || lastWorkerStep?.output_ref;
+                    if (artId && typeof artId === "string") {
+                        const artDoc = await db.collection("artifacts").doc(artId).get();
+                        if (artDoc.exists) {
+                            currentArtifact = artDoc.data()?.artifact_content || null;
+                        }
+                    }
+                }
+            }
+
+            if (currentArtifact) {
+                await db
+                    .collection("jobs")
+                    .doc(input.job_id)
+                    .collection("artifact_versions")
+                    .doc(`v${currentContinuationCount}`) // v0 = original, v1 = after first edit, etc.
+                    .set({
+                        version: currentContinuationCount,
+                        created_at: now,
+                        artifact_content: currentArtifact,
+                        produced_by: currentContinuationCount === 0 ? "initial" : "continuation",
+                        continuation_instruction:
+                            currentContinuationCount === 0 ? null : (jobData.continuation_reason || null),
+                    });
+            }
+        } catch (snapshotErr: any) {
+            // Non-fatal: log and continue. Lineage snapshot failure should NOT block execution.
+            console.warn("[CONTINUE] Artifact version snapshot failed:", snapshotErr.message);
+        }
+
+        // ── Resolve envelope ───────────────────────────────────────────────
+
+        // ── Build continuation root task (context window managed) ──────────
+        // Strategy: include original prompt always; include prior artifact summary
+        // (full if under 4000 chars, otherwise truncated with note).
+        const originalPrompt = jobData.prompt || "";
+        let priorArtifactContext = "";
+
+        try {
+            let raw =
+                jobData.runtime_context?.final_result ||
+                jobData.runtime_context?.worker_result ||
+                jobData.artifact ||
+                null;
+
+            if (!raw && envelopeId) {
+                const envDoc = await db.collection("execution_envelopes").doc(envelopeId).get();
+                if (envDoc.exists) {
+                    const envData = envDoc.data()!;
+                    const workerSteps = (envData.steps || []).filter(
+                        (s: any) =>
+                            s.role === "Worker" &&
+                            (s.step_type === "produce_artifact" || s.step_type === "artifact_produce") &&
+                            s.status === "completed"
+                    );
+                    const lastWorkerStep = workerSteps[workerSteps.length - 1];
+                    const artId = lastWorkerStep?.output_ref?.artifact_id || lastWorkerStep?.output_ref;
+                    if (artId && typeof artId === "string") {
+                        const artDoc = await db.collection("artifacts").doc(artId).get();
+                        if (artDoc.exists) {
+                            raw = artDoc.data()?.artifact_content || null;
+                        }
+                    }
+                }
+            }
+
+            if (raw) {
+                const serialized = typeof raw === "string" ? raw : JSON.stringify(raw, null, 2);
+                const MAX_ARTIFACT_CHARS = 150000;
+                if (serialized.length <= MAX_ARTIFACT_CHARS) {
+                    priorArtifactContext = serialized;
+                } else {
+                    priorArtifactContext =
+                        serialized.slice(0, MAX_ARTIFACT_CHARS) +
+                        `\n\n[...truncated — ${serialized.length - MAX_ARTIFACT_CHARS} additional characters omitted for context window management. Full artifact preserved in artifact_versions/v${currentContinuationCount}]`;
+                }
+            }
+        } catch {
+            priorArtifactContext = "[Prior artifact unavailable — proceed from original mission context]";
+        }
+
+        const continuationRootTask = [
+            `[CONTINUATION TASK — Version ${nextVersion}]`,
+            "",
+            "ORIGINAL MISSION:",
+            originalPrompt,
+            "",
+            priorArtifactContext
+                ? `PRIOR DELIVERABLE (v${currentContinuationCount}):\n${priorArtifactContext}`
+                : "PRIOR DELIVERABLE: Not available.",
+            "",
+            "OPERATOR CONTINUATION INSTRUCTIONS:",
+            instruction,
+            "",
+            "CONTINUITY DIRECTIVE:",
+            "Preserve all prior work. Extend and revise only as directed. Maintain artifact lineage. " +
+                "Do NOT restart from scratch — build upon the prior deliverable.",
+        ].join("\n");
+
+        // ── Reset envelope so the runtime can re-enter ─────────────────────
+        if (envelopeId) {
+            try {
+                const envRef = db.collection("execution_envelopes").doc(envelopeId);
+                const envDoc = await envRef.get();
+
+                if (envDoc.exists) {
+                    const envData = envDoc.data()!;
+                    const existingSteps: any[] = envData.steps || [];
+
+                    // Find the last complete step to chain the next cycle
+                    const lastCompleteStep = [...existingSteps]
+                        .reverse()
+                        .find(s => s.step_type === "complete");
+                    const dependency = lastCompleteStep ? [lastCompleteStep.step_id] : [];
+
+                    // Plan a new execution cycle for the continuation
+                    const planStepId = `step_plan_cont_${nextVersion}_${Date.now()}`;
+                    const assignStepId = `step_assign_cont_${nextVersion}_${Date.now()}`;
+                    const artifactStepId = `step_artifact_cont_${nextVersion}_${Date.now()}`;
+                    const evalStepId = `step_eval_cont_${nextVersion}_${Date.now()}`;
+                    const completeStepId = `step_complete_cont_${nextVersion}_${Date.now()}`;
+
+                    const newSteps = [
+                        {
+                            step_id: planStepId,
+                            step_type: "plan",
+                            role: "COO",
+                            status: "ready",
+                            depends_on: dependency,
+                            assigned_agent_id: "agent_coo",
+                            input_ref: {},
+                            output_ref: {},
+                            retry_count: 0,
+                            max_retries: 2,
+                            created_at: now,
+                            updated_at: now,
+                        },
+                        {
+                            step_id: assignStepId,
+                            step_type: "assign",
+                            role: "Researcher",
+                            status: "pending",
+                            depends_on: [planStepId],
+                            assigned_agent_id: "agent_researcher",
+                            input_ref: {},
+                            output_ref: {},
+                            retry_count: 0,
+                            max_retries: 2,
+                            created_at: now,
+                            updated_at: now,
+                        },
+                        {
+                            step_id: artifactStepId,
+                            step_type: "produce_artifact",
+                            role: "Worker",
+                            status: "pending",
+                            depends_on: [assignStepId],
+                            assigned_agent_id: "agent_worker",
+                            input_ref: {},
+                            output_ref: {},
+                            retry_count: 0,
+                            max_retries: 2,
+                            created_at: now,
+                            updated_at: now,
+                        },
+                        {
+                            step_id: evalStepId,
+                            step_type: "evaluate",
+                            role: "Grader",
+                            status: "pending",
+                            depends_on: [artifactStepId],
+                            assigned_agent_id: "agent_grader",
+                            input_ref: {},
+                            output_ref: {},
+                            retry_count: 0,
+                            max_retries: 2,
+                            created_at: now,
+                            updated_at: now,
+                        },
+                        {
+                            step_id: completeStepId,
+                            step_type: "complete",
+                            role: "COO",
+                            status: "pending",
+                            depends_on: [evalStepId],
+                            assigned_agent_id: "agent_coo",
+                            input_ref: {},
+                            output_ref: {},
+                            retry_count: 0,
+                            max_retries: 2,
+                            created_at: now,
+                            updated_at: now,
+                        }
+                    ];
+
+                    await envRef.update({
+                        status: "created",
+                        prompt: continuationRootTask,
+                        steps: [...existingSteps, ...newSteps],
+                        updated_at: now,
+                    });
+
+                    const { triggerJobDebugDump } = await import("@aceplace/runtime-core");
+                    await triggerJobDebugDump(envelopeId).catch(() => undefined);
+                }
+
+                // Reset the execution_queue entry so the worker poll loop picks it up
+                const queueRef = db.collection(COLLECTIONS.EXECUTION_QUEUE).doc(envelopeId);
+                const queueDoc = await queueRef.get();
+
+                if (queueDoc.exists) {
+                    await queueRef.update({
+                        status: "queued",
+                        claimed_by: null,
+                        claimed_at: null,
+                        error: null,
+                        finalized_at: null,
+                        updated_at: now,
+                    });
+                } else {
+                    await queueRef.set({
+                        envelope_id: envelopeId,
+                        status: "queued",
+                        created_at: now,
+                        updated_at: now,
+                    });
+                }
+            } catch (envErr: any) {
+                console.warn("[CONTINUE] Envelope/queue reset failed:", envErr.message);
+            }
+        }
+
+        // ── Update the job doc ─────────────────────────────────────────────
+        await jobRef.update({
+            prompt: continuationRootTask,
+            status: "queued",
+            continuation_count: nextVersion,
+            continuation_reason: instruction,
+            last_continuation_at: now,
+            is_continuation: true,
+            updated_at: now,
+        });
+
+        // ── Write governance trace ─────────────────────────────────────────
+        await db.collection("job_traces").add({
+            job_id: input.job_id,
+            user_id: jobData.user_id,
+            event_type: "OPERATOR_CONTINUATION",
+            message: `Operator issued continuation instructions (v${nextVersion}): ${
+                instruction.length > 120 ? instruction.slice(0, 120) + "..." : instruction
+            }`,
+            metadata: {
+                continuation_count: nextVersion,
+                instruction_preview: instruction.slice(0, 300),
+                prior_status: currentStatus,
+                envelope_id: envelopeId,
+            },
+            created_at: now,
+        });
+
+        return {
+            success: true,
+            job_id: input.job_id,
+            user_id: jobData.user_id as string,
+            continuation_count: nextVersion,
+            envelope_id: envelopeId,
+            requested_agent_id:
+                (jobData.requested_agent_id as string | undefined) ||
+                (jobData.assigned_agent_id as string | undefined) ||
+                "agent_coo",
+            continuation_root_task: continuationRootTask,
+            message: undefined as undefined,
+        };
+    },
 };

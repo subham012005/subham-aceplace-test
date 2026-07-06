@@ -145,3 +145,4 @@ export {
   TIER_DEFINITIONS
 } from "./constants";
 export type { LicenseManifest } from "./acelogic/types";
+export { triggerJobDebugDump } from "./debug-dumper";

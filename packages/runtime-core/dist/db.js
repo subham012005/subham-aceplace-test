@@ -53,7 +53,7 @@ function initializeRuntimeDb() {
         db.settings({ ignoreUndefinedProperties: true });
         return db;
     }
-    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT;
     const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
     const privateKey = process.env.FIREBASE_PRIVATE_KEY;
     if (!clientEmail || !privateKey) {
@@ -64,6 +64,9 @@ function initializeRuntimeDb() {
         cleanedKey = cleanedKey.substring(1, cleanedKey.length - 1);
     }
     const formattedPrivateKey = cleanedKey.replace(/\\n/g, '\n');
+    if (!projectId) {
+        throw new Error("[RUNTIME-CORE] Missing FIREBASE_PROJECT_ID or NEXT_PUBLIC_FIREBASE_PROJECT_ID environment variable.");
+    }
     admin.initializeApp({
         credential: admin.credential.cert({
             projectId,
@@ -90,16 +93,6 @@ function getDb() {
     if (globalDb) {
         dbInstance = globalDb;
         return dbInstance;
-    }
-    if (process.env.VITEST) {
-        try {
-            const { memoryDb } = require("./__tests__/memory-db");
-            if (memoryDb) {
-                dbInstance = memoryDb;
-                return dbInstance;
-            }
-        }
-        catch (e) { }
     }
     dbInstance = initializeRuntimeDb();
     return dbInstance;

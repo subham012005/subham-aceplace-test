@@ -68,6 +68,22 @@ export function useJobActions() {
         }
     }, []);
 
+    const continueJob = useCallback(async (jobId: string, instruction: string, onOptimistic?: () => void) => {
+        setIsProcessing(true);
+        setError(null);
+        if (onOptimistic) onOptimistic();
+        try {
+            await aceApi.continueJob(jobId, instruction);
+            const userId = auth.currentUser?.uid;
+            if (userId) await incrementUserRequestCount(userId);
+        } catch (err: any) {
+            setError(err.message);
+            throw err;
+        } finally {
+            setIsProcessing(false);
+        }
+    }, []);
+
     const clearError = useCallback(() => setError(null), []);
 
     return {
@@ -75,6 +91,7 @@ export function useJobActions() {
         rejectJob,
         resurrectJob,
         simulateFork,
+        continueJob,
         isProcessing,
         error,
         clearError

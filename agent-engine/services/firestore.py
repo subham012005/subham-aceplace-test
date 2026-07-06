@@ -326,6 +326,22 @@ def get_artifact(artifact_id: str) -> Optional[dict]:
     if not artifact_id:
         return None
     db = get_db()
+    if "," in str(artifact_id):
+        parts = [p.strip() for p in str(artifact_id).split(",") if p.strip()]
+        contents = []
+        last_artifact = None
+        for p in parts:
+            doc = db.collection(COLLECTION_ARTIFACTS).document(p).get()
+            if doc.exists:
+                art = doc.to_dict()
+                contents.append(art.get("artifact_content", ""))
+                last_artifact = art
+        if not contents:
+            return None
+        merged = dict(last_artifact) if last_artifact else {}
+        merged["artifact_content"] = "\n\n---\n\n".join(contents)
+        return merged
+
     doc = db.collection(COLLECTION_ARTIFACTS).document(str(artifact_id)).get()
     return doc.to_dict() if doc.exists else None
 

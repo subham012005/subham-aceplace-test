@@ -135,6 +135,11 @@ export interface Job {
     last_safe_step?: string;
     resume_allowed?: boolean;
     grade_status?: string;
+    // Edit / Continue (governed continuation)
+    continuation_count?: number;
+    continuation_reason?: string;
+    last_continuation_at?: string;
+    is_continuation?: boolean;
 }
 
 export interface ForkEvent {

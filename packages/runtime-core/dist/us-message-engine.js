@@ -8,6 +8,7 @@ exports.createUSMessage = createUSMessage;
 exports.storeUSMessage = storeUSMessage;
 exports.mapStepTypeToUSMessage = mapStepTypeToUSMessage;
 exports.handleUSMessage = handleUSMessage;
+exports.cleanPromptForGrader = cleanPromptForGrader;
 const crypto_1 = require("crypto");
 const db_1 = require("./db");
 const constants_1 = require("./constants");
@@ -75,12 +76,12 @@ function mapStepTypeToUSMessage(stepType) {
             throw new Error(`UNSUPPORTED_STEP_TYPE:${stepType}`);
     }
 }
-const AGENT_ENGINE_URL = process.env.AGENT_ENGINE_URL || "http://localhost:8001";
+const AGENT_ENGINE_URL = process.env.AGENT_ENGINE_URL || "http://127.0.0.1:8001";
 function isNetworkError(err) {
     const error = err;
     const msg = String(error?.message || error?.code || error || "").toLowerCase();
     const cause = String(error?.cause || "").toLowerCase();
-    const searchTerms = ["econnrefused", "fetch failed", "network", "unreachable", "eai_again", "etimedout"];
+    const searchTerms = ["econnrefused", "fetch failed", "network", "unreachable", "eai_again", "etimedout", "timeout", "aborted"];
     return searchTerms.some(term => msg.includes(term) || cause.includes(term));
 }
 function isBYOLLMError(err) {
@@ -212,6 +213,7 @@ async function handleTaskPlan(msg, envelope) {
                 input_ref: null,
                 message_id: null
             }),
+            signal: AbortSignal.timeout(300_000)
         });
         if (!res.ok) {
             throw new Error(`Agent Engine error: ${await res.text()}`);
@@ -281,6 +283,7 @@ async function handleTaskAssign(msg, envelope) {
                 input_ref: planArtifactRef,
                 message_id: null
             }),
+            signal: AbortSignal.timeout(300_000)
         });
         if (res.ok) {
             const result = await res.json();
@@ -431,6 +434,7 @@ async function handleArtifactProduce(msg, envelope) {
                 input_ref: inputRef,
                 message_id: null
             }),
+            signal: AbortSignal.timeout(300_000)
         });
         if (!res.ok) {
             const errText = await res.text();
@@ -509,13 +513,17 @@ async function handleEvaluation(msg, envelope) {
             return r;
         return null;
     };
+    const currentGraderStep = (envelope.steps || []).find(s => s.step_id === msg.execution.step_id);
+    const dependencies = currentGraderStep?.depends_on || [];
     const workerSteps = (envelope.steps || []).filter((s) => s.role === "Worker" &&
         (s.step_type === "produce_artifact" || s.step_type === "artifact_produce") &&
         s.status === "completed" &&
+        dependencies.includes(s.step_id) &&
         out(s));
     const artifactIds = workerSteps.map((s) => out(s)).filter(Boolean);
     const aggregatedContent = artifactIds.length > 0 ? await (0, decomposition_1.aggregateArtifacts)(artifactIds) : "";
     let graderArtifactId = null;
+    const graderPrompt = cleanPromptForGrader(envelope.prompt || "");
     console.log(`[#us#] Dispatching GRADER execution to Agent Engine: ${msg.execution.step_id}`);
     try {
         const res = await fetch(`${AGENT_ENGINE_URL}/execute-step`, {
@@ -529,11 +537,12 @@ async function handleEvaluation(msg, envelope) {
                 step_id: msg.execution.step_id,
                 step_type: "evaluation",
                 agent_id: msg.identity.agent_id,
-                prompt: envelope.prompt || "",
+                prompt: graderPrompt,
                 org_id: envelope.org_id,
                 input_ref: artifactIds.join(","),
                 message_id: null
             }),
+            signal: AbortSignal.timeout(300_000)
         });
         if (!res.ok) {
             throw new Error(`Agent Engine error: ${await res.text()}`);
@@ -582,7 +591,7 @@ async function handleEvaluation(msg, envelope) {
                     step_type: "evaluation",
                     agent_id: msg.identity.agent_id,
                     identity_fingerprint: msg.identity.identity_fingerprint,
-                    prompt: envelope.prompt || "",
+                    prompt: graderPrompt,
                     input_ref: artifactIds.join(","),
                     org_id: envelope.org_id,
                     fallback_approved: metadata.fallback_approved,
@@ -719,5 +728,42 @@ async function attachArtifactToEnvelope(envelopeId, artifactId) {
             updated_at: new Date().toISOString(),
         });
     });
+}
+function cleanPromptForGrader(prompt) {
+    if (!prompt || !prompt.includes("[CONTINUATION TASK —")) {
+        return prompt;
+    }
+    let originalMission = "";
+    const missionStart = prompt.indexOf("ORIGINAL MISSION:");
+    if (missionStart !== -1) {
+        const nextSectionStart = prompt.indexOf("PRIOR DELIVERABLE", missionStart);
+        if (nextSectionStart !== -1) {
+            originalMission = prompt.slice(missionStart + "ORIGINAL MISSION:".length, nextSectionStart).trim();
+        }
+        else {
+            originalMission = prompt.slice(missionStart + "ORIGINAL MISSION:".length).trim();
+        }
+    }
+    let continuationInstructions = "";
+    const instructionsStart = prompt.indexOf("OPERATOR CONTINUATION INSTRUCTIONS:");
+    if (instructionsStart !== -1) {
+        const nextSectionStart = prompt.indexOf("CONTINUITY DIRECTIVE:", instructionsStart);
+        if (nextSectionStart !== -1) {
+            continuationInstructions = prompt.slice(instructionsStart + "OPERATOR CONTINUATION INSTRUCTIONS:".length, nextSectionStart).trim();
+        }
+        else {
+            continuationInstructions = prompt.slice(instructionsStart + "OPERATOR CONTINUATION INSTRUCTIONS:".length).trim();
+        }
+    }
+    if (originalMission || continuationInstructions) {
+        return [
+            "ORIGINAL MISSION:",
+            originalMission || "Not specified.",
+            "",
+            "ADDITIONAL INSTRUCTIONS / MODIFICATIONS:",
+            continuationInstructions || "None."
+        ].join("\n");
+    }
+    return prompt;
 }
 //# sourceMappingURL=us-message-engine.js.map

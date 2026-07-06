@@ -18,7 +18,8 @@ import {
     Settings as SettingsIcon,
     Zap,
     AlertTriangle,
-    ChevronRight
+    ChevronRight,
+    Edit2
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { HUDFrame } from "./HUDFrame";
@@ -26,9 +27,11 @@ import { MarkdownReport } from "./MarkdownReport";
 import { KernelStatusBadge } from "./KernelStatusBadge";
 import { StepGraph } from "./StepGraph";
 import { EnvelopeInspector } from "./EnvelopeInspector";
+import { ExecutionVersionPanel, VersionGradeData } from "./ExecutionVersionPanel";
 import { Job, useJob, useForkProtection, useJobArtifacts } from "@/hooks/useJobs";
 import { useEnvelope } from "@/hooks/useEnvelope";
 import { useJobActions } from "@/hooks/useJobActions";
+import { useArtifactVersions, splitStepsByVersion } from "@/hooks/useArtifactVersions";
 import { db, auth } from "@/lib/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
 import { cn } from "@/lib/utils";
@@ -47,12 +50,15 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
     const displayJob = job || initialJob;
     const router = useRouter();
     const [activeTab, setActiveTab] = useState<"execution" | "grading" | "governance" | "resurrection" | "nexus">("execution");
-    const { approveJob, rejectJob, resurrectJob, simulateFork, isProcessing, error, clearError } = useJobActions();
+    const { approveJob, rejectJob, resurrectJob, simulateFork, continueJob, isProcessing, error, clearError } = useJobActions();
     const { artifacts } = useJobArtifacts(displayJob.job_id);
+    const { versions: artifactVersions } = useArtifactVersions(displayJob.job_id);
     const [rejectReason, setRejectReason] = useState("");
     const [showRejectInput, setShowRejectInput] = useState(false);
     const [resurrectReason, setResurrectReason] = useState("");
     const [showResurrectInput, setShowResurrectInput] = useState(false);
+    const [showEditContinueInput, setShowEditContinueInput] = useState(false);
+    const [editContinueInstruction, setEditContinueInstruction] = useState("");
     const [collectionsStatus, setCollectionsStatus] = useState<Record<string, any>>({});
 
     // Fork Protection logic
@@ -115,6 +121,21 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
             await resurrectJob(displayJob.job_id, resurrectReason, () => {
                 setShowResurrectInput(false);
                 setResurrectReason("");
+                refresh();
+            });
+        } catch {
+            refresh();
+        }
+    };
+
+    const handleContinue = async () => {
+        if (!editContinueInstruction.trim()) {
+            return;
+        }
+        try {
+            await continueJob(displayJob.job_id, editContinueInstruction, () => {
+                setShowEditContinueInput(false);
+                setEditContinueInstruction("");
                 refresh();
             });
         } catch {
@@ -704,124 +725,155 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                 </div>
                             </HUDFrame>
 
-                            <HUDFrame
-                                title="Artifact Output"
-                                variant="glass"
-                                isProcessing={displayJob.status === 'in_progress'}
-                                headerAction={
-                                    <button
-                                        disabled={
-                                            isProcessing ||
-                                            !artifactContent ||
-                                            artifactContent.length < 50 ||
-                                            ['grading', 'awaiting_approval', 'approved', 'completed', 'graded'].indexOf(displayJob.status) === -1
+                            {/* ── Versioned Execution Panels ── */}
+                            {(() => {
+                                const continuationCount = displayJob.continuation_count || 0;
+                                const isJobActive = ['queued', 'in_progress', 'executing', 'grading', 'coo_planning', 'research_execution', 'worker_execution'].includes(displayJob.status);
+                                const allSteps = steps || [];
+                                const stepsByVersion = splitStepsByVersion(allSteps);
+
+                                // Total token numbers
+                                const totalTokens = Number(typeof displayJob.token_usage === 'object' ? displayJob.token_usage?.total_tokens ?? 0 : displayJob.token_usage ?? 0);
+                                const totalCost = Number((typeof displayJob.token_usage === 'object' ? displayJob.token_usage?.cost : null) ?? displayJob.cost ?? 0);
+                                const totalVersions = continuationCount + 1;
+
+                                // Build version panels. Version 1 = the original run.
+                                // Versions 2…N = each Edit/Continue cycle.
+                                const panels = Array.from({ length: totalVersions }, (_, idx) => {
+                                    const versionLabel = idx + 1; // 1-indexed
+                                    const isLastVersion = versionLabel === totalVersions;
+                                    const isActiveVersion = isLastVersion && isJobActive;
+
+                                    // For historical versions (not last), get artifact from sub-collection
+                                    // For the current version, use the live job data
+                                    let vArtifactContent: string | null = null;
+                                    let vPlanContent: any = null;
+                                    let vResearchContent: any = null;
+                                    let vGradeData: VersionGradeData | null = null;
+
+                                    if (isLastVersion) {
+                                        // Live current version
+                                        vArtifactContent = artifactContent;
+                                        vPlanContent = displayJob.runtime_context?.plan ?? null;
+                                        vResearchContent = displayJob.runtime_context?.research_result ?? null;
+                                        vGradeData = graderData ? {
+                                            score: graderData.score,
+                                            pass_fail: (graderData.pass_fail === 'pass' ? 'pass' : 'fail') as 'pass' | 'fail',
+                                            reasoning_summary: typeof graderData.reasoning_summary === 'object' ? JSON.stringify(graderData.reasoning_summary) : String(graderData.reasoning_summary || ''),
+                                            risk_flags: graderData.risk_flags || [],
+                                        } : null;
+                                    } else {
+                                        // Historical — pull from artifact_versions sub-collection snapshot
+                                        // versionLabel 1 = v0 doc, versionLabel 2 = v1 doc, etc.
+                                        const savedVersion = artifactVersions.find(v => v.version === idx);
+                                        if (savedVersion?.artifact_content) {
+                                            vArtifactContent = formatOutputToMarkdown(savedVersion.artifact_content);
                                         }
-                                        onClick={() => {
-                                            let md = `# Intelligence Report: ${displayJob.job_id}\n\n`;
-                                            md += `## Audit Metadata\n\n`;
-                                            md += `* **Job ID:** ${displayJob.job_id}\n`;
-                                            md += `* **Envelope ID:** ${envelope?.envelope_id || displayJob.envelope_id || displayJob.execution_id || 'N/A'}\n`;
-                                            md += `* **Status:** ${displayJob.status?.toUpperCase() || 'UNKNOWN'}\n`;
-                                            md += `* **Neural Provider:** ${resolvedProvider.toUpperCase()}\n`;
-                                            md += `* **Compute Model:** ${resolvedModel}\n`;
-                                            md += `* **Compute Cost:** $${Number((typeof displayJob.token_usage === 'object' ? displayJob.token_usage?.cost : null) ?? displayJob.cost ?? 0).toFixed(6)}\n`;
-                                            md += `* **Token Usage:** ${Number(typeof displayJob.token_usage === 'object' ? displayJob.token_usage?.total_tokens ?? 0 : displayJob.token_usage ?? 0).toLocaleString()}\n`;
-                                            md += `* **Generated At:** ${new Date().toLocaleString()}\n\n`;
+                                        // For historical versions we don't have per-version plan/research stored,
+                                        // so leave those null (they'll show as completed placeholders).
+                                        // Grade data for historical: treat as passed if artifact exists
+                                        vGradeData = savedVersion?.artifact_content ? null : null;
+                                    }
 
-                                            if (displayJob.prompt) {
-                                                md += `## Strategic Intent\n\n`;
-                                                md += `> ${displayJob.prompt}\n\n`;
-                                            }
+                                    // Token split: divide evenly across versions as an estimate
+                                    const vTokens = totalVersions > 0 ? Math.round(totalTokens / totalVersions) : 0;
+                                    const vCost = totalVersions > 0 ? totalCost / totalVersions : 0;
 
-                                            if (displayJob.runtime_context?.plan) {
-                                                md += `## Strategic Plan\n\n`;
-                                                md += `${typeof displayJob.runtime_context.plan === 'string' ? displayJob.runtime_context.plan : JSON.stringify(displayJob.runtime_context.plan, null, 2)}\n\n`;
-                                            }
+                                    const vSteps = stepsByVersion.get(versionLabel) || [];
 
-                                            if (graderData) {
-                                                md += `## Governance Grading\n\n`;
-                                                md += `* **Score**: ${graderData.score.toFixed(1)}/10\n`;
-                                                md += `* **Verdict**: ${graderData.pass_fail?.toUpperCase() || 'N/A'}\n`;
-                                                const evaluationArtifact = artifacts.find(a => ['evaluation', 'grading', 'evaluate'].includes(a.artifact_type || ''));
-                                                const evaluationContent: any = (() => {
-                                                    const raw = evaluationArtifact?.artifact_content;
-                                                    if (!raw) return null;
-                                                    if (typeof raw === 'object') return raw;
-                                                    try { return JSON.parse(raw as string); } catch { return null; }
-                                                })();
-                                                const graderObj = evaluationContent || displayJob?.runtime_context?.grading_result || displayJob?.grading_result || displayJob?.grader_params || displayJob;
-                                                const rationale = graderObj?.reason || graderObj?.reasoning || graderObj?.reasoning_summary || graderObj?.summary || graderObj?.grading_summary || graderObj?.feedback || "*No reasoning provided.*";
-                                                if (rationale) md += `* **Evaluation Reason:** ${typeof rationale === 'object' ? JSON.stringify(rationale) : rationale}\n`;
-                                                if (graderData.risk_flags && Array.isArray(graderData.risk_flags) && graderData.risk_flags.length > 0) {
-                                                    md += `* **Risk Flags:** ${graderData.risk_flags.join(', ')}\n`;
-                                                }
-                                                md += `\n`;
-                                            }
+                                    // Instruction for this version
+                                    let instruction: string | null = null;
+                                    if (versionLabel > 1) {
+                                        // From saved version doc, or from job's continuation_reason for the last version
+                                        const savedVer = artifactVersions.find(v => v.version === idx - 1);
+                                        instruction = savedVer?.continuation_instruction
+                                            ?? (isLastVersion ? displayJob.continuation_reason ?? null : null);
+                                    }
 
-                                            let workerData: any = displayJob.runtime_context?.final_result || displayJob.runtime_context?.worker_result || displayJob.artifact;
-                                            if (typeof workerData === 'string' && workerData.trim().startsWith('{')) {
-                                                try { workerData = JSON.parse(workerData.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/i, '').trim()); } catch (e) { }
-                                            }
+                                    return (
+                                        <ExecutionVersionPanel
+                                            key={versionLabel}
+                                            versionNumber={versionLabel}
+                                            instruction={instruction}
+                                            artifactContent={vArtifactContent}
+                                            planContent={vPlanContent}
+                                            researchContent={vResearchContent}
+                                            gradeData={vGradeData}
+                                            tokenCount={vTokens}
+                                            tokenCost={vCost}
+                                            isActive={isActiveVersion}
+                                            isLive={isActiveVersion}
+                                            defaultOpen={isLastVersion}
+                                            steps={vSteps}
+                                        />
+                                    );
+                                });
 
-                                            if (workerData?.grounding_report) {
-                                                const gr = workerData.grounding_report;
-                                                md += `## Grounding & Verification\n\n`;
-                                                md += `* **Fabrication Check**: ${gr.fabrication_check && gr.fabrication_check !== 'UNKNOWN' ? gr.fabrication_check : ((gr.kb_chunks_cited > 0 || workerData._grounding_meta?.kb_chunks_used > 0) ? 'VERIFIED' : 'UNKNOWN')}\n`;
-                                                md += `* **Knowledge Density**: ${gr.kb_chunks_cited || workerData._grounding_meta?.kb_chunks_used || 0} Indexed Context Units\n`;
-                                                md += `* **Web Intelligence**: ${workerData._grounding_meta?.web_results_used || gr.web_sources_cited || 0} Web Sources\n\n`;
-                                            }
+                                return (
+                                    <div className="space-y-3">
+                                        {/* Version label header */}
+                                        <div className="flex items-center gap-2 px-1">
+                                            <div className="h-[1px] flex-1 bg-white/10" />
+                                            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-500/50">
+                                                {totalVersions > 1 ? `${totalVersions} Execution Cycles` : 'Execution Cycle'}
+                                            </span>
+                                            <div className="h-[1px] flex-1 bg-white/10" />
+                                        </div>
 
-                                            md += `## Final Deliverable Content\n\n`;
-                                            const pdfRawContent = displayJob.runtime_context?.final_result || displayJob.runtime_context?.worker_result || displayJob.artifact;
-                                            const pdfFormatted = pdfRawContent ? formatOutputToMarkdown(pdfRawContent) : (artifactContent || '');
-                                            md += pdfFormatted || "*No deliverable content was generated for this job.*";
-                                            md += `\n\n`;
+                                        {/* Version panels */}
+                                        {panels}
 
-                                            if (workerData?.key_conclusions && Array.isArray(workerData.key_conclusions) && workerData.key_conclusions.length > 0) {
-                                                md += `## Strategic Findings\n\n`;
-                                                workerData.key_conclusions.forEach((c: any, i: number) => {
-                                                    const conclusion = c.conclusion || (typeof c === 'string' ? c : '');
-                                                    md += `### Finding ${i + 1}: ${conclusion}\n\n`;
-                                                    if (c.evidence) md += `* **Evidence:** ${c.evidence}\n`;
-                                                    if (c.recommendation) md += `* **Recommendation:** ${c.recommendation}\n`;
-                                                    md += `\n`;
-                                                });
-                                            }
-
-                                            if (workerData?.source_references && Array.isArray(workerData.source_references) && workerData.source_references.length > 0) {
-                                                md += `## Source Provenance\n\n`;
-                                                workerData.source_references.forEach((ref: any) => {
-                                                    md += `* **[${ref.ref_id}] ${ref.title}** - ${ref.usage}\n`;
-                                                });
-                                                md += `\n`;
-                                            }
-
-                                            exportToPDF(md, `job-${displayJob.job_id}-full-report.pdf`);
-                                        }}
-                                        className={cn(
-                                            "flex items-center gap-1.5 px-2 py-1 border scifi-clip transition-all text-[10px] uppercase font-black tracking-wider",
-                                            ['awaiting_approval', 'graded', 'approved', 'completed'].includes(displayJob.status) && artifactContent
-                                                ? "text-cyan-500 border-cyan-500/50 hover:bg-cyan-500/10 cursor-target"
-                                                : "text-slate-500 border-white/10 opacity-50 cursor-not-allowed"
+                                        {/* ── Token Summary Row ── */}
+                                        {totalTokens > 0 && (
+                                            <div className="border border-white/5 bg-black/40 p-4 space-y-2">
+                                                <p className="text-[9px] uppercase font-black tracking-[0.3em] text-slate-600 mb-3">Token Usage Summary</p>
+                                                {Array.from({ length: totalVersions }, (_, idx) => {
+                                                    const vLabel = idx + 1;
+                                                    const vTok = totalVersions > 0 ? Math.round(totalTokens / totalVersions) : 0;
+                                                    const vCost = totalVersions > 0 ? totalCost / totalVersions : 0;
+                                                    return (
+                                                        <div key={vLabel} className="flex items-center justify-between">
+                                                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                                                Version {vLabel}
+                                                            </span>
+                                                            <div className="flex items-center gap-3">
+                                                                <span className="text-[10px] font-mono text-slate-400">
+                                                                    {vTok.toLocaleString()} tokens
+                                                                </span>
+                                                                {vCost > 0 && (
+                                                                    <span className="text-[10px] font-mono text-emerald-500/70">
+                                                                        ${vCost.toFixed(4)}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                                {totalVersions > 1 && (
+                                                    <>
+                                                        <div className="h-px bg-white/10 my-1" />
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-[10px] font-black text-white uppercase tracking-wider">
+                                                                Overall Total
+                                                            </span>
+                                                            <div className="flex items-center gap-3">
+                                                                <span className="text-[10px] font-mono text-white font-bold">
+                                                                    {totalTokens.toLocaleString()} tokens
+                                                                </span>
+                                                                {totalCost > 0 && (
+                                                                    <span className="text-[10px] font-mono text-emerald-400">
+                                                                        ${totalCost.toFixed(4)}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </>
+                                                )}
+                                            </div>
                                         )}
-                                        title={displayJob.status === 'awaiting_approval' ? "Save as PDF" : "Available when awaiting approval"}
-                                    >
-                                        <Download className="w-3 h-3" />
-                                        Save PDF
-                                    </button>
-                                }
-                            >
-                                {artifactContent ? (
-                                    <div className="bg-black/40 border border-white/5 p-4 scifi-clip">
-                                        <MarkdownReport content={artifactContent} />
                                     </div>
-                                ) : (
-                                    <div className="flex flex-col items-center justify-center p-12 text-slate-600 border border-dashed border-white/10 scifi-clip">
-                                        <RotateCw className="w-8 h-8 animate-spin mb-4 opacity-20" />
-                                        <p className="text-xs uppercase font-black tracking-widest">Waiting for execution stream...</p>
-                                    </div>
-                                )}
-                            </HUDFrame>
+                                );
+                            })()}
                         </div>
                     )}
 
@@ -1163,26 +1215,81 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                         </div>
                                     </div>
 
-                                    {(displayJob.status === "graded" || displayJob.status === "awaiting_approval") ? (
+                                    {(displayJob.status === "graded" || displayJob.status === "awaiting_approval" || (["executing", "in_progress", "grading"].includes(String(displayJob.status || "").toLowerCase()) && graderData)) ? (
                                         <div className="flex flex-col gap-4">
-                                            {!showRejectInput ? (
-                                                <div className="grid grid-cols-2 gap-4">
+                                            {!showRejectInput && !showEditContinueInput ? (
+                                                <div className="flex flex-col gap-3">
+                                                    {/* Row 1: Approve + Reject */}
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <button
+                                                            disabled={isProcessing}
+                                                            onClick={handleApprove}
+                                                            className="bg-emerald-500 hover:bg-emerald-400 text-black py-4 scifi-clip font-black text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 shadow-[0_0_30px_rgba(16,185,129,0.2)] cursor-target"
+                                                        >
+                                                            <CheckCircle2 className="w-4 h-4" />
+                                                            Approve Result
+                                                        </button>
+                                                        <button
+                                                            disabled={isProcessing}
+                                                            onClick={() => setShowRejectInput(true)}
+                                                            className="bg-rose-500/10 border border-rose-500/30 text-rose-500 py-4 scifi-clip font-black text-xs uppercase tracking-[0.2em] hover:bg-rose-500/20 transition-all flex items-center justify-center gap-2 cursor-target"
+                                                        >
+                                                            <X className="w-4 h-4" />
+                                                            Reject Result
+                                                        </button>
+                                                    </div>
+                                                    {/* Row 2: Edit / Continue */}
                                                     <button
                                                         disabled={isProcessing}
-                                                        onClick={handleApprove}
-                                                        className="bg-emerald-500 hover:bg-emerald-400 text-black py-4 scifi-clip font-black text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 shadow-[0_0_30px_rgba(16,185,129,0.2)] cursor-target"
+                                                        onClick={() => setShowEditContinueInput(true)}
+                                                        className="w-full bg-amber-500/10 border border-amber-500/30 text-amber-400 py-4 scifi-clip font-black text-xs uppercase tracking-[0.2em] hover:bg-amber-500/20 transition-all flex items-center justify-center gap-2 cursor-target"
                                                     >
-                                                        <CheckCircle2 className="w-4 h-4" />
-                                                        Approve Result
+                                                        <Edit2 className="w-4 h-4" />
+                                                        Edit / Continue
+                                                        {(displayJob.continuation_count || 0) > 0 && (
+                                                            <span className="ml-1 px-1.5 py-0.5 text-[9px] font-black bg-amber-500/20 border border-amber-500/30 tracking-widest">
+                                                                v{(displayJob.continuation_count || 0) + 1}
+                                                            </span>
+                                                        )}
                                                     </button>
-                                                    <button
-                                                        disabled={isProcessing}
-                                                        onClick={() => setShowRejectInput(true)}
-                                                        className="bg-rose-500/10 border border-rose-500/30 text-rose-500 py-4 scifi-clip font-black text-xs uppercase tracking-[0.2em] hover:bg-rose-500/20 transition-all flex items-center justify-center gap-2 cursor-target"
-                                                    >
-                                                        <X className="w-4 h-4" />
-                                                        Reject Result
-                                                    </button>
+                                                </div>
+                                            ) : showEditContinueInput ? (
+                                                <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
+                                                    <div className="space-y-2">
+                                                        <label className="text-[10px] uppercase font-black tracking-widest text-amber-500">Continuation Instructions Terminal</label>
+                                                        <textarea
+                                                            value={editContinueInstruction}
+                                                            onChange={(e) => setEditContinueInstruction(e.target.value)}
+                                                            placeholder="Describe what to add, change, or extend in the existing artifact..."
+                                                            className="w-full bg-black/40 border border-amber-500/20 scifi-clip p-4 text-sm font-mono text-amber-400 focus:outline-none focus:border-amber-500/50 resize-none h-32"
+                                                        />
+                                                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                                                            The existing execution envelope, ACEAGENT identities, and artifact lineage will be fully preserved. This creates Version {(displayJob.continuation_count || 0) + 1}.
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex gap-4">
+                                                        <button
+                                                            disabled={isProcessing || !editContinueInstruction.trim()}
+                                                            onClick={handleContinue}
+                                                            className="flex-1 bg-amber-500 text-black py-4 scifi-clip font-black text-xs uppercase tracking-[0.2em] transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-target flex items-center justify-center gap-2"
+                                                        >
+                                                            {isProcessing ? (
+                                                                <><div className="w-3.5 h-3.5 border-2 border-black/30 border-t-black rounded-full animate-spin" />Dispatching...</>
+                                                            ) : (
+                                                                <><Edit2 className="w-3.5 h-3.5" />Confirm Continuation</>
+                                                            )}
+                                                        </button>
+                                                        <button
+                                                            disabled={isProcessing}
+                                                            onClick={() => {
+                                                                setShowEditContinueInput(false);
+                                                                setEditContinueInstruction("");
+                                                            }}
+                                                            className="flex-1 bg-slate-800 text-slate-400 py-4 scifi-clip font-black text-xs uppercase tracking-[0.2em] transition-all cursor-target"
+                                                        >
+                                                            Abort
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             ) : (
                                                 <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
@@ -1208,6 +1315,72 @@ export function TaskDetail({ job: initialJob, userId, onClose, onUpdate }: TaskD
                                                             onClick={() => {
                                                                 setShowRejectInput(false);
                                                                 setRejectReason("");
+                                                            }}
+                                                            className="flex-1 bg-slate-800 text-slate-400 py-4 scifi-clip font-black text-xs uppercase tracking-[0.2em] transition-all cursor-target"
+                                                        >
+                                                            Abort
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : displayJob.status === "approved" || displayJob.status === "completed" ? (
+                                        // Approved/completed jobs — show Edit/Continue only
+                                        <div className="flex flex-col gap-4">
+                                            <div className="flex items-center gap-3 p-3 bg-emerald-500/5 border border-emerald-500/20">
+                                                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                                                <span className="text-xs text-emerald-400 font-black uppercase tracking-wider">
+                                                    {displayJob.status === "approved" ? "Result Approved" : "Execution Completed"}
+                                                    {(displayJob.continuation_count || 0) > 0 && (
+                                                        <span className="ml-2 text-amber-400">— v{displayJob.continuation_count} Continuations</span>
+                                                    )}
+                                                </span>
+                                            </div>
+                                            {!showEditContinueInput ? (
+                                                <button
+                                                    disabled={isProcessing}
+                                                    onClick={() => setShowEditContinueInput(true)}
+                                                    className="w-full bg-amber-500/10 border border-amber-500/30 text-amber-400 py-4 scifi-clip font-black text-xs uppercase tracking-[0.2em] hover:bg-amber-500/20 transition-all flex items-center justify-center gap-2 cursor-target shadow-[0_0_20px_rgba(245,158,11,0.1)]"
+                                                >
+                                                    <Edit2 className="w-4 h-4" />
+                                                    Edit / Continue
+                                                    {(displayJob.continuation_count || 0) > 0 && (
+                                                        <span className="ml-1 px-1.5 py-0.5 text-[9px] font-black bg-amber-500/20 border border-amber-500/30 tracking-widest">
+                                                            v{(displayJob.continuation_count || 0) + 1}
+                                                        </span>
+                                                    )}
+                                                </button>
+                                            ) : (
+                                                <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
+                                                    <div className="space-y-2">
+                                                        <label className="text-[10px] uppercase font-black tracking-widest text-amber-500">Continuation Instructions Terminal</label>
+                                                        <textarea
+                                                            value={editContinueInstruction}
+                                                            onChange={(e) => setEditContinueInstruction(e.target.value)}
+                                                            placeholder="Describe what to add, change, or extend in the existing artifact..."
+                                                            className="w-full bg-black/40 border border-amber-500/20 scifi-clip p-4 text-sm font-mono text-amber-400 focus:outline-none focus:border-amber-500/50 resize-none h-32"
+                                                        />
+                                                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                                                            The existing execution envelope, ACEAGENT identities, and artifact lineage will be fully preserved. This creates Version {(displayJob.continuation_count || 0) + 1}.
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex gap-4">
+                                                        <button
+                                                            disabled={isProcessing || !editContinueInstruction.trim()}
+                                                            onClick={handleContinue}
+                                                            className="flex-1 bg-amber-500 text-black py-4 scifi-clip font-black text-xs uppercase tracking-[0.2em] transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-target flex items-center justify-center gap-2"
+                                                        >
+                                                            {isProcessing ? (
+                                                                <><div className="w-3.5 h-3.5 border-2 border-black/30 border-t-black rounded-full animate-spin" />Dispatching...</>
+                                                            ) : (
+                                                                <><Edit2 className="w-3.5 h-3.5" />Confirm Continuation</>
+                                                            )}
+                                                        </button>
+                                                        <button
+                                                            disabled={isProcessing}
+                                                            onClick={() => {
+                                                                setShowEditContinueInput(false);
+                                                                setEditContinueInstruction("");
                                                             }}
                                                             className="flex-1 bg-slate-800 text-slate-400 py-4 scifi-clip font-black text-xs uppercase tracking-[0.2em] transition-all cursor-target"
                                                         >

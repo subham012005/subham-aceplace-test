@@ -7,4 +7,5 @@ export declare function createUSMessage(input: Omit<USMessage, "protocol" | "ver
 export declare function storeUSMessage(msg: USMessage): Promise<string>;
 export declare function mapStepTypeToUSMessage(stepType: string): ProtocolVerb;
 export declare function handleUSMessage(msg: USMessage): Promise<USMessage | null>;
+export declare function cleanPromptForGrader(prompt: string): string;
 //# sourceMappingURL=us-message-engine.d.ts.map

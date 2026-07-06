@@ -196,8 +196,13 @@ export async function runWorker(workerId: string = WORKER_ID) {
         console.error(`[WORKER:${workerId}] ❌ Error [${source}]:`, msg);
       }
 
-      await sleep(backoffMs);
-      backoffMs = Math.min(backoffMs * 2, BACKOFF_MAX_MS); // Exponential cap
+      if (process.env.BYPASS_QUOTA_BACKOFF === "true") {
+        console.warn(`[WORKER:${workerId}] ⚠️ Bypassing quota backoff due to flag`);
+        await sleep(MIN_INTER_JOB_DELAY_MS);
+      } else {
+        await sleep(backoffMs);
+        backoffMs = Math.min(backoffMs * 2, BACKOFF_MAX_MS); // Exponential cap
+      }
     } finally {
       isProcessing = false;
     }
@@ -211,12 +216,12 @@ export async function runWorker(workerId: string = WORKER_ID) {
       .collection(EXECUTION_QUEUE_COLLECTION)
       .where("status", "==", "queued")
       .onSnapshot(
-        (snapshot) => {
+        (snapshot: admin.firestore.QuerySnapshot) => {
           if (!running || snapshot.empty) return;
 
           const incoming = snapshot
             .docChanges()
-            .filter((c) => c.type === "added" || c.type === "modified");
+            .filter((c: admin.firestore.DocumentChange) => c.type === "added" || c.type === "modified");
 
           if (incoming.length > 0) {
             console.log(
@@ -225,7 +230,7 @@ export async function runWorker(workerId: string = WORKER_ID) {
             triggerJob("listener");
           }
         },
-        (err) => {
+        (err: Error) => {
           // Listener error — log and let fallback poll handle it
           console.error(
             `[WORKER:${workerId}] ❗ Snapshot listener error (fallback poll active):`,
@@ -275,8 +280,19 @@ export async function runWorker(workerId: string = WORKER_ID) {
 // ── Python Agent Engine ───────────────────────────────────────────────────────
 function startAgentEngine() {
   const isWindows = process.platform === "win32";
-  const pythonCmd = isWindows ? "python" : "python3";
   const engineDir = path.join(process.cwd(), "agent-engine");
+  let pythonCmd = isWindows ? "python" : "python3";
+
+  if (isWindows) {
+    const fs = require("fs");
+    const myenvPython = path.join(engineDir, "myenv", "Scripts", "python.exe");
+    const venvPython = path.join(engineDir, ".venv", "Scripts", "python.exe");
+    if (fs.existsSync(myenvPython)) {
+      pythonCmd = myenvPython;
+    } else if (fs.existsSync(venvPython)) {
+      pythonCmd = venvPython;
+    }
+  }
 
   console.log(`\n[SYSTEM] 🚀 Spawning Agent Engine: ${pythonCmd} main.py`);
   console.log(`[SYSTEM] CWD: ${engineDir}\n`);
@@ -284,7 +300,7 @@ function startAgentEngine() {
   const engine = spawn(pythonCmd, ["main.py"], {
     cwd: engineDir,
     stdio: "inherit",
-    shell: true,
+    shell: false,
     env: { ...process.env, PYTHONPATH: engineDir, PYTHONUNBUFFERED: "1" },
   });
 

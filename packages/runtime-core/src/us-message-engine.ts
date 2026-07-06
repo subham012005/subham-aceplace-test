@@ -616,17 +616,22 @@ async function handleEvaluation(msg: USMessage, envelope: ExecutionEnvelope): Pr
     return null;
   };
 
+  const currentGraderStep = (envelope.steps || []).find(s => s.step_id === msg.execution.step_id);
+  const dependencies = currentGraderStep?.depends_on || [];
+
   const workerSteps = (envelope.steps || []).filter(
     (s) =>
       s.role === "Worker" &&
       (s.step_type === "produce_artifact" || s.step_type === "artifact_produce") &&
       s.status === "completed" &&
+      dependencies.includes(s.step_id) &&
       out(s)
   );
   const artifactIds = workerSteps.map((s) => out(s)!).filter(Boolean);
   const aggregatedContent = artifactIds.length > 0 ? await aggregateArtifacts(artifactIds) : "";
 
   let graderArtifactId: string | null = null;
+  const graderPrompt = cleanPromptForGrader(envelope.prompt || "");
 
   console.log(`[#us#] Dispatching GRADER execution to Agent Engine: ${msg.execution.step_id}`);
 
@@ -642,7 +647,7 @@ async function handleEvaluation(msg: USMessage, envelope: ExecutionEnvelope): Pr
         step_id: msg.execution.step_id,
         step_type: "evaluation",
         agent_id: msg.identity.agent_id,
-        prompt: envelope.prompt || "",
+        prompt: graderPrompt,
         org_id: envelope.org_id,
         input_ref: artifactIds.join(","),
         message_id: null
@@ -712,7 +717,7 @@ async function handleEvaluation(msg: USMessage, envelope: ExecutionEnvelope): Pr
           step_type: "evaluation",
           agent_id: msg.identity.agent_id,
           identity_fingerprint: msg.identity.identity_fingerprint,
-          prompt: envelope.prompt || "",
+          prompt: graderPrompt,
           input_ref: artifactIds.join(","),
           org_id: envelope.org_id,
           fallback_approved: metadata.fallback_approved,
@@ -862,3 +867,44 @@ async function attachArtifactToEnvelope(envelopeId: string, artifactId: string):
     });
   });
 }
+
+export function cleanPromptForGrader(prompt: string): string {
+  if (!prompt || !prompt.includes("[CONTINUATION TASK —")) {
+    return prompt;
+  }
+  
+  let originalMission = "";
+  const missionStart = prompt.indexOf("ORIGINAL MISSION:");
+  if (missionStart !== -1) {
+    const nextSectionStart = prompt.indexOf("PRIOR DELIVERABLE", missionStart);
+    if (nextSectionStart !== -1) {
+      originalMission = prompt.slice(missionStart + "ORIGINAL MISSION:".length, nextSectionStart).trim();
+    } else {
+      originalMission = prompt.slice(missionStart + "ORIGINAL MISSION:".length).trim();
+    }
+  }
+
+  let continuationInstructions = "";
+  const instructionsStart = prompt.indexOf("OPERATOR CONTINUATION INSTRUCTIONS:");
+  if (instructionsStart !== -1) {
+    const nextSectionStart = prompt.indexOf("CONTINUITY DIRECTIVE:", instructionsStart);
+    if (nextSectionStart !== -1) {
+      continuationInstructions = prompt.slice(instructionsStart + "OPERATOR CONTINUATION INSTRUCTIONS:".length, nextSectionStart).trim();
+    } else {
+      continuationInstructions = prompt.slice(instructionsStart + "OPERATOR CONTINUATION INSTRUCTIONS:".length).trim();
+    }
+  }
+
+  if (originalMission || continuationInstructions) {
+    return [
+      "ORIGINAL MISSION:",
+      originalMission || "Not specified.",
+      "",
+      "ADDITIONAL INSTRUCTIONS / MODIFICATIONS:",
+      continuationInstructions || "None."
+    ].join("\n");
+  }
+
+  return prompt;
+}
+

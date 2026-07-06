@@ -34,6 +34,7 @@ import { batchPrimeExecutionGuards } from "./batch-execution-guard";
 import { leaseHeartbeatManager } from "./lease-heartbeat";
 import { emitRuntimeMetric } from "./telemetry/emitRuntimeMetric";
 import type { EnvelopeStep, ExecutionEnvelope, StepStatus } from "./types";
+import { triggerJobDebugDump } from "./debug-dumper";
 
 async function emitSafe(
   p: Parameters<typeof emitRuntimeMetric>[0]
@@ -441,6 +442,8 @@ export async function runEnvelopeParallel(params: {
   if (!boot.exists) throw new Error("ENVELOPE_NOT_FOUND");
   const first = boot.data() as ExecutionEnvelope;
 
+  await triggerJobDebugDump(envelope_id).catch(() => undefined);
+
   // Hard guard: envelope must have steps before we attempt execution.
   assertEnvelopeHasSteps(first);
 
@@ -745,5 +748,6 @@ export async function runEnvelopeParallel(params: {
         throw err;
       }
     }
+    await triggerJobDebugDump(envelope_id).catch(() => undefined);
   }
 }

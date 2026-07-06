@@ -265,6 +265,56 @@ def build_instruction_context_block(profiles: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def _get_clean_queries(prompt: str) -> tuple[str, str]:
+    """
+    Parses a continuation task prompt to separate the original mission
+    and continuation instructions from the prior deliverable and formatting.
+    Returns (search_query, keyword_query).
+    """
+    if not prompt or "[CONTINUATION TASK" not in prompt:
+        return prompt, prompt
+
+    original_mission = ""
+    continuation_instructions = ""
+
+    # Parse ORIGINAL MISSION
+    om_start = prompt.find("ORIGINAL MISSION:")
+    if om_start != -1:
+        om_start += len("ORIGINAL MISSION:")
+        headers = ["PRIOR DELIVERABLE", "OPERATOR CONTINUATION INSTRUCTIONS", "CONTINUITY DIRECTIVE"]
+        next_sec_idx = len(prompt)
+        for h in headers:
+            idx = prompt.find(h, om_start)
+            if idx != -1 and idx < next_sec_idx:
+                next_sec_idx = idx
+        original_mission = prompt[om_start:next_sec_idx].strip()
+
+    # Parse OPERATOR CONTINUATION INSTRUCTIONS
+    oci_start = prompt.find("OPERATOR CONTINUATION INSTRUCTIONS:")
+    if oci_start != -1:
+        oci_start += len("OPERATOR CONTINUATION INSTRUCTIONS:")
+        headers = ["CONTINUITY DIRECTIVE"]
+        next_sec_idx = len(prompt)
+        for h in headers:
+            idx = prompt.find(h, oci_start)
+            if idx != -1 and idx < next_sec_idx:
+                next_sec_idx = idx
+        continuation_instructions = prompt[oci_start:next_sec_idx].strip()
+
+    # Combine original mission and instructions for keyword matching to avoid dilution
+    keyword_query = f"{original_mission} {continuation_instructions}".strip()
+
+    # Use instructions for search query; fallback to original mission
+    search_query = continuation_instructions if continuation_instructions else original_mission
+
+    if not keyword_query:
+        keyword_query = prompt
+    if not search_query:
+        search_query = prompt
+
+    return search_query, keyword_query
+
+
 # ── Envelope Context Extraction ───────────────────────────────────────────────
 
 def extract_phase3_context(envelope: dict, prompt: str) -> dict:
@@ -276,6 +326,8 @@ def extract_phase3_context(envelope: dict, prompt: str) -> dict:
     """
     user_id = envelope.get("user_id", envelope.get("org_id", ""))
     envelope_id = envelope.get("envelope_id", "")
+
+    clean_search, clean_keyword = _get_clean_queries(prompt)
 
     # Knowledge Base
     kb_ctx = envelope.get("knowledge_context", {}) or {}
@@ -300,7 +352,7 @@ def extract_phase3_context(envelope: dict, prompt: str) -> dict:
         knowledge_chunks = retrieve_knowledge_chunks(
             user_id=user_id,
             collection_ids=collection_ids,
-            query=prompt,
+            query=clean_keyword,
             top_k=15,
         )
 
@@ -311,8 +363,8 @@ def extract_phase3_context(envelope: dict, prompt: str) -> dict:
         web_results = cached_web
     else:
         # First agent to run -- perform fresh web search with multiple targeted queries
-        # Build a focused search query from the prompt
-        search_query = prompt[:150].strip()
+        # Build a focused search query from the clean search prompt
+        search_query = clean_search[:150].strip()
         # Strip common boilerplate that hurts search quality
         for prefix in ["please ", "can you ", "i want ", "create ", "build ", "make "]:
             if search_query.lower().startswith(prefix):
@@ -323,8 +375,8 @@ def extract_phase3_context(envelope: dict, prompt: str) -> dict:
         web_results = web_search(search_query, max_results=10)
 
         # If first query returns nothing, try a broader fallback query
-        if not web_results and len(prompt) > 20:
-            fallback_query = " ".join(prompt.split()[:8])  # First 8 words
+        if not web_results and len(clean_search) > 20:
+            fallback_query = " ".join(clean_search.split()[:8])  # First 8 words
             print(f"[PHASE3] [RETRY] Fallback query: '{fallback_query}'")
             web_results = web_search(fallback_query, max_results=10)
 
@@ -374,6 +426,7 @@ def extract_phase3_context(envelope: dict, prompt: str) -> dict:
         "collection_ids": collection_ids,
         "profile_ids": profile_ids,
     }
+
 
 
 # ── Trace Logging ─────────────────────────────────────────────────────────────

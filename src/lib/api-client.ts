@@ -99,6 +99,15 @@ class AceApiClient {
         return this.handleResponse(response);
     }
 
+    async continueJob(jobId: string, instruction: string) {
+        const response = await this.secureFetch(`/api/jobs/${jobId}/continue`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ instruction }),
+        });
+        return this.handleResponse(response);
+    }
+
     async approveFallback(jobId: string) {
         const response = await this.secureFetch(`/api/jobs/${jobId}/fallback/approve`, {
             method: "POST",

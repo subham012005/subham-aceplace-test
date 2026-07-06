@@ -128,6 +128,84 @@ WORKER_SYSTEM_PROMPT = """{
 }"""
 
 
+WORKER_PATCH_SYSTEM_PROMPT = """{
+  "role": "Senior Production Patch Specialist",
+  "mission": "Review the PRIOR DELIVERABLE and the OPERATOR CONTINUATION INSTRUCTIONS. Generate a list of precise section patches to implement the requested modifications without outputting the entire unmodified document, to fit within output token limits.",
+
+  "core_directive": "Identify only the sections that require changes (additions, updates, deletions). Do not output any unmodified sections or unchanged text. Maintain strict alignment with the style, depth, and citation standards of the rest of the document.",
+
+  "production_principles": {
+    "technical_rigor": "Explain architecture, execution flow, constraints, failure modes, validation requirements, and strategic implications with engineering-level specificity. If external sources are missing, use technical first principles to synthesize a high-fidelity narrative.",
+    "investor_readiness": "Frame the deliverable around defensibility, infrastructure value, technical moat, operational maturity, and validation status.",
+    "grounding_integrity": "Prioritize citations using [KB-N], [WEB-N], or Research Findings. If these are unavailable, provide a 'Master Strategic Synthesis' based on deep internal knowledge of technical and strategic domains.",
+    "runtime_alignment": "All content must respect ACEPLACE laws: agents are stateless, envelopes hold state, runtime-worker is the only executor, ACELOGIC owns identity, leases gate execution, and Firestore persists runtime truth.",
+    "no_fabrication": "Do not invent specific facts about a user's system if not in the KB, but DO provide deep, non-generic analysis for the general domain and strategic category."
+  },
+
+  "high_fidelity_production_protocol": {
+    "standard": "MASTERPIECE TECHNICAL DOCUMENTATION",
+    "objective": "Produce patch sections that sound like they were written by the lead systems architect and the COO.",
+    "do_not_summarize": "Replace generic summaries with 'system-level technical specifications' and 'deterministic logic flows' in the section bodies.",
+    "required_depth": [
+      "Decompose architecture into specific runtime planes and protocol invariants.",
+      "Use sophisticated markdown (tables, lists, bold highlights) to communicate technical density within section bodies.",
+      "Frame all strategic claims around the technical defensibility of the ACEPLACE stack.",
+      "Explicitly mention identity-bound execution and authority lease enforcement as core moats."
+    ],
+    "anti_generic_rule": "If a paragraph could apply to any AI company, delete it. Every sentence must be specific to ACEPLACE and the mission intelligence."
+  },
+
+  "required_content_standards": {
+    "depth": "Each new or modified section must contain multi-paragraph analysis, not bullet-only summaries. Surface-level analysis is grounds for immediate Grader rejection.",
+    "specificity": "Use named system components, runtime primitives, architectural constraints, and implementation details. Do not use generic 'AI' terminology.",
+    "citation_density": "Every single technical, market, or strategic claim in your patches MUST be cited using [KB-N], [WEB-N], or specific Research Findings. Failing to include precise citations in new or modified sections will cause immediate grader failure.",
+    "executive_tone": "Use precise, confident, engineering-led language suitable for lead architects, strategic partners, and technical investors."
+  },
+
+  "patch_protocol": {
+    "target_specificity": "Each patch must target an existing section title in the PRIOR DELIVERABLE, or specify insertion at the start/end.",
+    "action_types": {
+      "replace_section": "Replaces the entire content of an existing section by matching its title.",
+      "insert_after_section": "Inserts a new section immediately after the targeted section.",
+      "delete_section": "Removes an existing section entirely by matching its title.",
+      "add_to_start": "Inserts a new section at the very beginning of the document.",
+      "add_to_end": "Appends a new section at the very end of the document."
+    }
+  },
+
+  "hard_constraints": [
+    "JSON only",
+    "No uncited factual claims in updated or new sections",
+    "No invented implementation status",
+    "No claim that ACEPLACE is operationally validated unless test evidence proves it",
+    "Architecture completeness must be distinguished from runtime validation",
+    "All deliverables must remain envelope-first and authority-compliant"
+  ],
+
+  "output_format": {
+    "patches": [
+      {
+        "action": "replace_section | insert_after_section | delete_section | add_to_start | add_to_end",
+        "target_section_title": "The exact title of the section to target in the PRIOR DELIVERABLE (case-insensitive)",
+        "section": {
+          "title": "New or updated section title",
+          "body": "The complete updated markdown body for this section. Detail-oriented, multi-paragraph, and rigorously grounded with [KB-N] and [WEB-N] citations."
+        }
+      }
+    ],
+    "deliverable_summary_patch": "An updated deliverable summary reflecting the changes, or null if unchanged.",
+    "executive_summary_patch": "An updated executive summary reflecting the changes, or null if unchanged.",
+    "new_source_references": [
+      {
+        "ref_id": "[KB-X] or [WEB-Y]",
+        "title": "Title of the source",
+        "usage": "How this source supports the patch"
+      }
+    ]
+  }
+}"""
+
+
 def _parse_json_text(text: str) -> dict | None:
     cleaned = text.strip()
     for fence in ("```json", "```"):
@@ -165,6 +243,64 @@ def _heuristic_grounding_extraction(text: str) -> dict:
         "research_findings_used": 0,
         "fabrication_check": status,
         "validation_note": "Heuristically inferred from content citations due to output formatting constraints."
+    }
+
+
+
+def _parse_continuation_prompt(prompt: str) -> dict | None:
+    if not prompt or "[CONTINUATION TASK" not in prompt:
+        return None
+
+    # Parse ORIGINAL MISSION
+    om_start = prompt.find("ORIGINAL MISSION:")
+    original_mission = ""
+    if om_start != -1:
+        om_start += len("ORIGINAL MISSION:")
+        headers = ["PRIOR DELIVERABLE", "OPERATOR CONTINUATION INSTRUCTIONS", "CONTINUITY DIRECTIVE"]
+        end_idx = len(prompt)
+        for h in headers:
+            idx = prompt.find(h, om_start)
+            if idx != -1 and idx < end_idx:
+                end_idx = idx
+        original_mission = prompt[om_start:end_idx].strip()
+
+    # Parse PRIOR DELIVERABLE
+    pd_start = prompt.find("PRIOR DELIVERABLE")
+    prior_deliverable_str = ""
+    if pd_start != -1:
+        colon_idx = prompt.find(":", pd_start)
+        if colon_idx != -1:
+            start_content = colon_idx + 1
+            headers = ["OPERATOR CONTINUATION INSTRUCTIONS:", "CONTINUITY DIRECTIVE:"]
+            end_idx = len(prompt)
+            for h in headers:
+                idx = prompt.find(h, start_content)
+                if idx != -1 and idx < end_idx:
+                    end_idx = idx
+            prior_deliverable_str = prompt[start_content:end_idx].strip()
+
+    # Parse OPERATOR CONTINUATION INSTRUCTIONS
+    oci_start = prompt.find("OPERATOR CONTINUATION INSTRUCTIONS:")
+    continuation_instructions = ""
+    if oci_start != -1:
+        oci_start += len("OPERATOR CONTINUATION INSTRUCTIONS:")
+        headers = ["CONTINUITY DIRECTIVE:"]
+        end_idx = len(prompt)
+        for h in headers:
+            idx = prompt.find(h, oci_start)
+            if idx != -1 and idx < end_idx:
+                end_idx = idx
+        continuation_instructions = prompt[oci_start:end_idx].strip()
+
+    # Extract version
+    version_match = re.search(r"Version (\d+)", prompt)
+    version = int(version_match.group(1)) if version_match else 2
+
+    return {
+        "original_mission": original_mission,
+        "prior_deliverable_str": prior_deliverable_str,
+        "continuation_instructions": continuation_instructions,
+        "version": version
     }
 
 
@@ -270,38 +406,153 @@ def execute(ctx: dict) -> dict:
             f"\n- MISSION REQUIREMENT: If external sources or research findings are insufficient, DO NOT report failure. Instead, pivot to a high-fidelity 'Master Strategic Synthesis' based on your deep internal technical knowledge. Maintain extreme depth and professional quality in all conditions."
         )
 
-        combined_prompt = f"Mission: {prompt}{work_unit_context}"
-        human_content = (
-            f"{combined_prompt}"
-            f"{grounding_note}"
-            f"{kb_source_index}"
-            f"{web_source_index}"
-            f"{phase3['instr_block']}"
-            f"{research_context}"
-            f"{phase3['kb_block']}"
-            f"{phase3['web_block']}"
-            f"\n\nProduce the complete, highly detailed, grounded deliverable."
-        )
+        is_continuation = "[CONTINUATION TASK" in prompt
+        system_prompt = WORKER_SYSTEM_PROMPT
 
-        messages = [
-            SystemMessage(content=WORKER_SYSTEM_PROMPT),
-            HumanMessage(content=human_content),
-        ]
-        response = llm.invoke(messages)
-        raw_text = response.content if isinstance(response.content, str) else str(response.content)
+        parsed = _parse_continuation_prompt(prompt) if is_continuation else None
+        prior_data = None
+        if parsed and parsed["prior_deliverable_str"]:
+            prior_data = _parse_json_text(parsed["prior_deliverable_str"])
 
-        result = _parse_json_text(raw_text)
-        if not result:
-            result = {
-                "deliverable_summary": "Worker output",
-                "deliverable_type": "document",
-                "content": raw_text,
-                "quality_notes": "Raw output — JSON parse failed",
-                "grounding_report": _heuristic_grounding_extraction(raw_text),
-            }
-        elif "grounding_report" not in result:
-            # If JSON parsed but report is missing, try heuristic
-            result["grounding_report"] = _heuristic_grounding_extraction(raw_text)
+        # Determine if we can use patch-based continuation
+        use_patch_continuation = False
+        if is_continuation and prior_data and isinstance(prior_data, dict) and "sections" in prior_data and isinstance(prior_data["sections"], list) and len(prior_data["sections"]) > 0:
+            use_patch_continuation = True
+
+        if use_patch_continuation:
+            print(f"[WORKER] Using diff/patch-based continuation editing")
+            combined_prompt = f"Mission: {prompt}{work_unit_context}"
+            human_content = (
+                f"{combined_prompt}"
+                f"{grounding_note}"
+                f"{kb_source_index}"
+                f"{web_source_index}"
+                f"{phase3['instr_block']}"
+                f"{research_context}"
+                f"{phase3['kb_block']}"
+                f"{phase3['web_block']}"
+                f"\n\nBased on the operator's continuation instructions, identify the necessary changes and output ONLY the patches JSON."
+            )
+            messages = [
+                SystemMessage(content=WORKER_PATCH_SYSTEM_PROMPT),
+                HumanMessage(content=human_content),
+            ]
+            response = llm.invoke(messages)
+            raw_text = response.content if isinstance(response.content, str) else str(response.content)
+            
+            patch_data = _parse_json_text(raw_text)
+            if not patch_data or "patches" not in patch_data:
+                print("[WORKER] Patch JSON parsing failed, falling back to full generation")
+                use_patch_continuation = False # Force fallback path below
+            else:
+                # Apply patches programmatically
+                result = dict(prior_data)
+                sections = list(result.get("sections") or [])
+                patches = patch_data.get("patches") or []
+                
+                for patch in patches:
+                    action = patch.get("action")
+                    target_title = patch.get("target_section_title")
+                    new_sec = patch.get("section")
+                    
+                    if action == "add_to_start" and new_sec:
+                        sections.insert(0, new_sec)
+                    elif action == "add_to_end" and new_sec:
+                        sections.append(new_sec)
+                    elif action == "delete_section" and target_title:
+                        sections = [s for s in sections if s.get("title", "").strip().lower() != target_title.strip().lower()]
+                    elif action == "replace_section" and target_title and new_sec:
+                        for idx, s in enumerate(sections):
+                            if s.get("title", "").strip().lower() == target_title.strip().lower():
+                                sections[idx] = new_sec
+                                break
+                    elif action == "insert_after_section" and target_title and new_sec:
+                        found = False
+                        for idx, s in enumerate(sections):
+                            if s.get("title", "").strip().lower() == target_title.strip().lower():
+                                sections.insert(idx + 1, new_sec)
+                                found = True
+                                break
+                        if not found:
+                            sections.append(new_sec)
+                            
+                result["sections"] = sections
+                
+                # Regenerate content
+                content_parts = []
+                for s in sections:
+                    if isinstance(s, dict):
+                        content_parts.append(f"# {s.get('title', '')}\n\n{s.get('body', '')}")
+                result["content"] = "\n\n".join(content_parts)
+                
+                if patch_data.get("deliverable_summary_patch"):
+                    result["deliverable_summary"] = patch_data["deliverable_summary_patch"]
+                if patch_data.get("executive_summary_patch"):
+                    result["executive_summary"] = patch_data["executive_summary_patch"]
+                
+                # Merge source references
+                new_refs = patch_data.get("new_source_references") or []
+                existing_refs = list(result.get("source_references") or [])
+                seen_refs = {r.get("ref_id") for r in existing_refs if isinstance(r, dict) and r.get("ref_id")}
+                for ref in new_refs:
+                    if isinstance(ref, dict) and ref.get("ref_id") and ref.get("ref_id") not in seen_refs:
+                        existing_refs.append(ref)
+                        seen_refs.add(ref["ref_id"])
+                result["source_references"] = existing_refs
+                
+                # Set grounding report
+                result["grounding_report"] = _heuristic_grounding_extraction(raw_text)
+                usage = extract_token_usage(response, model_name)
+
+        # Fallback path if patching is disabled or failed
+        if not use_patch_continuation:
+            if is_continuation:
+                system_prompt += (
+                    "\n\n=== CRITICAL CONTINUATION DIRECTIVE ===\n"
+                    "You are editing and revising a PRIOR DELIVERABLE based on the OPERATOR CONTINUATION INSTRUCTIONS.\n"
+                    "To maintain strict continuity and avoid regressions:\n"
+                    "1. You MUST keep the entire prior deliverable intact as your baseline.\n"
+                    "2. ONLY edit, add, modify, or delete the specific sections or information requested in the OPERATOR CONTINUATION INSTRUCTIONS.\n"
+                    "3. DO NOT rephrase, rewrite, restructure, or remove any other existing paragraphs, sections, tables, or sentences that are not directly mentioned in or affected by the edit instructions.\n"
+                    "4. Copy all other unmodified sections, text, and keys (including 'sections', 'source_references', etc.) exactly as they were in the PRIOR DELIVERABLE, verbatim.\n"
+                    "5. The final output must be identical to the PRIOR DELIVERABLE except for the requested modifications."
+                )
+
+            combined_prompt = f"Mission: {prompt}{work_unit_context}"
+            human_content = (
+                f"{combined_prompt}"
+                f"{grounding_note}"
+                f"{kb_source_index}"
+                f"{web_source_index}"
+                f"{phase3['instr_block']}"
+                f"{research_context}"
+                f"{phase3['kb_block']}"
+                f"{phase3['web_block']}"
+                f"\n\nProduce the complete, highly detailed, grounded deliverable."
+            )
+            if is_continuation:
+                human_content += "\n\nREMINDER: You are performing a continuation task. Keep the previous artifact completely unchanged except for the specific edits/additions requested in the OPERATOR CONTINUATION INSTRUCTIONS."
+
+            messages = [
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=human_content),
+            ]
+            response = llm.invoke(messages)
+            raw_text = response.content if isinstance(response.content, str) else str(response.content)
+
+            result = _parse_json_text(raw_text)
+            if not result:
+                result = {
+                    "deliverable_summary": "Worker output",
+                    "deliverable_type": "document",
+                    "content": raw_text,
+                    "quality_notes": "Raw output — JSON parse failed",
+                    "grounding_report": _heuristic_grounding_extraction(raw_text),
+                }
+            elif "grounding_report" not in result:
+                result["grounding_report"] = _heuristic_grounding_extraction(raw_text)
+
+            usage = extract_token_usage(response, model_name)
 
         web_results_fetched = len(phase3["web_results"])
         kb_chunks_fetched = len(phase3["knowledge_chunks"])
@@ -312,7 +563,6 @@ def execute(ctx: dict) -> dict:
             "instruction_profiles_used": phase3["profile_ids"],
             "researcher_grounding_meta": researcher_grounding_meta,
         }
-        # Enforce accurate grounding_report counts — override LLM self-report with actual fetched count
         if "grounding_report" not in result:
             result["grounding_report"] = {}
         if not result["grounding_report"].get("web_sources_cited"):
@@ -320,7 +570,6 @@ def execute(ctx: dict) -> dict:
         if not result["grounding_report"].get("kb_chunks_cited"):
             result["grounding_report"]["kb_chunks_cited"] = kb_chunks_fetched
 
-        usage = extract_token_usage(response, model_name)
         duration_ms = int(time.time() * 1000) - start_ms
 
         log_agent_action(envelope_id, step_id, "worker", agent_id, "COMPLETE",

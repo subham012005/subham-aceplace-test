@@ -8,6 +8,7 @@ import {
     useJobTraces,
     useJobArtifacts
 } from "@/hooks/useJobs";
+import { useArtifactVersions } from "@/hooks/useArtifactVersions";
 import { useAuth } from "@/hooks/useAuth";
 import { useEnvelope } from "@/hooks/useEnvelope";
 import { useAgentLogs } from "@/hooks/useAgentLogs";
@@ -54,8 +55,10 @@ import {
     Layers,
     ArrowRight,
     ChevronDown,
+    ChevronUp,
     Download,
-    Settings as SettingsIcon
+    Settings as SettingsIcon,
+    Edit2
 } from "lucide-react";
 import { useSettings } from "@/context/SettingsContext";
 import { cn, formatOutputToMarkdown } from "@/lib/utils";
@@ -163,9 +166,22 @@ export default function JobDetailsPage() {
     const envelopeId = (job as any)?.envelope_id || job?.execution_id || null;
     const { envelope, steps, loading: envelopeLoading } = useEnvelope(envelopeId);
     const { logs: agentLogs, loading: agentLogsLoading } = useAgentLogs(envelopeId);
+    const { versions: artifactVersions } = useArtifactVersions(jobId);
 
     const rawDeliverable = job?.runtime_context?.final_result || job?.runtime_context?.worker_result || job?.artifact || extractOutputData(job);
     const isReportReady = !!rawDeliverable;
+
+    const [selectedVersion, setSelectedVersion] = useState<number | 'live'>('live');
+    const getArtifactForVersion = (types: string[]) => {
+        const valid = [...artifacts]
+            .filter(a => types.includes(a.artifact_type || '') && a.artifact_content)
+            .sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime());
+        if (selectedVersion === 'live') {
+            return valid[valid.length - 1];
+        }
+        const idx = (selectedVersion as number) - 1;
+        return valid[idx] || valid[valid.length - 1];
+    };
 
     // Unified Governance Logic — also check agent logs as fallback
     const graderLogSummary = agentLogs.find(l => l.agent_role === 'grader' && l.event === 'COMPLETE')?.output_summary || "";
@@ -177,7 +193,7 @@ export default function JobDetailsPage() {
     })();
     const graderRecommendationFromLog = graderLogSummary.toLowerCase().includes('approve') ? 'pass' : null;
 
-    const evaluationArtifact = artifacts.find(a => ['evaluation', 'grading', 'evaluate'].includes(a.artifact_type || ''));
+    const evaluationArtifact = getArtifactForVersion(['evaluation', 'grading', 'evaluate']);
     // artifact_content is stored as a JSON string by the agent engine — parse it
     const evaluationContent: any = (() => {
         const raw = evaluationArtifact?.artifact_content;
@@ -236,6 +252,8 @@ export default function JobDetailsPage() {
     const [viewingArtifact, setViewingArtifact] = useState<{ title: string; content: any } | null>(null);
     const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
     const [rejectionReason, setRejectionReason] = useState("");
+    const [showEditContinue, setShowEditContinue] = useState(false);
+    const [editInstruction, setEditInstruction] = useState("");
     const [activeTab, setActiveTab] = useState<'plan' | 'research' | 'worker' | 'grader'>('plan');
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const maxIndexRef = useRef<number>(0);
@@ -452,6 +470,21 @@ export default function JobDetailsPage() {
             setIsRejectModalOpen(false);
             setRejectionReason("");
             refreshJob();
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleContinue = async () => {
+        if (!user || actionLoading || !editInstruction.trim()) return;
+        setActionLoading(true);
+        try {
+            await aceApi.continueJob(jobId, editInstruction);
+            setShowEditContinue(false);
+            setEditInstruction("");
+            refreshJob();
+        } catch (error) {
+            console.error("Continue failed:", error);
         } finally {
             setActionLoading(false);
         }
@@ -904,12 +937,60 @@ export default function JobDetailsPage() {
 
                                 <div className="space-y-3">
                                     <label className="text-[10px] uppercase font-black text-slate-600 tracking-[0.3em] block">Subject Directive</label>
-                                    <div className="p-6 bg-black/40 border border-white/5 relative overflow-hidden group">
-                                        <div className="absolute top-0 left-0 w-1 h-full bg-cyan-500/20 group-hover:bg-cyan-500/50 transition-colors" />
-                                        <p className="text-slate-200 text-lg leading-relaxed italic font-light tracking-wide">
-                                            “{typeof job?.prompt === 'object' ? JSON.stringify(job.prompt) : String(job?.prompt || "No input prompt provided.")}”
-                                        </p>
-                                    </div>
+                                    {(() => {
+                                        const promptStr = String(job?.prompt || "");
+                                        let originalPrompt = promptStr;
+                                        const isContinuation = promptStr.includes("[CONTINUATION TASK");
+
+                                        if (isContinuation) {
+                                            const omMatch = promptStr.match(/ORIGINAL MISSION:\s*\n([\s\S]*?)(?=\n\n(?:PRIOR DELIVERABLE|OPERATOR CONTINUATION INSTRUCTIONS|CONTINUITY DIRECTIVE)|$)/);
+                                            if (omMatch) {
+                                                originalPrompt = omMatch[1].trim();
+                                            }
+                                        }
+
+                                        const instructionsList: { version: number; instruction: string }[] = [];
+                                        artifactVersions.forEach((av) => {
+                                            if (av.version > 0 && av.continuation_instruction) {
+                                                instructionsList.push({
+                                                    version: av.version + 1,
+                                                    instruction: av.continuation_instruction
+                                                });
+                                            }
+                                        });
+
+                                        const currentVersionNum = ((job as any)?.continuation_count || 0) + 1;
+                                        const hasCurrentInList = instructionsList.some(item => item.version === currentVersionNum);
+                                        if (currentVersionNum > 1 && !hasCurrentInList && (job as any)?.continuation_reason) {
+                                            instructionsList.push({
+                                                version: currentVersionNum,
+                                                instruction: (job as any).continuation_reason
+                                            });
+                                        }
+
+                                        return (
+                                            <div className="space-y-3">
+                                                <div className="p-6 bg-black/40 border border-white/5 relative overflow-hidden group">
+                                                    <div className="absolute top-0 left-0 w-1 h-full bg-cyan-500/20 group-hover:bg-cyan-500/50 transition-colors" />
+                                                    <p className="text-slate-200 text-lg leading-relaxed italic font-light tracking-wide">
+                                                        “{originalPrompt || "No input prompt provided."}”
+                                                    </p>
+                                                </div>
+
+                                                {instructionsList.map((item) => (
+                                                    <div key={item.version} className="p-4 bg-amber-500/[0.03] border border-amber-500/10 relative overflow-hidden group hover:bg-amber-500/[0.05] transition-all">
+                                                        <div className="absolute top-0 left-0 w-1 h-full bg-amber-500/30 group-hover:bg-amber-500/60 transition-colors" />
+                                                        <div className="text-[10px] uppercase font-black text-amber-500/80 tracking-[0.2em] mb-1">
+                                                            Version {item.version} Edit Instructions
+                                                        </div>
+                                                        <p className="text-slate-300 text-xs leading-relaxed italic font-light">
+                                                            “{item.instruction}”
+                                                        </p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
 
                                 {steps && steps.length > 0 && (
@@ -1143,10 +1224,114 @@ export default function JobDetailsPage() {
                 {/* ── UNIFIED MISSION TIMELINE ──────────────────────────────────────── */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     <div className="lg:col-span-8 space-y-8">
+                        {/* ── VERSION SELECTOR BAR ── shown only for multi-version jobs */}
+                        {(() => {
+                            const totalVersions = ((job as any)?.continuation_count || 0) + 1;
+                            if (totalVersions < 2) return null;
+
+                            // Auto-select 'live' when a new continuation starts
+                            const tabs = Array.from({ length: totalVersions }, (_, i) => i + 1);
+                            const currentSelected = selectedVersion;
+
+                            // Resolve displayed data for the selected version
+                            return (
+                                <div className="flex items-center gap-1 flex-wrap mb-2">
+                                    <span className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-600 mr-2">Execution Cycle</span>
+                                    {tabs.map(v => (
+                                        <button
+                                            key={v}
+                                            onClick={() => setSelectedVersion(v === totalVersions ? 'live' : v)}
+                                            className={cn(
+                                                "px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-all",
+                                                (v === totalVersions ? currentSelected === 'live' : currentSelected === v)
+                                                    ? "border-cyan-500/60 text-cyan-400 bg-cyan-500/10 shadow-[0_0_10px_rgba(6,182,212,0.15)]"
+                                                    : "border-white/5 text-slate-500 hover:text-slate-300 hover:border-white/15"
+                                            )}
+                                        >
+                                            {v === totalVersions ? (
+                                                <span className="flex items-center gap-1.5">
+                                                    V{v}
+                                                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
+                                                </span>
+                                            ) : (
+                                                <>V{v} {(() => {
+                                                    const snap = artifactVersions.find(av => av.version === v - 1);
+                                                    return snap ? <span className="ml-1 text-[8px] text-emerald-500/60">✓</span> : null;
+                                                })()}</>
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+                            );
+                        })()}
+
                         {envelopeId && <EnvelopeInspector executionId={envelopeId} hideFailureBanner={true} />}
 
-                        <HUDFrame title="OPERATIONAL FEED" variant="dark">
+                        <HUDFrame
+                            title={(() => {
+                                const totalVersions = ((job as any)?.continuation_count || 0) + 1;
+                                if (totalVersions < 2) return 'OPERATIONAL FEED';
+                                const v = selectedVersion === 'live' ? totalVersions : selectedVersion;
+                                return `OPERATIONAL FEED — VERSION ${v}`;
+                            })()}
+                            variant="dark"
+                        >
                             <div className="p-0">
+                                {/* Historical version snapshot banner */}
+                                {selectedVersion !== 'live' && (() => {
+                                    const totalVersions = ((job as any)?.continuation_count || 0) + 1;
+                                    // snap index: v1 = index 0, v2 = index 1, etc.
+                                    const snapIndex = (selectedVersion as number) - 1;
+                                    const snap = artifactVersions.find(av => av.version === snapIndex);
+                                    let snapContent = snap?.artifact_content
+                                        ? formatOutputToMarkdown(snap.artifact_content)
+                                        : null;
+
+                                    if (!snapContent && artifacts.length > 0) {
+                                        const validFinals = [...artifacts]
+                                            .filter(a => ['final_result', 'artifact_produce', 'report', 'final', 'worker_result', 'worker', 'deliverable'].includes(a.artifact_type || '') && a.artifact_content)
+                                            .sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime());
+                                        const fallbackSnap = validFinals[snapIndex];
+                                        if (fallbackSnap) {
+                                            snapContent = formatOutputToMarkdown(fallbackSnap.artifact_content);
+                                        }
+                                    }
+                                    const continuationInstruction = snap?.continuation_instruction
+                                        || ((selectedVersion as number) > 1 ? 'Version snapshot' : null);
+
+                                    return (
+                                        <div className="mx-0 border-b border-amber-500/20 bg-amber-500/5 px-6 py-4 space-y-4">
+                                            {/* Version badge row */}
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.3em] border border-amber-500/30 text-amber-500 bg-amber-500/10">
+                                                        Historical Snapshot — V{selectedVersion}
+                                                    </div>
+                                                    <span className="text-[10px] text-slate-500 font-mono">
+                                                        {snap?.created_at ? new Date(snap.created_at).toLocaleString() : 'Saved before next cycle'}
+                                                    </span>
+                                                </div>
+                                                <button
+                                                    onClick={() => setSelectedVersion('live')}
+                                                    className="text-[9px] font-black uppercase tracking-widest text-cyan-500/60 hover:text-cyan-400 transition-colors"
+                                                >
+                                                    → View Live V{totalVersions}
+                                                </button>
+                                            </div>
+
+                                            {/* Continuation instruction (what triggered the next version) */}
+                                            {continuationInstruction && (
+                                                <div className="px-3 py-2 bg-black/30 border border-white/5 text-[10px]">
+                                                    <span className="text-slate-600 uppercase font-black tracking-widest">Next cycle instruction: </span>
+                                                    <span className="text-amber-400/80 italic">{String(continuationInstruction)}</span>
+                                                </div>
+                                            )}
+
+
+                                        </div>
+                                    );
+                                })()}
+
                                 <Accordion type="multiple" defaultValue={["coo", "researcher", "worker", "grader"]} className="w-full">
                                     {/* 1. STRATEGY STAGE */}
                                     <AccordionItem value="coo" className="border-b border-white/5 px-6">
@@ -1166,7 +1351,7 @@ export default function JobDetailsPage() {
                                                 </div>
                                                 <div className={cn(
                                                     "px-3 py-1 text-[10px] font-black uppercase tracking-widest scifi-clip-sm",
-                                                    (job?.runtime_context?.plan || artifacts.some(a => a.artifact_type === 'plan')) ? "bg-emerald-500/20 text-emerald-500 border border-emerald-500/50" : "bg-blue-500/10 text-blue-500 border border-blue-500/30"
+                                                    (job?.runtime_context?.plan || artifacts.some(a => ['plan', 'task_plan'].includes(a.artifact_type || ''))) ? "bg-emerald-500/20 text-emerald-500 border border-emerald-500/50" : "bg-blue-500/10 text-blue-500 border border-blue-500/30"
                                                 )}>
                                                     {(job?.runtime_context?.plan || artifacts.some(a => ['plan', 'task_plan'].includes(a.artifact_type || ''))) ? "COMPLETE" : "OPERATING"}
                                                 </div>
@@ -1174,8 +1359,7 @@ export default function JobDetailsPage() {
                                         </AccordionTrigger>
                                         <AccordionContent className="pb-8 space-y-6">
                                             {(() => {
-                                                const sortedArtifacts = [...artifacts].sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
-                                                const artifact = sortedArtifacts.find(a => ['plan', 'task_plan'].includes(a.artifact_type || ''));
+                                                const artifact = getArtifactForVersion(['plan', 'task_plan']);
                                                 const plan = job?.runtime_context?.plan || (job as any)?.plan;
                                                 let rawContent = artifact?.artifact_content || plan;
                                                 if (!rawContent) return <div className="text-center py-8 opacity-20 italic text-[10px] uppercase tracking-widest border border-dashed border-white/5">Awaiting strategy formulation...</div>;
@@ -1329,8 +1513,7 @@ export default function JobDetailsPage() {
                                         </AccordionTrigger>
                                         <AccordionContent className="pb-8 space-y-6">
                                             {(() => {
-                                                const sortedArtifacts = [...artifacts].sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
-                                                const artifact = sortedArtifacts.find(a => ['assignment', 'assign', 'research', 'intelligence', 'task_assign'].includes(a.artifact_type || ''));
+                                                const artifact = getArtifactForVersion(['assignment', 'assign', 'research', 'intelligence', 'task_assign']);
                                                 const res = job?.runtime_context?.research_result || (job as any)?.research_intelligence;
                                                 const rawContent = artifact?.artifact_content || res;
                                                 if (!rawContent) return <div className="text-center py-8 opacity-20 italic text-[10px] uppercase tracking-widest border border-dashed border-white/5">Awaiting research retrieval...</div>;
@@ -1444,7 +1627,7 @@ export default function JobDetailsPage() {
                                                 <div className="flex items-center gap-3">
                                                     <div className={cn(
                                                         "w-8 h-8 flex items-center justify-center border scifi-clip bg-orange-500/10",
-                                                        (job?.runtime_context?.final_result || artifacts.some(a => ['final', 'artifact_produce', 'worker_result'].includes(a.artifact_type || ''))) ? "border-emerald-500 text-emerald-500" : "border-orange-500/40 text-orange-400"
+                                                        (job?.runtime_context?.final_result || artifacts.some(a => ['final', 'final_result', 'artifact_produce', 'worker_result', 'deliverable'].includes(a.artifact_type || ''))) ? "border-emerald-500 text-emerald-500" : "border-orange-500/40 text-orange-400"
                                                     )}>
                                                         <FileText className="w-4 h-4" />
                                                     </div>
@@ -1457,23 +1640,29 @@ export default function JobDetailsPage() {
                                                     "px-3 py-1 text-[10px] font-black uppercase tracking-widest scifi-clip-sm",
                                                     (job?.runtime_context?.final_result || artifacts.some(a => ['final', 'artifact_produce', 'worker_result', 'deliverable'].includes(a.artifact_type || ''))) ? "bg-emerald-500/20 text-emerald-500 border border-emerald-500/50" : "bg-white/5 text-slate-600 border border-white/10"
                                                 )}>
-                                                    {(job?.runtime_context?.final_result || artifacts.some(a => ['final', 'artifact_produce', 'worker_result', 'deliverable'].includes(a.artifact_type || ''))) ? "COMPLETE" : "IDLE"}
+                                                    {(job?.runtime_context?.final_result || artifacts.some(a => ['final', 'final_result', 'artifact_produce', 'worker_result', 'deliverable'].includes(a.artifact_type || ''))) ? "COMPLETE" : "IDLE"}
                                                 </div>
                                             </div>
                                         </AccordionTrigger>
                                         <AccordionContent className="pb-8 space-y-6">
                                             {(() => {
-                                                const artifact = artifacts.find(a => ['artifact_produce', 'report', 'final', 'worker_result', 'worker', 'deliverable'].includes(a.artifact_type || ''));
+                                                const artifact = getArtifactForVersion(['final_result', 'artifact_produce', 'report', 'final', 'worker_result', 'worker', 'deliverable']);
                                                 const result = job?.runtime_context?.worker_result || job?.runtime_context?.final_result || job?.artifact || extractOutputData(job);
                                                 let rawContent = artifact?.artifact_content || result;
                                                 if (!rawContent) return <div className="text-center py-8 opacity-20 italic text-[10px] uppercase tracking-widest border border-dashed border-white/5">Awaiting final execution...</div>;
 
-                                                let workerData: any = (typeof result === 'object' && result !== null) ? result : rawContent;
+                                                let workerData: any = (typeof result === 'object' && result !== null && selectedVersion === 'live') ? result : rawContent;
                                                 if (typeof workerData === 'string') {
+                                                    let clean = (workerData as string).replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/i, '').trim();
+                                                    if (clean.includes('---')) {
+                                                        const blocks = clean.split('---').map(b => b.trim()).filter(b => b);
+                                                        clean = blocks[blocks.length - 1];
+                                                    }
                                                     try {
-                                                        let clean = (workerData as string).replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/i, '').trim();
                                                         workerData = JSON.parse(clean);
-                                                    } catch (e) { workerData = { content: workerData }; }
+                                                    } catch (e) { 
+                                                        workerData = { content: workerData }; 
+                                                    }
                                                 }
 
                                                 // Ensure workerData has any missing metadata from the result object
@@ -1581,7 +1770,7 @@ export default function JobDetailsPage() {
                                                     return "```json\n" + JSON.stringify(raw, null, 2) + "\n```";
                                                 };
 
-                                                const displayContent = formatToMarkdown(rawContent);
+                                                const displayContent = formatToMarkdown(workerData);
 
                                                 const conclusions: any[] = Array.isArray(workerData.key_conclusions) ? workerData.key_conclusions : [];
                                                 const synthesis = workerData.research_synthesis || '';
@@ -1995,45 +2184,142 @@ export default function JobDetailsPage() {
                                                         </div>
                                                     )}
 
-                                                    {/* ── Approve / Reject ───────────────────────────────── */}
+                                                    {/* ── Approve / Reject / Edit+Continue ───────────────── */}
                                                     {['grading', 'graded', 'awaiting_approval'].includes(derivedStatus) && (
                                                         <div className="space-y-3 pt-2 border-t border-white/5">
                                                             <p className="text-[10px] uppercase font-black tracking-widest text-slate-500">Operator Decision Required</p>
-                                                            <div className="flex gap-3">
-                                                                <button
-                                                                    onClick={handleApprove}
-                                                                    disabled={actionLoading}
-                                                                    className="flex-1 py-4 bg-emerald-500/10 hover:bg-emerald-500/25 border border-emerald-500/50 text-emerald-500 font-black uppercase tracking-widest transition-all cursor-target flex items-center justify-center gap-2 scifi-clip shadow-[0_0_20px_rgba(16,185,129,0.1)] disabled:opacity-50"
-                                                                >
-                                                                    {actionLoading ? <RotateCw className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
-                                                                    Approve Artifact
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => setIsRejectModalOpen(true)}
-                                                                    disabled={actionLoading}
-                                                                    className="flex-1 py-4 bg-red-500/10 hover:bg-red-500/20 border border-red-500/50 text-red-400 font-black uppercase tracking-widest transition-all cursor-target flex items-center justify-center gap-2 scifi-clip disabled:opacity-50"
-                                                                >
-                                                                    <XCircle className="w-4 h-4" /> Reject Artifact
-                                                                </button>
-                                                            </div>
+                                                            {!showEditContinue ? (
+                                                                <>
+                                                                    <div className="flex gap-3">
+                                                                        <button
+                                                                            onClick={handleApprove}
+                                                                            disabled={actionLoading}
+                                                                            className="flex-1 py-4 bg-emerald-500/10 hover:bg-emerald-500/25 border border-emerald-500/50 text-emerald-500 font-black uppercase tracking-widest transition-all cursor-target flex items-center justify-center gap-2 scifi-clip shadow-[0_0_20px_rgba(16,185,129,0.1)] disabled:opacity-50"
+                                                                        >
+                                                                            {actionLoading ? <RotateCw className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                                                                            Approve Artifact
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => setIsRejectModalOpen(true)}
+                                                                            disabled={actionLoading}
+                                                                            className="flex-1 py-4 bg-red-500/10 hover:bg-red-500/20 border border-red-500/50 text-red-400 font-black uppercase tracking-widest transition-all cursor-target flex items-center justify-center gap-2 scifi-clip disabled:opacity-50"
+                                                                        >
+                                                                            <XCircle className="w-4 h-4" /> Reject Artifact
+                                                                        </button>
+                                                                    </div>
+                                                                    <button
+                                                                        onClick={() => setShowEditContinue(true)}
+                                                                        disabled={actionLoading}
+                                                                        className="w-full py-3 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 font-black uppercase tracking-widest transition-all cursor-target flex items-center justify-center gap-2 scifi-clip"
+                                                                    >
+                                                                        <Edit2 className="w-4 h-4" />
+                                                                        Edit / Continue
+                                                                        {(job as any)?.continuation_count > 0 && (
+                                                                            <span className="ml-1 px-1.5 py-0.5 text-[9px] font-black bg-amber-500/20 border border-amber-500/30">
+                                                                                v{((job as any)?.continuation_count || 0) + 1}
+                                                                            </span>
+                                                                        )}
+                                                                    </button>
+                                                                </>
+                                                            ) : (
+                                                                <div className="space-y-3 animate-in slide-in-from-top-2 duration-200">
+                                                                    <label className="text-[10px] uppercase font-black tracking-widest text-amber-500 block">Continuation Instructions</label>
+                                                                    <textarea
+                                                                        value={editInstruction}
+                                                                        onChange={(e) => setEditInstruction(e.target.value)}
+                                                                        placeholder="Describe what to add, change, or extend..."
+                                                                        className="w-full bg-black/40 border border-amber-500/20 p-4 text-sm font-mono text-amber-400 focus:outline-none focus:border-amber-500/50 resize-none h-28"
+                                                                    />
+                                                                    <p className="text-[10px] text-slate-600 uppercase tracking-wider">
+                                                                        Preserves envelope, agent identities &amp; artifact lineage. Creates Version {((job as any)?.continuation_count || 0) + 1}.
+                                                                    </p>
+                                                                    <div className="flex gap-3">
+                                                                        <button
+                                                                            onClick={handleContinue}
+                                                                            disabled={actionLoading || !editInstruction.trim()}
+                                                                            className="flex-1 py-4 bg-amber-500 text-black font-black uppercase tracking-widest transition-all cursor-target flex items-center justify-center gap-2 scifi-clip disabled:opacity-50"
+                                                                        >
+                                                                            {actionLoading ? <RotateCw className="w-4 h-4 animate-spin" /> : <Edit2 className="w-4 h-4" />}
+                                                                            Confirm Continuation
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => { setShowEditContinue(false); setEditInstruction(""); }}
+                                                                            disabled={actionLoading}
+                                                                            className="flex-1 py-4 bg-slate-800 text-slate-400 font-black uppercase tracking-widest transition-all cursor-target scifi-clip"
+                                                                        >
+                                                                            Abort
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     )}
 
-                                                    {/* ── Decision confirmed ─────────────────────────────── */}
-                                                    {(job?.status?.toLowerCase() === 'approved' || job?.status?.toLowerCase() === 'rejected') && (
-                                                        <div className={cn(
-                                                            "p-4 border rounded-sm flex items-center gap-3",
-                                                            job?.status?.toLowerCase() === 'approved' ? "bg-emerald-500/5 border-emerald-500/30" : "bg-red-500/5 border-red-500/30"
-                                                        )}>
-                                                            {job?.status?.toLowerCase() === 'approved'
-                                                                ? <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-                                                                : <XCircle className="w-5 h-5 text-red-500 shrink-0" />}
-                                                            <div>
-                                                                <p className={cn("text-[10px] font-black uppercase tracking-widest", job?.status?.toLowerCase() === 'approved' ? "text-emerald-400" : "text-red-400")}>
-                                                                    Artifact {job?.status?.toLowerCase() === 'approved' ? 'Approved' : 'Rejected'}
-                                                                </p>
-                                                                {job?.failure_reason && <p className="text-xs text-slate-500 mt-1">{String(job.failure_reason)}</p>}
+                                                    {/* ── Decision confirmed + Edit/Continue ─────────────── */}
+                                                    {(job?.status?.toLowerCase() === 'approved' || job?.status?.toLowerCase() === 'rejected' || job?.status?.toLowerCase() === 'completed') && (
+                                                        <div className="space-y-3">
+                                                            <div className={cn(
+                                                                "p-4 border rounded-sm flex items-center gap-3",
+                                                                job?.status?.toLowerCase() === 'approved' || job?.status?.toLowerCase() === 'completed' ? "bg-emerald-500/5 border-emerald-500/30" : "bg-red-500/5 border-red-500/30"
+                                                            )}>
+                                                                {job?.status?.toLowerCase() !== 'rejected'
+                                                                    ? <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                                                                    : <XCircle className="w-5 h-5 text-red-500 shrink-0" />}
+                                                                <div>
+                                                                    <p className={cn("text-[10px] font-black uppercase tracking-widest", job?.status?.toLowerCase() !== 'rejected' ? "text-emerald-400" : "text-red-400")}>
+                                                                        Artifact {job?.status?.toLowerCase() === 'approved' ? 'Approved' : job?.status?.toLowerCase() === 'completed' ? 'Completed' : 'Rejected'}
+                                                                    </p>
+                                                                    {job?.failure_reason && <p className="text-xs text-slate-500 mt-1">{String(job.failure_reason)}</p>}
+                                                                </div>
                                                             </div>
+                                                            {/* Edit/Continue available on approved/completed */}
+                                                            {(job?.status?.toLowerCase() === 'approved' || job?.status?.toLowerCase() === 'completed') && (
+                                                                !showEditContinue ? (
+                                                                    <button
+                                                                        onClick={() => setShowEditContinue(true)}
+                                                                        disabled={actionLoading}
+                                                                        className="w-full py-3 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 font-black uppercase tracking-widest transition-all cursor-target flex items-center justify-center gap-2 scifi-clip shadow-[0_0_20px_rgba(245,158,11,0.05)]"
+                                                                    >
+                                                                        <Edit2 className="w-4 h-4" />
+                                                                        Edit / Continue
+                                                                        {(job as any)?.continuation_count > 0 && (
+                                                                            <span className="ml-1 px-1.5 py-0.5 text-[9px] font-black bg-amber-500/20 border border-amber-500/30">
+                                                                                v{((job as any)?.continuation_count || 0) + 1}
+                                                                            </span>
+                                                                        )}
+                                                                    </button>
+                                                                ) : (
+                                                                    <div className="space-y-3 animate-in slide-in-from-top-2 duration-200">
+                                                                        <label className="text-[10px] uppercase font-black tracking-widest text-amber-500 block">Continuation Instructions</label>
+                                                                        <textarea
+                                                                            value={editInstruction}
+                                                                            onChange={(e) => setEditInstruction(e.target.value)}
+                                                                            placeholder="Describe what to add, change, or extend..."
+                                                                            className="w-full bg-black/40 border border-amber-500/20 p-4 text-sm font-mono text-amber-400 focus:outline-none focus:border-amber-500/50 resize-none h-28"
+                                                                        />
+                                                                        <p className="text-[10px] text-slate-600 uppercase tracking-wider">
+                                                                            Preserves envelope, agent identities &amp; artifact lineage. Creates Version {((job as any)?.continuation_count || 0) + 1}.
+                                                                        </p>
+                                                                        <div className="flex gap-3">
+                                                                            <button
+                                                                                onClick={handleContinue}
+                                                                                disabled={actionLoading || !editInstruction.trim()}
+                                                                                className="flex-1 py-4 bg-amber-500 text-black font-black uppercase tracking-widest transition-all cursor-target flex items-center justify-center gap-2 scifi-clip disabled:opacity-50"
+                                                                            >
+                                                                                {actionLoading ? <RotateCw className="w-4 h-4 animate-spin" /> : <Edit2 className="w-4 h-4" />}
+                                                                                Confirm Continuation
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={() => { setShowEditContinue(false); setEditInstruction(""); }}
+                                                                                disabled={actionLoading}
+                                                                                className="flex-1 py-4 bg-slate-800 text-slate-400 font-black uppercase tracking-widest transition-all cursor-target scifi-clip"
+                                                                            >
+                                                                                Abort
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                )
+                                                            )}
                                                         </div>
                                                     )}
                                                 </div>
@@ -2095,6 +2381,54 @@ export default function JobDetailsPage() {
                                 )}
                             </div>
                         </HUDFrame>
+
+                        {/* Token Usage Summary — shown for multi-version jobs */}
+                        {((job as any)?.continuation_count || 0) > 0 && (() => {
+                            const totalVersions = ((job as any)?.continuation_count || 0) + 1;
+                            const totalTokens = Number(typeof job?.token_usage === 'object' ? job?.token_usage?.total_tokens ?? 0 : job?.token_usage ?? 0);
+                            const totalCost = Number((typeof job?.token_usage === 'object' ? job?.token_usage?.cost : null) ?? (job as any)?.cost ?? 0);
+                            const perVersionTokens = totalVersions > 0 ? Math.round(totalTokens / totalVersions) : 0;
+                            const perVersionCost = totalVersions > 0 ? totalCost / totalVersions : 0;
+
+                            return (
+                                <HUDFrame title="TOKEN USAGE">
+                                    <div className="p-4 space-y-2">
+                                        <p className="text-[9px] uppercase font-black tracking-[0.3em] text-slate-600 mb-3">Per-Cycle Estimate</p>
+                                        {Array.from({ length: totalVersions }, (_, i) => (
+                                            <div key={i} className="flex items-center justify-between">
+                                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                                    Version {i + 1}{i + 1 === totalVersions ? ' (live)' : ''}
+                                                </span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[10px] font-mono text-slate-400">
+                                                        {perVersionTokens.toLocaleString()}
+                                                    </span>
+                                                    {perVersionCost > 0 && (
+                                                        <span className="text-[10px] font-mono text-emerald-500/70">
+                                                            ${perVersionCost.toFixed(4)}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                        <div className="h-px bg-white/5 my-2" />
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[10px] font-black text-white uppercase tracking-wider">Overall</span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[10px] font-mono text-white font-bold">
+                                                    {totalTokens.toLocaleString()}
+                                                </span>
+                                                {totalCost > 0 && (
+                                                    <span className="text-[10px] font-mono text-emerald-400">
+                                                        ${totalCost.toFixed(4)}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </HUDFrame>
+                            );
+                        })()}
                     </div>
                 </div>
 
