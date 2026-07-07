@@ -55,7 +55,7 @@ export function useRuntimeStats(): {
     };
 
     fetchStats();
-    const interval = setInterval(fetchStats, 10000); // Stats update frequently, poll every 10s
+    const interval = setInterval(fetchStats, 60000); // Stats update, poll every 60s
 
     return () => {
       isMounted = false;

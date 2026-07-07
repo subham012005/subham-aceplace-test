@@ -59,7 +59,7 @@ export function useEnvelopes(userId: string | null): UseEnvelopesReturn {
     };
 
     fetchEnvelopes();
-    const interval = setInterval(fetchEnvelopes, 10000); // Poll every 10 seconds
+    const interval = setInterval(fetchEnvelopes, 30000); // Poll every 30 seconds
 
     return () => {
       isMounted = false;

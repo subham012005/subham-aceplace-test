@@ -451,7 +451,7 @@ export function useForkProtection(jobId: string | null) {
     return { events, latestEvent, loading, attemptsCount: events.length };
 }
 
-export function useJobTraces(jobId: string | null) {
+export function useJobTraces(jobId: string | null, isTerminal: boolean = false) {
     const [traces, setTraces] = useState<TraceEntry[]>([]);
     const [loading, setLoading] = useState(false);
 
@@ -475,18 +475,20 @@ export function useJobTraces(jobId: string | null) {
         };
 
         fetchData();
-        const interval = setInterval(fetchData, 5000);
+        if (isTerminal) return;
+
+        const interval = setInterval(fetchData, 15000); // Poll every 15s instead of 5s
 
         return () => {
             isMounted = false;
             clearInterval(interval);
         };
-    }, [jobId]);
+    }, [jobId, isTerminal]);
 
     return { traces, loading };
 }
 
-export function useJobArtifacts(jobId: string | null) {
+export function useJobArtifacts(jobId: string | null, isTerminal: boolean = false) {
     const [artifacts, setArtifacts] = useState<Artifact[]>([]);
     const [loading, setLoading] = useState(false);
 
@@ -510,13 +512,15 @@ export function useJobArtifacts(jobId: string | null) {
         };
 
         fetchData();
-        const interval = setInterval(fetchData, 10000);
+        if (isTerminal) return;
+
+        const interval = setInterval(fetchData, 30000); // Poll every 30s instead of 10s
 
         return () => {
             isMounted = false;
             clearInterval(interval);
         };
-    }, [jobId]);
+    }, [jobId, isTerminal]);
 
     return { artifacts, loading };
 }

@@ -182,11 +182,12 @@ export default function JobDetailsPage() {
     };
 
     const { job, loading: jobLoading, refresh: refreshJob, isStalled } = useJob(jobId, user?.uid);
-    const { traces, loading: tracesLoading } = useJobTraces(jobId);
-    const { artifacts, loading: artifactsLoading } = useJobArtifacts(jobId);
+    const isTerminal = ["completed", "failed", "approved", "rejected", "quarantined"].includes(job?.status || "");
+    const { traces, loading: tracesLoading } = useJobTraces(jobId, isTerminal);
+    const { artifacts, loading: artifactsLoading } = useJobArtifacts(jobId, isTerminal);
     // Resolve envelope_id from job — engine.ts writes envelope_id directly to job doc
     const envelopeId = (job as any)?.envelope_id || job?.execution_id || null;
-    const { envelope, steps, loading: envelopeLoading } = useEnvelope(envelopeId);
+    const { envelope, steps, loading: envelopeLoading } = useEnvelope(envelopeId, isTerminal);
     const { logs: agentLogs, loading: agentLogsLoading } = useAgentLogs(envelopeId);
     const { versions: artifactVersions } = useArtifactVersions(jobId);
 

@@ -57,7 +57,7 @@ export function useLeases(): UseLeaseReturn {
     };
 
     fetchLeases();
-    const interval = setInterval(fetchLeases, 8000); // Poll every 8 seconds
+    const interval = setInterval(fetchLeases, 30000); // Poll every 30 seconds
 
     return () => {
       isMounted = false;

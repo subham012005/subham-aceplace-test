@@ -20,6 +20,8 @@ export async function GET(req: Request) {
     const snap = await adminDb
       .collection(COLLECTIONS.EXECUTION_ENVELOPES)
       .where("user_id", "==", userId)
+      .orderBy("created_at", "desc")
+      .limit(100)
       .get();
 
     let active_leases = 0;

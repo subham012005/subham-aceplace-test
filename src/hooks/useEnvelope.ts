@@ -16,7 +16,7 @@ export interface UseEnvelopeReturn {
  * 
  * Subscribes to a single execution_envelopes document via the secure /api/runtime/envelope/[id] endpoint.
  */
-export function useEnvelope(envelopeId: string | null): UseEnvelopeReturn {
+export function useEnvelope(envelopeId: string | null, isTerminal: boolean = false): UseEnvelopeReturn {
   const [envelope, setEnvelope] = useState<ExecutionEnvelope | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,13 +51,15 @@ export function useEnvelope(envelopeId: string | null): UseEnvelopeReturn {
     };
 
     fetchEnvelope();
-    const interval = setInterval(fetchEnvelope, 5000); // Poll every 5 seconds for detail view
+    if (isTerminal) return;
+
+    const interval = setInterval(fetchEnvelope, 15000); // Poll every 15 seconds for detail view
 
     return () => {
       isMounted = false;
       clearInterval(interval);
     };
-  }, [envelopeId]);
+  }, [envelopeId, isTerminal]);
 
   // Deterministic sorting to enforce strict Phase 2 execution order in the UI
   const PIPELINE_ORDER = [

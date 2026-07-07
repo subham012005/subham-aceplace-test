@@ -58,6 +58,7 @@ export async function GET(req: Request) {
             "cron-cleanup",
             "",
             "LEASE_EXPIRED_FAILURE",
+            undefined,
             { reason: "Authority lease expired; stalled execution cleaned up." }
           );
           failedCount++;
@@ -101,7 +102,7 @@ export async function GET(req: Request) {
         await transition(envId, "failed", {
           reason: "NO_WORKER_AVAILABLE: No runtime worker claimed this job within the timeout window.",
         });
-        await addTrace(envId, "", "cron", "", "ORPHAN_QUEUE_FAILURE", {
+        await addTrace(envId, "", "cron", "", "ORPHAN_QUEUE_FAILURE", undefined, {
           reason: "No runtime-worker process is running to execute this job.",
           queued_at: qData.created_at,
         });

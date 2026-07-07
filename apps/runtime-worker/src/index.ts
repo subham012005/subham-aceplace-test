@@ -58,7 +58,7 @@ function startHealthCheckServer() {
 const WORKER_ID = `worker_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
 
 /** Slow fallback poll — only for stale-claim reclamation, NOT the primary trigger */
-const STALE_CLAIM_POLL_INTERVAL_MS = 30_000;  // 30 s  (was 1 000 ms = 30× cheaper)
+const STALE_CLAIM_POLL_INTERVAL_MS = 120_000;  // 120 s (2 minutes)
 /** Minimum pause between consecutive job executions */
 const MIN_INTER_JOB_DELAY_MS = 2_000;         // 2 s
 /** Exponential backoff starting delay on quota/error */
