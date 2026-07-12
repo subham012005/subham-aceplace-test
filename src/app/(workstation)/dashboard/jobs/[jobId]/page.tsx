@@ -118,26 +118,32 @@ const formatTime = (dateValue?: any) => {
     }).format(date) + "." + date.getMilliseconds().toString().padStart(3, '0');
 };
 
-const filterArtifactsByVersion = (artifactsList: Artifact[], targetVersionLabel: number): Artifact[] => {
-    const groups: Record<string, Artifact[]> = {};
-    for (const a of artifactsList) {
-        const type = a.artifact_type || 'unknown';
-        if (!groups[type]) groups[type] = [];
-        groups[type].push(a);
-    }
-    
-    for (const type in groups) {
-        groups[type].sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime());
-    }
-    
-    const filtered: Artifact[] = [];
-    for (const type in groups) {
-        const idx = targetVersionLabel - 1;
-        if (groups[type][idx]) {
-            filtered.push(groups[type][idx]);
+const getArtifactVersionLabel = (artifact: Artifact, stepsList: any[]): number => {
+    const step = stepsList.find(s => {
+        const outRef = s.output_ref;
+        if (typeof outRef === 'object' && outRef !== null) {
+            return outRef.artifact_id === artifact.artifact_id;
         }
+        return outRef === artifact.artifact_id;
+    });
+
+    if (step) {
+        const id: string = step.step_id || "";
+        const match = id.match(/_cont_(\d+)_/);
+        if (match) {
+            return parseInt(match[1], 10) + 1;
+        }
+        return 1;
     }
-    
+
+    return 1;
+};
+
+const filterArtifactsByVersion = (artifactsList: Artifact[], targetVersionLabel: number, stepsList: any[]): Artifact[] => {
+    const filtered = artifactsList.filter(a => {
+        const vLabel = getArtifactVersionLabel(a, stepsList);
+        return vLabel === targetVersionLabel;
+    });
     return filtered.sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime());
 };
 
@@ -198,15 +204,22 @@ export default function JobDetailsPage() {
     const totalVersions = ((job as any)?.continuation_count || 0) + 1;
     const activeVersionLabel = selectedVersion === 'live' ? totalVersions : selectedVersion;
     const getArtifactForVersion = (types: string[]) => {
-        const valid = [...artifacts]
-            .filter(a => types.includes(a.artifact_type || '') && a.artifact_content)
-            .sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime());
-        if (selectedVersion === 'live') {
-            return valid[valid.length - 1];
-        }
-        const idx = (selectedVersion as number) - 1;
-        return valid[idx] || valid[valid.length - 1];
+        const targetVersionLabel = selectedVersion === 'live' ? totalVersions : (selectedVersion as number);
+        const matching = artifacts.filter(a => {
+            if (!types.includes(a.artifact_type || '') || !a.artifact_content) return false;
+            return getArtifactVersionLabel(a, steps || []) === targetVersionLabel;
+        });
+        if (matching.length === 0) return undefined;
+        matching.sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime());
+        return matching[matching.length - 1];
     };
+
+    const showJobDetailsFallback = selectedVersion === 'live' && isTerminal;
+
+    const hasPlanForVersion = !!getArtifactForVersion(['coo_planning', 'planning', 'strategic_plan', 'plan', 'task_plan']) || (showJobDetailsFallback && (job?.runtime_context?.plan || (job as any)?.strategic_plan || (job as any)?.strategicPlan));
+    const hasResearchForVersion = !!getArtifactForVersion(['assignment', 'assign', 'research', 'intelligence', 'task_assign']) || (showJobDetailsFallback && (job?.runtime_context?.research_result || (job as any)?.research_intelligence));
+    const hasWorkerForVersion = !!getArtifactForVersion(['final_result', 'artifact_produce', 'report', 'final', 'worker_result', 'worker', 'deliverable']) || (showJobDetailsFallback && (job?.runtime_context?.worker_result || job?.runtime_context?.final_result || job?.artifact || extractOutputData(job)));
+    const hasGradingForVersion = !!getArtifactForVersion(['evaluation', 'grading', 'evaluate']) || (showJobDetailsFallback && (job?.runtime_context?.grading_result || (job as any)?.grade_status));
 
     // Unified Governance Logic — also check agent logs as fallback
     const graderLogSummary = agentLogs.find(l => l.agent_role === 'grader' && l.event === 'COMPLETE')?.output_summary || "";
@@ -234,17 +247,19 @@ export default function JobDetailsPage() {
         evaluationContent?.overall_score ??
         evaluationContent?.score ??
         evaluationContent?.compliance_score ??
-        job?.runtime_context?.grading_result?.compliance_score ??
-        job?.runtime_context?.grading_result?.score ??
-        job?.runtime_context?.grading_result?.overall_score ??
-        job?.grading_result?.compliance_score ??
-        job?.grading_result?.score ??
-        job?.grading_result?.overall_score ??
-        job?.compliance_score ??
-        job?.grade_score ??
-        (job as any)?.score ??
-        job?.grader_params?.score ??
-        graderScoreFromLog ?? 0;
+        (showJobDetailsFallback ? (
+            job?.runtime_context?.grading_result?.compliance_score ??
+            job?.runtime_context?.grading_result?.score ??
+            job?.runtime_context?.grading_result?.overall_score ??
+            (job as any)?.grading_result?.compliance_score ??
+            (job as any)?.grading_result?.score ??
+            (job as any)?.grading_result?.overall_score ??
+            (job as any)?.compliance_score ??
+            (job as any)?.grade_score ??
+            (job as any)?.score ??
+            (job as any)?.grader_params?.score
+        ) : null) ??
+        (showJobDetailsFallback ? graderScoreFromLog : null) ?? 0;
 
     let governanceScore = typeof govScoreRaw === 'object' ? ((govScoreRaw as any).value || 0) : Number(govScoreRaw);
     // Normalize score if it's on a 100-point scale
@@ -258,14 +273,16 @@ export default function JobDetailsPage() {
 
     const passFailRaw =
         evalPassFail ??
-        job?.runtime_context?.grading_result?.pass_fail ??
-        job?.grading_result?.pass_fail ??
-        evaluationContent?.pass_fail ??
-        evaluationContent?.status ??
-        job?.pass_fail ??
-        job?.grade_status ??
-        job?.grader_params?.pass_fail ??
-        graderRecommendationFromLog;
+        (showJobDetailsFallback ? (
+            job?.runtime_context?.grading_result?.pass_fail ??
+            (job as any)?.grading_result?.pass_fail ??
+            evaluationContent?.pass_fail ??
+            evaluationContent?.status ??
+            (job as any)?.pass_fail ??
+            (job as any)?.grade_status ??
+            (job as any)?.grader_params?.pass_fail
+        ) : null) ??
+        (showJobDetailsFallback ? graderRecommendationFromLog : null);
 
     const isActuallyPending = governanceScore === 0 && !passFailRaw;
     const isActuallyPass = String(passFailRaw).toLowerCase() === 'pass' || (governanceScore >= 7.5 && governanceScore > 0);
@@ -281,6 +298,7 @@ export default function JobDetailsPage() {
     const [editInstruction, setEditInstruction] = useState("");
     const [activeTab, setActiveTab] = useState<'plan' | 'research' | 'worker' | 'grader'>('plan');
     const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const topRef = useRef<HTMLDivElement>(null);
     const maxIndexRef = useRef<number>(0);
     const [staleSinceSeconds, setStaleSinceSeconds] = useState<number>(0);
 
@@ -508,6 +526,7 @@ export default function JobDetailsPage() {
             setShowEditContinue(false);
             setEditInstruction("");
             refreshJob();
+            topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
         } catch (error) {
             console.error("Continue failed:", error);
         } finally {
@@ -569,7 +588,7 @@ export default function JobDetailsPage() {
     };
 
     return (
-        <div className="w-full relative">
+        <div ref={topRef} className="w-full relative">
             {/* background decorations */}
             <div className="fixed top-0 right-0 w-1/3 h-1/3 bg-cyan-500/5 blur-[120px] pointer-events-none" />
             <div className="fixed bottom-0 left-0 w-1/4 h-1/4 bg-purple-500/5 blur-[100px] pointer-events-none" />
@@ -1152,67 +1171,7 @@ export default function JobDetailsPage() {
                         );
                     } else if (needsDecision) {
                         // ── CASE B: Decision required (Interactive) ───────────────
-                        return (
-                            <div className="relative overflow-hidden border border-orange-500/50 bg-orange-500/5 shadow-[0_0_40px_rgba(249,115,22,0.08)] mb-8">
-                                {/* ... existing buttons container ... */}
-                                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-orange-400/80 to-transparent" />
-                                <div className="p-5 sm:p-7 space-y-5">
-                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="relative w-10 h-10 shrink-0">
-                                                <div className="absolute inset-0 rounded-full bg-orange-500/10 border border-orange-500/40 flex items-center justify-center">
-                                                    <div className="absolute inset-0 rounded-full animate-ping opacity-20 bg-orange-400" />
-                                                    <AlertTriangle className="w-4 h-4 text-orange-400 relative z-10" />
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-orange-400/70">{actionLoading ? "Syncing..." : "Action Required"}</p>
-                                                <h2 className="text-xl font-black text-white italic tracking-tighter uppercase leading-tight">
-                                                    Mission Verification Console
-                                                </h2>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-3 shrink-0">
-                                            {evaluationContent?.grade && (
-                                                <div className="text-center">
-                                                    <p className="text-[10px] uppercase font-black text-slate-600 tracking-widest mb-0.5">Grade</p>
-                                                    <div className={cn(
-                                                        "w-12 h-12 flex items-center justify-center border-2 text-2xl font-black italic scifi-clip",
-                                                        isPass ? "border-emerald-500/60 text-emerald-400 bg-emerald-500/10" : "border-amber-500/60 text-amber-400 bg-amber-500/10"
-                                                    )}>
-                                                        {evaluationContent.grade}
-                                                    </div>
-                                                </div>
-                                            )}
-                                            <div className="text-right">
-                                                <p className="text-[10px] uppercase font-black text-slate-600 tracking-widest mb-0.5">AI Integrity Score</p>
-                                                <p className={cn("text-2xl font-black italic", isPass ? "text-emerald-400" : "text-amber-400")}>
-                                                    {governanceScore.toFixed(1)}<span className="text-sm text-slate-600">/10</span>
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-4">
-                                        <button
-                                            onClick={handleApprove}
-                                            disabled={actionLoading}
-                                            className="flex-1 py-4 bg-emerald-500/10 border border-emerald-500/40 text-emerald-400 font-black uppercase tracking-[0.2em] hover:bg-emerald-500/20 transition-all scifi-clip flex items-center justify-center gap-3 shadow-[0_0_30px_rgba(16,185,129,0.1)] group disabled:opacity-50"
-                                        >
-                                            <ShieldCheck className={cn("w-5 h-5 group-hover:scale-110 transition-transform", actionLoading && "animate-spin")} />
-                                            {actionLoading ? "Processing Approval..." : "Approve Artifact"}
-                                        </button>
-                                        <button
-                                            onClick={() => setIsRejectModalOpen(true)}
-                                            disabled={actionLoading}
-                                            className="flex-1 py-4 bg-red-500/5 border border-red-500/30 text-red-500/70 font-black uppercase tracking-[0.2em] hover:bg-red-500/10 hover:text-red-500 transition-all scifi-clip flex items-center justify-center gap-3 group disabled:opacity-50"
-                                        >
-                                            <XCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                                            Reject Release
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        );
+                        return null;
                     } else if (isLateStage) {
                         // ── CASE C: Processing or initializing (Wait state) ────────
                         return (
@@ -1376,7 +1335,7 @@ export default function JobDetailsPage() {
                                                 <div className="flex items-center gap-3">
                                                     <div className={cn(
                                                         "w-8 h-8 flex items-center justify-center border scifi-clip bg-blue-500/10",
-                                                        (job?.runtime_context?.plan || artifacts.some(a => a.artifact_type === 'plan')) ? "border-emerald-500 text-emerald-500" : "border-blue-500/40 text-blue-400"
+                                                        hasPlanForVersion ? "border-emerald-500 text-emerald-500" : "border-blue-500/40 text-blue-400"
                                                     )}>
                                                         <Activity className="w-4 h-4" />
                                                     </div>
@@ -1387,17 +1346,17 @@ export default function JobDetailsPage() {
                                                 </div>
                                                 <div className={cn(
                                                     "px-3 py-1 text-[10px] font-black uppercase tracking-widest scifi-clip-sm",
-                                                    (job?.runtime_context?.plan || artifacts.some(a => ['plan', 'task_plan'].includes(a.artifact_type || ''))) ? "bg-emerald-500/20 text-emerald-500 border border-emerald-500/50" : "bg-blue-500/10 text-blue-500 border border-blue-500/30"
+                                                    hasPlanForVersion ? "bg-emerald-500/20 text-emerald-500 border border-emerald-500/50" : "bg-blue-500/10 text-blue-500 border border-blue-500/30"
                                                 )}>
-                                                    {(job?.runtime_context?.plan || artifacts.some(a => ['plan', 'task_plan'].includes(a.artifact_type || ''))) ? "COMPLETE" : "OPERATING"}
+                                                    {hasPlanForVersion ? "COMPLETE" : "OPERATING"}
                                                 </div>
                                             </div>
                                         </AccordionTrigger>
                                         <AccordionContent className="pb-8 space-y-6">
                                             {(() => {
-                                                const artifact = getArtifactForVersion(['plan', 'task_plan']);
+                                                const artifact = getArtifactForVersion(['coo_planning', 'planning', 'strategic_plan', 'plan', 'task_plan']);
                                                 const plan = job?.runtime_context?.plan || (job as any)?.plan;
-                                                let rawContent = artifact?.artifact_content || plan;
+                                                let rawContent = artifact?.artifact_content || (showJobDetailsFallback ? plan : null);
                                                 if (!rawContent) return <div className="text-center py-8 opacity-20 italic text-[10px] uppercase tracking-widest border border-dashed border-white/5">Awaiting strategy formulation...</div>;
 
                                                 let planData: any = rawContent;
@@ -1530,7 +1489,7 @@ export default function JobDetailsPage() {
                                                 <div className="flex items-center gap-3">
                                                     <div className={cn(
                                                         "w-8 h-8 flex items-center justify-center border scifi-clip bg-emerald-500/10",
-                                                        (job?.runtime_context?.research_result || artifacts.some(a => ['research', 'intelligence'].includes(a.artifact_type || ''))) ? "border-emerald-500 text-emerald-500" : "border-emerald-500/40 text-emerald-400"
+                                                        hasResearchForVersion ? "border-emerald-500 text-emerald-500" : "border-emerald-500/40 text-emerald-400"
                                                     )}>
                                                         <Search className="w-4 h-4" />
                                                     </div>
@@ -1541,9 +1500,9 @@ export default function JobDetailsPage() {
                                                 </div>
                                                 <div className={cn(
                                                     "px-3 py-1 text-[10px] font-black uppercase tracking-widest scifi-clip-sm",
-                                                    (job?.runtime_context?.research_result || artifacts.some(a => ['research', 'intelligence'].includes(a.artifact_type || ''))) ? "bg-emerald-500/20 text-emerald-500 border border-emerald-500/50" : "bg-white/5 text-slate-600 border border-white/10"
+                                                    hasResearchForVersion ? "bg-emerald-500/20 text-emerald-500 border border-emerald-500/50" : "bg-white/5 text-slate-600 border border-white/10"
                                                 )}>
-                                                    {(job?.runtime_context?.research_result || artifacts.some(a => ['assignment', 'assign', 'research', 'intelligence', 'task_assign'].includes(a.artifact_type || ''))) ? "COMPLETE" : "IDLE"}
+                                                    {hasResearchForVersion ? "COMPLETE" : "IDLE"}
                                                 </div>
                                             </div>
                                         </AccordionTrigger>
@@ -1551,7 +1510,7 @@ export default function JobDetailsPage() {
                                             {(() => {
                                                 const artifact = getArtifactForVersion(['assignment', 'assign', 'research', 'intelligence', 'task_assign']);
                                                 const res = job?.runtime_context?.research_result || (job as any)?.research_intelligence;
-                                                const rawContent = artifact?.artifact_content || res;
+                                                const rawContent = artifact?.artifact_content || (showJobDetailsFallback ? res : null);
                                                 if (!rawContent) return <div className="text-center py-8 opacity-20 italic text-[10px] uppercase tracking-widest border border-dashed border-white/5">Awaiting research retrieval...</div>;
 
                                                 let resData: any = rawContent;
@@ -1663,7 +1622,7 @@ export default function JobDetailsPage() {
                                                 <div className="flex items-center gap-3">
                                                     <div className={cn(
                                                         "w-8 h-8 flex items-center justify-center border scifi-clip bg-orange-500/10",
-                                                        (job?.runtime_context?.final_result || artifacts.some(a => ['final', 'final_result', 'artifact_produce', 'worker_result', 'deliverable'].includes(a.artifact_type || ''))) ? "border-emerald-500 text-emerald-500" : "border-orange-500/40 text-orange-400"
+                                                        hasWorkerForVersion ? "border-emerald-500 text-emerald-500" : "border-orange-500/40 text-orange-400"
                                                     )}>
                                                         <FileText className="w-4 h-4" />
                                                     </div>
@@ -1674,9 +1633,9 @@ export default function JobDetailsPage() {
                                                 </div>
                                                 <div className={cn(
                                                     "px-3 py-1 text-[10px] font-black uppercase tracking-widest scifi-clip-sm",
-                                                    (job?.runtime_context?.final_result || artifacts.some(a => ['final', 'artifact_produce', 'worker_result', 'deliverable'].includes(a.artifact_type || ''))) ? "bg-emerald-500/20 text-emerald-500 border border-emerald-500/50" : "bg-white/5 text-slate-600 border border-white/10"
+                                                    hasWorkerForVersion ? "bg-emerald-500/20 text-emerald-500 border border-emerald-500/50" : "bg-white/5 text-slate-600 border border-white/10"
                                                 )}>
-                                                    {(job?.runtime_context?.final_result || artifacts.some(a => ['final', 'final_result', 'artifact_produce', 'worker_result', 'deliverable'].includes(a.artifact_type || ''))) ? "COMPLETE" : "IDLE"}
+                                                    {hasWorkerForVersion ? "COMPLETE" : "IDLE"}
                                                 </div>
                                             </div>
                                         </AccordionTrigger>
@@ -1684,10 +1643,10 @@ export default function JobDetailsPage() {
                                             {(() => {
                                                 const artifact = getArtifactForVersion(['final_result', 'artifact_produce', 'report', 'final', 'worker_result', 'worker', 'deliverable']);
                                                 const result = job?.runtime_context?.worker_result || job?.runtime_context?.final_result || job?.artifact || extractOutputData(job);
-                                                let rawContent = artifact?.artifact_content || result;
+                                                let rawContent = artifact?.artifact_content || (showJobDetailsFallback ? result : null);
                                                 if (!rawContent) return <div className="text-center py-8 opacity-20 italic text-[10px] uppercase tracking-widest border border-dashed border-white/5">Awaiting final execution...</div>;
 
-                                                let workerData: any = (typeof result === 'object' && result !== null && selectedVersion === 'live') ? result : rawContent;
+                                                let workerData: any = (typeof result === 'object' && result !== null && showJobDetailsFallback) ? result : rawContent;
                                                 if (typeof workerData === 'string') {
                                                     let clean = (workerData as string).replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/i, '').trim();
                                                     if (clean.includes('---')) {
@@ -2228,7 +2187,7 @@ export default function JobDetailsPage() {
                                                 <div className="flex items-center gap-3">
                                                     <div className={cn(
                                                         "w-8 h-8 flex items-center justify-center border scifi-clip bg-purple-500/10",
-                                                        (governanceScore > 0 || evaluationArtifact) ? "border-emerald-500 text-emerald-500" : "border-purple-500/40 text-purple-400"
+                                                        hasGradingForVersion ? "border-emerald-500 text-emerald-500" : "border-purple-500/40 text-purple-400"
                                                     )}>
                                                         <ShieldCheck className="w-4 h-4" />
                                                     </div>
@@ -2239,9 +2198,9 @@ export default function JobDetailsPage() {
                                                 </div>
                                                 <div className={cn(
                                                     "px-3 py-1 text-[10px] font-black uppercase tracking-widest scifi-clip-sm",
-                                                    (governanceScore > 0 || evaluationArtifact) ? "bg-emerald-500/20 text-emerald-500 border border-emerald-500/50" : "bg-white/5 text-slate-600 border border-white/10"
+                                                    hasGradingForVersion ? "bg-emerald-500/20 text-emerald-500 border border-emerald-500/50" : "bg-white/5 text-slate-600 border border-white/10"
                                                 )}>
-                                                    {(governanceScore > 0 || evaluationArtifact) ? "GRADED" : "IDLE"}
+                                                    {hasGradingForVersion ? "GRADED" : "IDLE"}
                                                 </div>
                                             </div>
                                         </AccordionTrigger>
@@ -2568,7 +2527,7 @@ export default function JobDetailsPage() {
                         <HUDFrame title="DATA ARTIFACTS">
                             <div className="p-4 space-y-3">
                                 {(() => {
-                                    const filteredArtifacts = filterArtifactsByVersion(artifacts, activeVersionLabel);
+                                    const filteredArtifacts = filterArtifactsByVersion(artifacts, activeVersionLabel, steps || []);
                                     return filteredArtifacts.length > 0 ? filteredArtifacts.map((artifact, i) => (
                                         <div
                                             key={artifact.id || i}

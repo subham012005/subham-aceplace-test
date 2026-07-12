@@ -88,7 +88,7 @@ function NavLink({
         isNeonGreen
           ? isActive
             ? "bg-[#39FF14]/10 text-[#39FF14]/85 border-[#39FF14]/30 shadow-[inset_0_0_20px_rgba(57,255,20,0.06)]"
-            : "text-[#39FF14]/25 border-transparent hover:bg-[#39FF14]/5"
+            : "text-[#39FF14]/65 border-[#39FF14]/10 hover:border-[#39FF14]/30 hover:bg-[#39FF14]/5 hover:text-[#39FF14]/90 shadow-[inset_0_0_10px_rgba(57,255,20,0.02)] hover:shadow-[inset_0_0_15px_rgba(57,255,20,0.05)]"
           : isActive
             ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/30 shadow-[inset_0_0_20px_rgba(6,182,212,0.05)]"
             : "text-slate-500 border-transparent hover:bg-white/5 hover:text-slate-200",
@@ -101,7 +101,7 @@ function NavLink({
             isNeonGreen
               ? isActive
                 ? "text-[#39FF14]/85 drop-shadow-[0_0_5px_rgba(57,255,20,0.35)]"
-                : "text-[#39FF14]/25 group-hover:text-[#39FF14]/70 group-hover:drop-shadow-[0_0_8px_rgba(57,255,20,0.45)]"
+                : "text-[#39FF14]/65 group-hover:text-[#39FF14]/90 group-hover:drop-shadow-[0_0_8px_rgba(57,255,20,0.45)]"
               : isActive
                 ? "text-cyan-400"
                 : "group-hover:text-cyan-400",
@@ -113,7 +113,7 @@ function NavLink({
             isNeonGreen &&
               (isActive
                 ? "text-[#39FF14]/85 drop-shadow-[0_0_4px_rgba(57,255,20,0.3)]"
-                : "text-[#39FF14]/25 group-hover:text-[#39FF14]/70 group-hover:drop-shadow-[0_0_6px_rgba(57,255,20,0.4)]"),
+                : "text-[#39FF14]/65 group-hover:text-[#39FF14]/90 group-hover:drop-shadow-[0_0_6px_rgba(57,255,20,0.4)]"),
           )}
         >
           {item.label}
