@@ -37,10 +37,9 @@ export default function ProductTour() {
                 }
             },
             onDestroyed: () => {
-                const currentIndex = driverObj.current?.getActiveIndex();
-                if (currentIndex !== undefined && currentIndex >= productTourSteps.length - 1) {
-                    markAsCompleted();
-                }
+                // Mark as completed no matter what — whether user finishes,
+                // skips, or closes the tour. This ensures it never shows again.
+                markAsCompleted();
             },
             nextBtnText: 'Next Phase →',
             prevBtnText: '← Back',

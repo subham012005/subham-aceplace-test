@@ -807,7 +807,7 @@ export default function DashboardPage() {
             </span>
           </div>
           <span className="hidden lg:block text-[11px] text-cyan-500/50 font-black tracking-[0.3em] uppercase border-l border-white/10 pl-6 border-cyan-500/20 whitespace-nowrap">
-            AgentSpace Control Panel
+            AgentSpace Runtime
           </span>
         </div>
         <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto">
